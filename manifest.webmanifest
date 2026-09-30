@@ -1,6 +1,6 @@
 {
   "name": "Control de compras y ventas",
-  "short_name": "Ventas",
+  "short_name": "Control Pekeron",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
