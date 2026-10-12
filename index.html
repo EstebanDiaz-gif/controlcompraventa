@@ -96,7 +96,7 @@ var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:pers
 var U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv'].forEach(stop)}
-function gate(g){['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
+function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 function fail(e){alert('No se pudo guardar'+(e&&e.code?' ('+e.code+')':'')+'. Si no tenés permiso, avisale a un administrador.')}
 
