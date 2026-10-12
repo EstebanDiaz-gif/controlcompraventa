@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8">
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control de compras y ventas</title>
 <link rel="manifest" href="./manifest.webmanifest">
@@ -45,182 +44,310 @@ td:first-child,th:first-child{text-align:left}
 #pr{display:none}
 @media print{body.printing main>*:not(#pr){display:none!important}body.printing{background:#fff}body.printing #pr{display:block;color:#000;background:#fff;font-size:13px}#pr h2{margin:0 0 4px}#pr td,#pr th{text-align:left;padding:6px 4px;border-top:1px solid #bbb;color:#000}#pr td.r,#pr th.r{text-align:right}}
 [hidden]{display:none!important}
+
+.tabs button{font-size:13px;padding:10px 2px}
+.go.alt{background:none;color:var(--ink);border:2px solid var(--line);margin-top:8px}
+.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut);margin-left:6px}
+.code{font-family:ui-monospace,monospace;font-size:15px;word-break:break-all}
 </style></head><body><main>
-<h1>Compras y ventas</h1>
-<section id="load" hidden><div class="empty">Cargando…</div></section>
+<div id="load" class="empty">Cargando…</div>
 <section id="auth" hidden><div class="card"><h1 style="margin-top:0">Entrá a tu cuenta</h1>
-<div class="k">Usá el mismo email y contraseña en todos tus celulares para ver los mismos datos.</div>
+<div class="k">Usá tu email y contraseña. Cada persona del negocio entra con su propia cuenta.</div>
 <label>Email</label><input id="aem" type="email" inputmode="email" autocomplete="username">
 <label>Contraseña</label><input id="apw" type="password" autocomplete="current-password">
 <button class="go" id="alogin">Entrar</button>
-<button class="go" id="areg" style="background:none;color:var(--ink);border:2px solid var(--line);margin-top:8px">Crear cuenta nueva</button>
+<button class="go alt" id="areg">Crear cuenta nueva</button>
 <div class="tot" id="amsg"></div>
 <button class="x" id="areset" style="font-size:14px;margin-top:8px;text-decoration:underline">Olvidé mi contraseña</button></div></section>
-<div id="appui">
-<div class="tabs" id="tabs">
-<button data-t="add" class="on">Cargar</button><button data-t="res">Resumen</button><button data-t="hist">Historial</button><button data-t="stk">Stock</button></div>
-<section id="add"></section><section id="res" hidden></section><section id="hist" hidden></section><section id="stk" hidden></section>
+<section id="nostore" hidden><div class="card"><h1 style="margin-top:0">Tu tienda</h1>
+<div class="k">Creá tu tienda, o unite a una con el código que te dio un administrador.</div>
+<button class="go" id="mk">Crear tienda nueva</button>
+<button class="go alt" id="jn">Unirme con un código</button>
+<button class="x" id="lo0" style="font-size:14px;margin-top:10px;text-decoration:underline">Cerrar sesión</button></div></section>
+<div id="appui" hidden>
+<div class="card" id="hdr"></div>
+<div class="tabs" id="tabs"></div>
+<section id="s-add" hidden></section><section id="s-sell" hidden></section><section id="s-res" hidden></section>
+<section id="s-hist" hidden></section><section id="s-stk" hidden></section><section id="s-team" hidden></section>
 <div id="acct" class="k" style="text-align:center;margin-top:8px"></div></div>
 <datalist id="prods"></datalist><div id="pr"></div>
 </main>
-<script>
-var KEY='cv_movs',M=[],backend=null;
-try{M=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){M=[]}
-function save(){if(backend)return;try{localStorage.setItem(KEY,JSON.stringify(M))}catch(e){}}
+<script>setTimeout(function(){var l=document.getElementById('load');if(l&&!l.hidden)l.innerHTML='No se pudo cargar. Abrí la app con internet y probá de nuevo.'},9000)</script>
+<script type="module">
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,writeBatch,increment} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {firebaseConfig} from './firebase-config.js';
+
 var $=function(i){return document.getElementById(i)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var money=function(n){return '$'+Math.round(n).toLocaleString('es-AR')};
-var key=function(s){return s.trim().toLowerCase()};
+var key=function(s){return String(s||'').trim().toLowerCase()};
+var skey=function(k){return k.replace(/\//g,'_')};
 var today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-var type='c',month=today().slice(0,7);
 var MN=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 function mlabel(m){var p=m.split('-');return MN[+p[1]-1]+' '+p[0]}
-function avg(p){var q=0,t=0;M.forEach(function(x){if(x.t=='c'&&key(x.p)==p){q+=x.q;t+=x.q*x.u}});return q?t/q:0}
-function stock(p){var s=0;M.forEach(function(x){if(key(x.p)==p)s+=x.t=='c'?x.q:-x.q});return s}
-function names(){var o={};M.forEach(function(x){o[key(x.p)]=x.p});return o}
+function rnd(n){var a='abcdefghjkmnpqrstuvwxyz23456789',s='',r=crypto.getRandomValues(new Uint8Array(n));for(var i=0;i<n;i++)s+=a[r[i]%a.length];return s}
 
-function fillList(){var dl='',n=names();for(var k in n)dl+='<option value="'+n[k].replace(/"/g,'&quot;')+'">';$('prods').innerHTML=dl}
+if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Falta configurar Firebase (archivo firebase-config.js).'}
+else{
+var app=initializeApp(firebaseConfig),auth=getAuth(app);
+var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+var U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+function stop(k){if(un[k]){un[k]();delete un[k]}}
+function stopStore(){['store','me','stock','movs','mem','inv'].forEach(stop)}
+function gate(g){['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
+function nm(){return U.displayName||(U.email||'').split('@')[0]}
+function fail(e){alert('No se pudo guardar'+(e&&e.code?' ('+e.code+')':'')+'. Si no tenés permiso, avisale a un administrador.')}
+
+/* ---------- ingreso ---------- */
+function say(t){$('amsg').textContent=t}
+function aerr(e){var c=(e&&e.code)||'';
+say(/invalid-credential|wrong-password|user-not-found/.test(c)?'Email o contraseña incorrectos.':
+/email-already/.test(c)?'Ese email ya tiene cuenta. Tocá Entrar.':
+/weak-password/.test(c)?'La contraseña tiene que tener al menos 6 caracteres.':
+/invalid-email|missing-email/.test(c)?'El email no es válido.':
+/network/.test(c)?'Sin conexión. Conectate a internet para entrar.':'No se pudo entrar. Probá de nuevo.')}
+$('alogin').onclick=function(){say('');signInWithEmailAndPassword(auth,$('aem').value.trim(),$('apw').value).catch(aerr)};
+$('areg').onclick=function(){say('');createUserWithEmailAndPassword(auth,$('aem').value.trim(),$('apw').value).catch(aerr)};
+$('areset').onclick=function(){var m=$('aem').value.trim();if(!m){say('Escribí tu email arriba y volvé a tocar.');return}
+sendPasswordResetEmail(auth,m).then(function(){say('Te mandamos un mail para cambiar la contraseña.')}).catch(aerr)};
+$('lo0').onclick=function(){signOut(auth)};
+$('mk').onclick=function(){newStore()};
+$('jn').onclick=function(){joinStore()};
+
+/* ---------- tiendas ---------- */
+function newStore(){
+var n=(prompt('Nombre de la tienda (por ejemplo: Pekeron):')||'').trim();if(!n)return;
+var sid=rnd(10),b=writeBatch(db);
+b.set(doc(db,'stores',sid),{name:n,owner:U.uid,created:Date.now()});
+b.set(doc(db,'stores',sid,'members',U.uid),{role:'admin',email:U.email,name:nm()});
+b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
+try{localStorage.setItem('cv_sid',sid)}catch(e){}
+b.commit().then(function(){importLegacy(sid)}).catch(fail)}
+function joinStore(){
+var c=(prompt('Pegá el código que te dieron:')||'').toLowerCase().replace(/\s/g,'');if(!c)return;
+if(c.length!=17||'ae'.indexOf(c[10])<0){alert('Ese código no es válido.');return}
+var sid=c.slice(0,10),iid=c.slice(10),role=iid[0]=='a'?'admin':'empleado';
+setDoc(doc(db,'stores',sid,'members',U.uid),{role:role,email:U.email,name:nm(),code:iid})
+.then(function(){return getDoc(doc(db,'stores',sid))})
+.then(function(s){return setDoc(doc(db,'users',U.uid,'stores',sid),{name:(s.data()||{}).name||'Tienda'})})
+.then(function(){try{localStorage.setItem('cv_sid',sid)}catch(e){}})
+.catch(function(){alert('No pude unirte. Revisá que el código esté bien y que siga activo, y que tengas internet.')})}
+function importLegacy(sid){
+if(localStorage.getItem('cv_leg_'+U.uid))return;
+return getDocs(collection(db,'users',U.uid,'movs')).then(function(sn){
+var a=[];sn.forEach(function(d){a.push(d.data())});
+try{localStorage.setItem('cv_leg_'+U.uid,'1')}catch(e){}
+if(!a.length||!confirm('Encontré '+a.length+' movimientos de la versión anterior. ¿Los paso a esta tienda?'))return;
+var st={},i,b;
+a.forEach(function(x){x.s=x.s||'';x.k=x.k||'';x.by=U.uid;x.bn=nm();var k=key(x.s||x.p),o=st[k]||(st[k]={n:x.p,s:x.s,q:0});o.q+=x.t=='c'?x.q:-x.q;o.n=x.p});
+for(i=0;i<a.length;i+=400){b=writeBatch(db);a.slice(i,i+400).forEach(function(x){b.set(doc(db,'stores',sid,'movs',String(x.id)),x)});b.commit().catch(fail)}
+b=writeBatch(db);Object.keys(st).forEach(function(k){b.set(doc(db,'stores',sid,'stock',skey(k)),st[k])});b.commit().catch(fail)
+}).catch(function(){})}
+
+onAuthStateChanged(auth,function(u){
+stopStore();stop('stores');U=u;STORES=[];SID=null;ROLE=null;
+if(!u){gate('auth');return}
+gate('load');
+un.stores=onSnapshot(collection(db,'users',u.uid,'stores'),function(sn){
+STORES=[];sn.forEach(function(d){STORES.push({id:d.id,name:d.data().name||'Tienda'})});
+var has=function(i){return STORES.some(function(s){return s.id==i})};
+var sv=null;try{sv=localStorage.getItem('cv_sid')}catch(e){}
+var pick=has(sv)?sv:(has(SID)?SID:(STORES[0]&&STORES[0].id));
+if(pick&&pick==SID){if(ROLE)drawHdr();return}
+if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;gate('nostore')}
+},function(){gate('nostore')})});
+
+function openStore(sid){
+stopStore();SID=sid;ROLE=null;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';
+try{localStorage.setItem('cv_sid',sid)}catch(e){}
+un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';if(ROLE)drawHdr()}},function(){});
+un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
+if(!s.exists()){if(!s.metadata.fromCache){deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}return}
+var r=s.data().role;if(r!=ROLE){ROLE=r;startData()}},function(){})}
+
+function startData(){
+['stock','movs','mem','inv'].forEach(stop);M=[];ST=[];MEM=[];INV=[];
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',q:x.q||0})});redrawData()},function(){});
+if(ROLE=='admin'){
+un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){});
+un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},function(){});
+un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
+gate('app');drawHdr();drawAcct();
+var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+t[1]+'</button>'}).join('');
+var ok=tabs.some(function(t){return t[0]==TAB});show(ok?TAB:tabs[0][0])}
+
+function tabsFor(){return ROLE=='admin'?[['add','Cargar'],['res','Resumen'],['hist','Historial'],['stk','Stock'],['team','Equipo']]:[['sell','Vender'],['stk','Stock']]}
+function show(t){TAB=t;Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.t==t)});
+['add','sell','res','hist','stk','team'].forEach(function(i){$('s-'+i).hidden=i!=t});
+if(t=='add')drawAdd();else if(t=='sell')drawSell();else redrawData()}
+function redrawData(){
+if(ROLE=='admin'){if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='add')fillList()}
+else{if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
+
+function drawHdr(){
+var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
+$('hdr').innerHTML='<div class="k">Tienda<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" style="margin-top:6px">'+o+'</select>';
+$('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
+function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
+a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
+$('out').onclick=function(){signOut(auth)}}
+window.addEventListener('online',drawAcct);window.addEventListener('offline',drawAcct);
+
+/* ---------- escritura (movimiento + contador de stock en un solo paso) ---------- */
+function mref(id){return doc(db,'stores',SID,'movs',String(id))}
+function sref(k){return doc(db,'stores',SID,'stock',skey(k))}
+function addMov(mv){var b=writeBatch(db);b.set(mref(mv.id),mv);
+b.set(sref(key(mv.s||mv.p)),{n:mv.p,s:mv.s||'',q:increment(mv.t=='c'?mv.q:-mv.q)},{merge:true});b.commit().catch(fail)}
+function delMov(mv){var b=writeBatch(db);b.delete(mref(mv.id));
+b.set(sref(key(mv.s||mv.p)),{q:increment(mv.t=='c'?-mv.q:mv.q)},{merge:true});b.commit().catch(fail)}
+function sellMov(mv,stockId){var b=writeBatch(db);b.set(mref(mv.id),mv);b.update(doc(db,'stores',SID,'stock',stockId),{q:increment(-mv.q)});b.commit().catch(fail)}
+
+/* ---------- cálculos (solo administradores) ---------- */
+function pk(x){return key(x.s||x.p)}
+function avg(p){var q=0,t=0;M.forEach(function(x){if(x.t=='c'&&pk(x)==p){q+=x.q;t+=x.q*x.u}});return q?t/q:0}
+function stock(p){var s=0;M.forEach(function(x){if(pk(x)==p)s+=x.t=='c'?x.q:-x.q});return s}
+function names(){var o={};M.forEach(function(x){o[pk(x)]=x.p});return o}
+function skuOf(k){var r='';M.forEach(function(x){if(pk(x)==k&&x.s)r=x.s});return r}
+function fillList(){var dl='',n=names();for(var k in n)dl+='<option value="'+esc(n[k])+'">';$('prods').innerHTML=dl}
+
+/* ---------- Cargar (administrador) ---------- */
 function drawAdd(){
-$('add').innerHTML='<div class="card"><div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>'+
-'<label>Producto</label><input id="p" list="prods" placeholder="Ej: zapatilla Nike Air" autocomplete="off">'+
+$('s-add').innerHTML='<div class="card"><div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>'+
+'<label>Producto</label><input id="p" list="prods" placeholder="Ej: zapatilla Nike Air 42" autocomplete="off">'+
+'<label>Código (SKU) · el mismo que en tu tienda</label><input id="s" placeholder="Ej: AIR-42" autocomplete="off">'+
 '<div class="row"><div><label>Cantidad</label><input id="q" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="u" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 (type=='v'?'<label>Tipo de venta</label><select id="k"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>':'')+
 '<label>Fecha</label><input id="d" type="date" value="'+today()+'">'+
 '<div class="tot" id="tot"></div><button class="go" id="ok">Guardar '+(type=='c'?'compra':'venta')+'</button></div>';
 fillList();
-function upd(){var q=+$('q').value,u=+$('u').value,p=key($('p').value),t='';
+function ck(){return key($('s').value.trim()||$('p').value.trim())}
+function upd(){var q=+$('q').value,u=+$('u').value,p=ck(),t='';
 if(q&&u)t='Total: '+money(q*u);
-if(type=='v'&&p&&stock(p)!==0||type=='v'&&p&&M.some(function(x){return key(x.p)==p}))t+=(t?' · ':'')+'En stock: '+stock(p);
+if(type=='v'&&p&&M.some(function(x){return pk(x)==p}))t+=(t?' · ':'')+'En stock: '+stock(p);
 $('tot').textContent=t}
-['p','q','u'].forEach(function(i){$(i).oninput=upd});
+['p','s','q','u'].forEach(function(i){$(i).oninput=upd});
+$('p').addEventListener('input',function(){if($('s').value)return;var f=M.filter(function(x){return key(x.p)==key($('p').value)&&x.s}).pop();if(f){$('s').value=f.s;upd()}});
 $('ok').onclick=function(){
 var p=$('p').value.trim(),q=+$('q').value,u=+$('u').value;
 if(!p||!q||q<=0||isNaN(u)||$('u').value===''){alert('Completá producto, cantidad y precio.');return}
-if(type=='v'&&q>stock(key(p))&&!confirm('Tenés '+stock(key(p))+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
-var mv={id:Date.now(),t:type,d:$('d').value||today(),p:p,q:q,u:u,k:type=='v'?$('k').value:''};M.push(mv);if(backend)backend.add(mv);
-save();month=($('d').value||today()).slice(0,7);drawAdd();drawAll();
-$('tot').textContent='Guardado ✓'};
-}
-document.addEventListener('click',function(e){var y=e.target.dataset&&e.target.dataset.y;if(y){type=y;drawAdd()}});
+if(type=='v'&&q>stock(ck())&&!confirm('Tenés '+stock(ck())+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
+var d=$('d').value||today();
+addMov({id:Date.now(),t:type,d:d,p:p,s:$('s').value.trim(),q:q,u:u,k:type=='v'?$('k').value:'',by:U.uid,bn:nm()});
+month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
 
+/* ---------- Vender (empleado) ---------- */
+function sellOpts(){return ST.slice().sort(function(a,b){return a.n.localeCompare(b.n)}).map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.n)+(d.s?' · '+esc(d.s):'')+' (stock '+d.q+')</option>'}).join('')}
+function refreshSell(){var s=$('es');if(!s)return;var v=s.value;s.innerHTML=sellOpts();if(v)s.value=v}
+function drawSell(){
+if(!ST.length){$('s-sell').innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
+$('s-sell').innerHTML='<div class="card"><label>Producto</label><select id="es">'+sellOpts()+'</select>'+
+'<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
+'<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
+'<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button></div>';
+function upd(){var q=+$('eq').value,u=+$('eu').value;$('etot').textContent=q&&u?'Total: '+money(q*u):''}
+$('eq').oninput=upd;$('eu').oninput=upd;
+$('eok').onclick=function(){var d=null,id=$('es').value;ST.forEach(function(x){if(x.id==id)d=x});
+var q=+$('eq').value,u=$('eu').value;
+if(!d||!q||q<=0||u===''||isNaN(+u)){alert('Completá cantidad y precio.');return}
+if(q>d.q&&!confirm('Hay '+d.q+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
+sellMov({id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,q:q,u:+u,k:$('ek').value,by:U.uid,bn:nm()},d.id);
+drawSell();$('etot').textContent='Venta guardada ✓'}}
+
+/* ---------- Resumen / Historial / Stock ---------- */
 function months(){var o={};o[today().slice(0,7)]=1;M.forEach(function(x){o[x.d.slice(0,7)]=1});return Object.keys(o).sort().reverse()}
+function mselect(){return '<select data-ms="1">'+months().map(function(m){return '<option value="'+m+'"'+(m==month?' selected':'')+'>'+mlabel(m)+'</option>'}).join('')+'</select>'}
 function drawRes(){
-var buy=0,sell=0,cost=0,my=0,mm=0,units=0,ub=0;
+var buy=0,sell=0,cost=0,my=0,mm=0,on=0,units=0,ub=0;
 M.forEach(function(x){if(x.d.slice(0,7)!=month)return;var t=x.q*x.u;
-if(x.t=='c'){buy+=t;ub+=x.q}else{sell+=t;units+=x.q;cost+=x.q*avg(key(x.p));if(x.k=='mayor')my+=t;else mm+=t}});
+if(x.t=='c'){buy+=t;ub+=x.q}else{sell+=t;units+=x.q;cost+=x.q*avg(pk(x));if(x.k=='mayor')my+=t;else if(x.k=='online')on+=t;else mm+=t}});
 var gain=sell-cost;
-var opts=months().map(function(m){return '<option value="'+m+'"'+(m==month?' selected':'')+'>'+mlabel(m)+'</option>'}).join('');
-$('res').innerHTML='<div class="card"><select id="ms">'+opts+'</select>'+
+$('s-res').innerHTML='<div class="card">'+mselect()+
 '<div style="margin-top:14px" class="k">Ganancia del mes</div><div class="big '+(gain>=0?'pos':'neg')+'">'+money(gain)+'</div>'+
 '<div class="k" style="margin-top:4px">Vendido menos el costo de lo que vendiste</div></div>'+
 '<div class="card"><div class="g"><div><div class="k">Gasté en compras</div><div class="v neg">'+money(buy)+'</div><div class="k">'+ub+' unidades</div></div>'+
 '<div><div class="k">Vendí</div><div class="v pos">'+money(sell)+'</div><div class="k">'+units+' unidades</div></div>'+
 '<div><div class="k">Por mayor</div><div class="v">'+money(my)+'</div></div>'+
-'<div><div class="k">Por menor</div><div class="v">'+money(mm)+'</div></div></div></div>'+
+'<div><div class="k">Por menor</div><div class="v">'+money(mm)+'</div></div>'+
+'<div><div class="k">Online (tienda)</div><div class="v">'+money(on)+'</div></div></div></div>'+
 '<button class="go" id="pdfb" style="margin-top:0;margin-bottom:12px">Descargar resumen en PDF</button>'+
 '<div class="card"><div class="k">El costo se calcula con el precio promedio al que compraste cada producto.</div></div>';
-$('ms').onchange=function(){month=this.value;drawRes()};
-$('pdfb').onclick=function(){pdf({buy:buy,sell:sell,gain:gain,my:my,mm:mm,units:units,ub:ub})}}
+$('pdfb').onclick=function(){pdf({buy:buy,sell:sell,gain:gain,my:my,mm:mm,on:on,units:units,ub:ub})}}
+function drawHist(){
+var l=M.filter(function(x){return x.d.slice(0,7)==month}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
+var h='<div class="card">'+mselect();
+if(!l.length)h+='<div class="empty">Todavía no cargaste nada este mes.</div>';
+l.forEach(function(x){h+='<div class="it"><div><b>'+esc(x.p)+'</b><small>'+x.d.split('-').reverse().join('/')+' · '+x.q+' × '+money(x.u)+(x.s?' · '+esc(x.s):'')+(x.k=='online'?' · online':x.k?' · por '+x.k:'')+(x.bn?' · '+esc(x.bn):'')+'</small></div><div style="text-align:right"><b class="'+(x.t=='c'?'neg':'pos')+'">'+(x.t=='c'?'−':'+')+money(x.q*x.u)+'</b><small>'+(x.t=='c'?'compra':'venta')+'</small></div><button class="x" data-del="'+esc(x.id)+'" aria-label="Borrar">×</button></div>'});
+$('s-hist').innerHTML=h+'</div>'}
+function drawStk(){
+var h;
+if(ROLE=='admin'){var n=names(),c=0;
+h='<div class="card tbl"><table><tr><th>Producto</th><th>Stock</th><th>Costo prom.</th><th>Valor</th></tr>';
+Object.keys(n).sort().forEach(function(k){c++;var s=stock(k),a=avg(k),sk=skuOf(k);h+='<tr><td>'+esc(n[k])+(sk?'<br><small style="color:var(--mut)">'+esc(sk)+'</small>':'')+'</td><td class="'+(s<0?'neg':'')+'">'+s+'</td><td>'+money(a)+'</td><td>'+money(Math.max(s,0)*a)+'</td></tr>'});
+if(!c)h+='<tr><td colspan="4" class="empty">Cargá tu primera compra para ver el stock.</td></tr>';
+h+='</table></div>'}
+else{h='<div class="card tbl"><table><tr><th>Producto</th><th>Stock</th></tr>';
+ST.slice().sort(function(a,b){return a.n.localeCompare(b.n)}).forEach(function(d){h+='<tr><td>'+esc(d.n)+(d.s?'<br><small style="color:var(--mut)">'+esc(d.s)+'</small>':'')+'</td><td class="'+(d.q<0?'neg':'')+'">'+d.q+'</td></tr>'});
+if(!ST.length)h+='<tr><td colspan="2" class="empty">Todavía no hay productos cargados.</td></tr>';
+h+='</table></div>'}
+$('s-stk').innerHTML=h}
 
+/* ---------- Equipo (administrador) ---------- */
+function drawTeam(){
+var h='<div class="card"><b>Personas de '+esc(SNAME)+'</b>';
+MEM.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'')}).forEach(function(m){
+h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+esc(m.email)+' · '+(m.role=='admin'?'administrador':'empleado')+(m.id==U.uid?' · vos':'')+'</small></div>'+(m.id!=U.uid&&m.id!=OWNER?'<button class="x" data-rm="'+esc(m.id)+'" aria-label="Quitar">×</button>':'')+'</div>'});
+h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin:4px 0 0">Se genera un código. La persona crea su cuenta, toca el selector de tienda y elige "Unirme con un código".</div>'+
+'<button class="go" data-inv="empleado">Invitar empleado</button><button class="go alt" data-inv="admin">Invitar administrador</button></div>';
+if(INV.length){h+='<div class="card"><b>Códigos activos</b>';
+INV.forEach(function(v){var c=SID+v.id;h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
+h+='<div class="k" style="margin-top:6px">Anulá el código cuando la persona ya haya entrado.</div></div>'}
+h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
+$('s-team').innerHTML=h}
+function shareCode(c){var t='Código para unirte a '+SNAME+' en la app: '+c+'\nAbrí la app, tocá el selector de tienda y elegí "Unirme con un código".';
+if(navigator.share)navigator.share({text:t}).catch(function(){});
+else if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){alert('Copiado. Pegalo en un mensaje.')},function(){prompt('Copiá este texto:',t)});
+else prompt('Copiá este texto:',t)}
+function fixStock(){
+if(!confirm('¿Recalcular el stock de empleados con todo el historial?'))return;
+var st={};M.forEach(function(x){var k=pk(x),o=st[k]||(st[k]={n:x.p,s:x.s||'',q:0});o.q+=x.t=='c'?x.q:-x.q;o.n=x.p});
+var ks=Object.keys(st),i,b;
+for(i=0;i<ks.length;i+=400){b=writeBatch(db);ks.slice(i,i+400).forEach(function(k){b.set(sref(k),st[k])});b.commit().catch(fail)}
+alert('Listo, stock recalculado.')}
+
+/* ---------- PDF (administrador) ---------- */
 function pdf(s){
 var l=M.filter(function(x){return x.d.slice(0,7)==month}).sort(function(a,b){return a.d.localeCompare(b.d)||a.id-b.id});
-var h='<h2>Resumen de '+mlabel(month)+'</h2><p>Ganancia del mes: <b>'+money(s.gain)+'</b></p>'+
+var h='<h2>'+esc(SNAME)+' · resumen de '+mlabel(month)+'</h2><p>Ganancia del mes: <b>'+money(s.gain)+'</b></p>'+
 '<table><tr><td>Compras ('+s.ub+' unidades)</td><td class="r">'+money(s.buy)+'</td></tr>'+
 '<tr><td>Ventas ('+s.units+' unidades)</td><td class="r">'+money(s.sell)+'</td></tr>'+
 '<tr><td>Ventas por mayor</td><td class="r">'+money(s.my)+'</td></tr>'+
-'<tr><td>Ventas por menor</td><td class="r">'+money(s.mm)+'</td></tr></table>'+
+'<tr><td>Ventas por menor</td><td class="r">'+money(s.mm)+'</td></tr>'+
+'<tr><td>Ventas online (tienda)</td><td class="r">'+money(s.on)+'</td></tr></table>'+
 '<h3>Movimientos</h3><table><tr><th>Fecha</th><th>Tipo</th><th>Producto</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Total</th></tr>';
-l.forEach(function(x){h+='<tr><td>'+x.d.split('-').reverse().join('/')+'</td><td>'+(x.t=='c'?'Compra':'Venta'+(x.k?' ('+x.k+')':''))+'</td><td>'+x.p.replace(/</g,'&lt;')+'</td><td class="r">'+x.q+'</td><td class="r">'+money(x.u)+'</td><td class="r">'+money(x.q*x.u)+'</td></tr>'});
+l.forEach(function(x){h+='<tr><td>'+x.d.split('-').reverse().join('/')+'</td><td>'+(x.t=='c'?'Compra':'Venta'+(x.k?' ('+x.k+')':''))+'</td><td>'+esc(x.p)+'</td><td class="r">'+x.q+'</td><td class="r">'+money(x.u)+'</td><td class="r">'+money(x.q*x.u)+'</td></tr>'});
 $('pr').innerHTML=h+'</table>';
-var doc='<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Resumen '+mlabel(month)+'</title><style>body{font-family:sans-serif;padding:16px;color:#000}table{width:100%;border-collapse:collapse}td,th{padding:6px 4px;border-top:1px solid #bbb;text-align:left}.r{text-align:right}</style></head><body>'+h+'</table></body></html>';
-function fallback(){document.title='Resumen '+mlabel(month);document.body.classList.add('printing');window.onafterprint=function(){document.body.classList.remove('printing')};window.print()}
-try{
-if(window.claude&&window.claude.use){window.claude.use('downloads').then(function(d){if(!d){fallback();return}d.save({filename:'resumen-'+month+'.html',data:doc}).catch(function(){})}).catch(fallback)}
-else fallback()
-}catch(e){fallback()}}
+document.title='Resumen '+mlabel(month);
+document.body.classList.add('printing');
+window.onafterprint=function(){document.body.classList.remove('printing')};
+window.print()}
 
-function drawHist(){
-var l=M.filter(function(x){return x.d.slice(0,7)==month}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
-var h='<div class="card"><select id="mh">'+months().map(function(m){return '<option value="'+m+'"'+(m==month?' selected':'')+'>'+mlabel(m)+'</option>'}).join('')+'</select>';
-if(!l.length)h+='<div class="empty">Todavía no cargaste nada este mes.</div>';
-l.forEach(function(x){h+='<div class="it"><div><b>'+x.p.replace(/</g,'&lt;')+'</b><small>'+x.d.split('-').reverse().join('/')+' · '+x.q+' × '+money(x.u)+(x.k?' · por '+x.k:'')+'</small></div><div style="text-align:right"><b class="'+(x.t=='c'?'neg':'pos')+'">'+(x.t=='c'?'−':'+')+money(x.q*x.u)+'</b><small>'+(x.t=='c'?'compra':'venta')+'</small></div><button class="x" data-del="'+x.id+'" aria-label="Borrar">×</button></div>'});
-$('hist').innerHTML=h+'</div>';
-$('mh').onchange=function(){month=this.value;drawAll()};
-Array.prototype.forEach.call(document.querySelectorAll('[data-del]'),function(b){b.onclick=function(){if(confirm('¿Borrar este movimiento?')){M=M.filter(function(x){return x.id!=b.dataset.del});if(backend)backend.del(b.dataset.del);save();drawAll()}}})}
+/* ---------- clics ---------- */
+document.addEventListener('click',function(e){
+var d=e.target.dataset||{};
+if(d.t){show(d.t);return}
+if(d.y){type=d.y;drawAdd();return}
+if(d.inv){var role=d.inv,id=(role=='admin'?'a':'e')+rnd(6);
+setDoc(doc(db,'stores',SID,'invites',id),{role:role,created:Date.now()}).then(function(){shareCode(SID+id)}).catch(fail);return}
+if(d.cp){shareCode(d.cp);return}
+if(d.an){if(confirm('¿Anular este código?'))deleteDoc(doc(db,'stores',SID,'invites',d.an)).catch(fail);return}
+if(d.rm){if(confirm('¿Quitar a esta persona de la tienda?'))deleteDoc(doc(db,'stores',SID,'members',d.rm)).catch(fail);return}
+if(d.del){var mv=null;M.forEach(function(x){if(String(x.id)==d.del)mv=x});if(mv&&confirm('¿Borrar este movimiento?'))delMov(mv);return}
+if(e.target.id=='fix')fixStock()});
+document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}});
 
-function drawStk(){
-var n=names(),h='<div class="card tbl"><table><tr><th>Producto</th><th>Stock</th><th>Costo prom.</th><th>Valor</th></tr>',c=0;
-Object.keys(n).sort().forEach(function(k){c++;var s=stock(k),a=avg(k);h+='<tr><td>'+n[k].replace(/</g,'&lt;')+'</td><td class="'+(s<0?'neg':'')+'">'+s+'</td><td>'+money(a)+'</td><td>'+money(Math.max(s,0)*a)+'</td></tr>'});
-if(!c)h+='<tr><td colspan="4" class="empty">Cargá tu primera compra para ver el stock.</td></tr>';
-$('stk').innerHTML=h+'</table></div>'}
-
-function drawAll(){drawRes();drawHist();drawStk()}
-$('tabs').onclick=function(e){var t=e.target.dataset.t;if(!t)return;
-Array.prototype.forEach.call(this.children,function(b){b.classList.toggle('on',b.dataset.t==t)});
-['add','res','hist','stk'].forEach(function(s){$(s).hidden=s!=t});
-if(t=='add')drawAdd();else drawAll()};
-var acctInfo=null;
-function drawAcct(){var a=$('acct');if(!acctInfo){a.innerHTML='';return}
-a.innerHTML=acctInfo.email.replace(/</g,'&lt;')+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
-$('out').onclick=acctInfo.out}
-window.addEventListener('online',drawAcct);window.addEventListener('offline',drawAcct);
-window.App={
-gate:function(g){$('appui').hidden=g!='app';$('auth').hidden=g!='login';$('load').hidden=g!='loading'},
-setBackend:function(b){backend=b},
-setData:function(a){M=a;fillList();drawAll()},
-setUser:function(email,out){acctInfo=email?{email:email,out:out}:null;drawAcct()}
-};
-drawAdd();drawAll();
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
-</script>
-<script type="module">
-import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,deleteDoc,onSnapshot} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import {firebaseConfig} from './firebase-config.js';
-
-if(String(firebaseConfig.apiKey).indexOf('PEGAR')!==0){
-var G=function(i){return document.getElementById(i)};
-window.App.gate('loading');
-var app=initializeApp(firebaseConfig);
-var auth=getAuth(app);
-var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var uid=null,unsub=null,checked=false;
-var ref=function(id){return doc(db,'users',uid,'movs',String(id))};
-
-function say(t){G('amsg').textContent=t}
-function fail(e){var c=(e&&e.code)||'';
-say(/invalid-credential|wrong-password|user-not-found/.test(c)?'Email o contraseña incorrectos.':
-/email-already/.test(c)?'Ese email ya tiene cuenta. Tocá Entrar.':
-/weak-password/.test(c)?'La contraseña tiene que tener al menos 6 caracteres.':
-/invalid-email|missing-email/.test(c)?'El email no es válido.':
-/network/.test(c)?'Sin conexión. Conectate a internet para entrar.':
-'No se pudo entrar. Probá de nuevo.')}
-G('alogin').onclick=function(){say('');signInWithEmailAndPassword(auth,G('aem').value.trim(),G('apw').value).catch(fail)};
-G('areg').onclick=function(){say('');createUserWithEmailAndPassword(auth,G('aem').value.trim(),G('apw').value).catch(fail)};
-G('areset').onclick=function(){var m=G('aem').value.trim();if(!m){say('Escribí tu email arriba y volvé a tocar.');return}
-sendPasswordResetEmail(auth,m).then(function(){say('Te mandamos un mail para cambiar la contraseña.')}).catch(fail)};
-
-function migrate(){
-if(checked)return;checked=true;
-var loc=[];try{loc=JSON.parse(localStorage.getItem('cv_movs')||'[]')}catch(e){}
-if(!loc.length||localStorage.getItem('cv_migrado'))return;
-try{localStorage.setItem('cv_migrado','1')}catch(e){}
-if(confirm('Encontré '+loc.length+' movimientos guardados solo en este celu. ¿Los subo a tu cuenta?'))
-loc.forEach(function(x){setDoc(ref(x.id),x).catch(function(){})})}
-
-onAuthStateChanged(auth,function(u){
-if(unsub){unsub();unsub=null}
-checked=false;
-if(!u){uid=null;window.App.setBackend(null);window.App.setUser(null);window.App.setData([]);window.App.gate('login');return}
-uid=u.uid;
-window.App.setBackend({
-add:function(x){setDoc(ref(x.id),x).catch(function(){})},
-del:function(id){deleteDoc(ref(id)).catch(function(){})}});
-window.App.setUser(u.email,function(){signOut(auth)});
-unsub=onSnapshot(collection(db,'users',uid,'movs'),function(snap){
-var a=[];snap.forEach(function(d){a.push(d.data())});
-window.App.setData(a);window.App.gate('app');migrate()},
-function(){window.App.gate('app')})});
 }
 </script>
 </body></html>
