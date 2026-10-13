@@ -4,54 +4,94 @@
 <link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#0f7a55">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#eef2ef;--card:#fff;--ink:#14231d;--mut:#5d6f66;--line:#d5ded9;--buy:#b4541c;--sell:#0f7a55;--acc:#0f7a55;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1714;--card:#18231e;--ink:#e8f0ec;--mut:#95a89f;--line:#2b3b34;--buy:#f0955a;--sell:#4fd1a0;--acc:#4fd1a0}}
-:root[data-theme="dark"]{--bg:#0f1714;--card:#18231e;--ink:#e8f0ec;--mut:#95a89f;--line:#2b3b34;--buy:#f0955a;--sell:#4fd1a0;--acc:#4fd1a0}
+:root{--bg:#e9e8e4;--card:#f4f3f0;--ink:#000;--mut:#63645e;--line:rgba(0,0,0,.1);--buy:#c8461b;--sell:#0a7d4f;--onc:#fff;--hero:#bdbdb8;--nav:#bdbdb8;--btn:#000;--btnink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#ff8a5c;--sell:#5fe0a6;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#efefea;--btnink:#0a0a0a}}
+:root[data-theme="dark"]{--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#ff8a5c;--sell:#5fe0a6;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#efefea;--btnink:#0a0a0a}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',system-ui,sans-serif;font-size:16px}
-main{max-width:560px;margin:0 auto;padding:14px}
-h1{font-size:20px;font-weight:800;margin:4px 0 12px}
-.tabs{display:flex;gap:6px;margin-bottom:12px}
-.tabs button{flex:1;padding:10px 4px;border:1px solid var(--line);background:var(--card);color:var(--mut);border-radius:10px;font:600 14px inherit;font-family:inherit}
-.tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
-label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
-input,select{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
-.row{display:flex;gap:10px}.row>div{flex:1}
-.seg{display:flex;gap:6px}
-.seg button{flex:1;padding:12px;border-radius:10px;border:2px solid var(--line);background:none;color:var(--ink);font:800 15px inherit;font-family:inherit}
-.seg .c.on{border-color:var(--buy);background:var(--buy);color:#fff}
-.seg .v.on{border-color:var(--sell);background:var(--sell);color:#fff}
-.go{width:100%;margin-top:14px;padding:14px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:800 16px inherit;font-family:inherit}
-.tot{margin-top:10px;font-weight:600;color:var(--mut);font-size:14px}
-.big{font-size:32px;font-weight:800;line-height:1.1}
-.g{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.k{font-size:13px;color:var(--mut)}.v{font-size:19px;font-weight:800}
-.pos{color:var(--sell)}.neg{color:var(--buy)}
-.it{display:flex;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--line);font-size:14px}
-.it:first-child{border-top:0}
-.it small{color:var(--mut);display:block}
-.x{background:none;border:0;color:var(--mut);font-size:20px;padding:0 4px}
-.empty{color:var(--mut);text-align:center;padding:18px 0;font-size:14px}
-.tbl{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:14px}
-td,th{padding:8px 4px;text-align:right;border-top:1px solid var(--line)}
-th{font-weight:600;color:var(--mut);border-top:0;font-size:12px}
-td:first-child,th:first-child{text-align:left}
-#pr{display:none}
-@media print{body.printing main>*:not(#pr){display:none!important}body.printing{background:#fff}body.printing #pr{display:block;color:#000;background:#fff;font-size:13px}#pr h2{margin:0 0 4px}#pr td,#pr th{text-align:left;padding:6px 4px;border-top:1px solid #bbb;color:#000}#pr td.r,#pr th.r{text-align:right}}
 [hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Archivo',system-ui,sans-serif;font-size:16px;line-height:1.35;-webkit-tap-highlight-color:transparent}
+main{max-width:560px;margin:0 auto;padding:18px 16px calc(104px + env(safe-area-inset-bottom,0px))}
+h1{font-size:26px;font-weight:900;font-stretch:125%;letter-spacing:-.01em;line-height:1.05;margin:4px 0 10px}
+b,strong{font-weight:700}
 
-.tabs button{font-size:13px;padding:10px 2px}
-.go.alt{background:none;color:var(--ink);border:2px solid var(--line);margin-top:8px}
-.badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut);margin-left:6px}
-.code{font-family:ui-monospace,monospace;font-size:15px;word-break:break-all}
+/* marca: copia el logo (PEKERON con APP entre líneas) */
+.brand{display:inline-flex;flex-direction:column;line-height:1}
+.brand b{font-weight:900;font-stretch:125%;font-size:23px;letter-spacing:-.015em}
+.brand span{display:flex;align-items:center;gap:7px;font-weight:800;font-size:9px;letter-spacing:.32em;margin-top:5px}
+.brand i{flex:1;height:1.5px;background:currentColor}
+.brand.lg b{font-size:40px}.brand.lg span{font-size:12px;margin-top:8px}
+.top{display:flex;align-items:center;justify-content:space-between;margin:0 2px 14px}
+.splash{margin:26px 2px 26px}
+
+/* barra inferior */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:center;gap:2px;background:var(--nav);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line)}
+.tabs button{flex:1;max-width:116px;background:none;border:0;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 4px;font:inherit;font-size:11px;font-weight:700;position:relative}
+.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tabs button.on{color:var(--ink)}
+.tabs button.on::before{content:'';position:absolute;top:-6px;left:30%;right:30%;height:3px;border-radius:0 0 4px 4px;background:var(--ink)}
+
+/* contenedores */
+.card{background:var(--card);border-radius:22px;padding:20px;margin-bottom:14px}
+.hero{background:var(--hero);color:#000;border-radius:30px;padding:22px 22px 24px}
+.hero .k{color:rgba(0,0,0,.62)}
+.hero select{width:auto;background-color:rgba(0,0,0,.09);color:#000;border-radius:99px;padding:9px 38px 9px 16px;font-weight:700;font-size:14px}
+.hero .pos{color:#075c3a}.hero .neg{color:#9c2f0b}
+.big{font-size:54px;font-weight:900;font-stretch:125%;letter-spacing:-.03em;line-height:1;margin:18px 0 8px}
+.rows{margin:2px 4px 14px}
+.r2{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:15px 0;border-top:1px solid var(--line)}
+.r2:first-child{border-top:0}
+.r2 span{font-weight:600}
+.r2 small{display:block;color:var(--mut);font-weight:400;font-size:13px;margin-top:2px}
+.r2 b{font-size:19px;font-weight:800;font-stretch:112%}
+.note{color:var(--mut);font-size:13px;margin:6px 6px 0}
+
+/* formularios */
+label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin:16px 0 6px}
+input,select{width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none}
+input:focus,select:focus{box-shadow:0 0 0 2px var(--ink)}
+select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2363645e' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:42px}
+select.chip{margin-bottom:16px;font-weight:800;font-stretch:112%;font-size:17px;padding:15px 44px 15px 18px}
+.row{display:flex;gap:10px}.row>div{flex:1}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;padding:15px;border-radius:16px;border:0;background:var(--line);color:var(--mut);font:inherit;font-weight:800;font-stretch:112%;font-size:15px}
+.seg .c.on{background:var(--buy);color:var(--onc)}
+.seg .v.on{background:var(--sell);color:var(--onc)}
+.go{width:100%;margin-top:18px;padding:16px;border:0;border-radius:18px;background:var(--btn);color:var(--btnink);font:inherit;font-weight:800;font-stretch:125%;font-size:15px;transition:transform .1s}
+.go:active{transform:scale(.98)}
+.go.alt{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink);margin-top:10px}
+.tot{margin-top:12px;font-weight:700;color:var(--mut);font-size:14px;min-height:1.2em}
+.k{font-size:13px;color:var(--mut)}
+.v{font-size:19px;font-weight:800}
+.pos{color:var(--sell)}.neg{color:var(--buy)}
+.x{background:none;border:0;color:var(--mut);font:inherit;font-size:22px;padding:0 4px}
+.empty{color:var(--mut);text-align:center;padding:22px 0;font-size:14px}
+.badge{font-size:12px;font-weight:700;padding:5px 12px;border-radius:99px;box-shadow:inset 0 0 0 1.5px var(--ink)}
+.code{font-weight:700;font-size:15px;letter-spacing:.04em;word-break:break-all}
+
+/* listas y tablas */
+.it{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 0;border-top:1px solid var(--line)}
+.it:first-child{border-top:0}
+.it>div:first-child{min-width:0}
+.it small{display:block;color:var(--mut);font-size:13px;margin-top:3px}
+.it .amt{text-align:right;white-space:nowrap}
+.it .amt b{font-size:17px;font-weight:800;font-stretch:112%}
+.sku{color:var(--mut);font-weight:500;font-size:13px;margin-left:4px}
+.tag{font-style:normal;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;background:var(--line);color:var(--ink);margin-right:5px}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td,th{padding:13px 4px;text-align:right;border-top:1px solid var(--line)}
+th{font-weight:700;color:var(--mut);border-top:0;font-size:13px;padding-top:0}
+td:first-child,th:first-child{text-align:left}
+td small{color:var(--mut)}
+#pr{display:none}
+@media print{body.printing main>*:not(#pr){display:none!important}body.printing{background:#fff}body.printing #pr{display:block;color:#000;background:#fff;font-size:13px;font-family:sans-serif}#pr h2{margin:0 0 4px}#pr td,#pr th{text-align:left;padding:6px 4px;border-top:1px solid #bbb;color:#000}#pr td.r,#pr th.r{text-align:right}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style></head><body><main>
 <div id="load" class="empty">Cargando…</div>
-<section id="auth" hidden><div class="card"><h1 style="margin-top:0">Entrá a tu cuenta</h1>
+<section id="auth" hidden><div class="splash"><div class="brand lg"><b>PEKERON</b><span><i></i>APP<i></i></span></div></div><div class="card"><h1 style="margin-top:0">Entrá a tu cuenta</h1>
 <div class="k">Usá tu email y contraseña. Cada persona del negocio entra con su propia cuenta.</div>
 <label>Email</label><input id="aem" type="email" inputmode="email" autocomplete="username">
 <label>Contraseña</label><input id="apw" type="password" autocomplete="current-password">
@@ -59,13 +99,13 @@ td:first-child,th:first-child{text-align:left}
 <button class="go alt" id="areg">Crear cuenta nueva</button>
 <div class="tot" id="amsg"></div>
 <button class="x" id="areset" style="font-size:14px;margin-top:8px;text-decoration:underline">Olvidé mi contraseña</button></div></section>
-<section id="nostore" hidden><div class="card"><h1 style="margin-top:0">Tu tienda</h1>
+<section id="nostore" hidden><div class="splash"><div class="brand lg"><b>PEKERON</b><span><i></i>APP<i></i></span></div></div><div class="card"><h1 style="margin-top:0">Tu tienda</h1>
 <div class="k">Creá tu tienda, o unite a una con el código que te dio un administrador.</div>
 <button class="go" id="mk">Crear tienda nueva</button>
 <button class="go alt" id="jn">Unirme con un código</button>
 <button class="x" id="lo0" style="font-size:14px;margin-top:10px;text-decoration:underline">Cerrar sesión</button></div></section>
 <div id="appui" hidden>
-<div class="card" id="hdr"></div>
+<div id="hdr"></div>
 <div class="tabs" id="tabs"></div>
 <section id="s-add" hidden></section><section id="s-sell" hidden></section><section id="s-res" hidden></section>
 <section id="s-hist" hidden></section><section id="s-stk" hidden></section><section id="s-team" hidden></section>
@@ -175,9 +215,10 @@ un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEa
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},function(){});
 un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
 gate('app');drawHdr();drawAcct();
-var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+t[1]+'</button>'}).join('');
+var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('');
 var ok=tabs.some(function(t){return t[0]==TAB});show(ok?TAB:tabs[0][0])}
 
+var ICON={add:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',sell:'<svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8zM9 8a3 3 0 016 0"/></svg>',res:'<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',hist:'<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',stk:'<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10"/></svg>',team:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18 14.8c2 .6 3.3 2.4 3.5 5.2"/></svg>'};
 function tabsFor(){return ROLE=='admin'?[['add','Cargar'],['res','Resumen'],['hist','Historial'],['stk','Stock'],['team','Equipo']]:[['sell','Vender'],['stk','Stock']]}
 function show(t){TAB=t;Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.t==t)});
 ['add','sell','res','hist','stk','team'].forEach(function(i){$('s-'+i).hidden=i!=t});
@@ -186,9 +227,10 @@ function redrawData(){
 if(ROLE=='admin'){if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='add')fillList()}
 else{if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
 
+var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>';
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
-$('hdr').innerHTML='<div class="k">Tienda<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" style="margin-top:6px">'+o+'</select>';
+$('hdr').innerHTML='<div class="top">'+BRAND+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
 a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
@@ -263,22 +305,23 @@ var buy=0,sell=0,cost=0,my=0,mm=0,on=0,units=0,ub=0;
 M.forEach(function(x){if(x.d.slice(0,7)!=month)return;var t=x.q*x.u;
 if(x.t=='c'){buy+=t;ub+=x.q}else{sell+=t;units+=x.q;cost+=x.q*avg(pk(x));if(x.k=='mayor')my+=t;else if(x.k=='online')on+=t;else mm+=t}});
 var gain=sell-cost;
-$('s-res').innerHTML='<div class="card">'+mselect()+
-'<div style="margin-top:14px" class="k">Ganancia del mes</div><div class="big '+(gain>=0?'pos':'neg')+'">'+money(gain)+'</div>'+
-'<div class="k" style="margin-top:4px">Vendido menos el costo de lo que vendiste</div></div>'+
-'<div class="card"><div class="g"><div><div class="k">Gasté en compras</div><div class="v neg">'+money(buy)+'</div><div class="k">'+ub+' unidades</div></div>'+
-'<div><div class="k">Vendí</div><div class="v pos">'+money(sell)+'</div><div class="k">'+units+' unidades</div></div>'+
-'<div><div class="k">Por mayor</div><div class="v">'+money(my)+'</div></div>'+
-'<div><div class="k">Por menor</div><div class="v">'+money(mm)+'</div></div>'+
-'<div><div class="k">Online (tienda)</div><div class="v">'+money(on)+'</div></div></div></div>'+
-'<button class="go" id="pdfb" style="margin-top:0;margin-bottom:12px">Descargar resumen en PDF</button>'+
-'<div class="card"><div class="k">El costo se calcula con el precio promedio al que compraste cada producto.</div></div>';
+$('s-res').innerHTML='<div class="card hero">'+mselect()+
+'<div class="big '+(gain>=0?'pos':'neg')+'">'+money(gain)+'</div>'+
+'<div class="k">Ganancia del mes: lo vendido menos lo que costó lo que vendiste</div></div>'+
+'<div class="rows">'+
+'<div class="r2"><span>Gasté en compras<small>'+ub+' unidades</small></span><b class="neg">'+money(buy)+'</b></div>'+
+'<div class="r2"><span>Vendí<small>'+units+' unidades</small></span><b class="pos">'+money(sell)+'</b></div>'+
+'<div class="r2"><span>Por mayor</span><b>'+money(my)+'</b></div>'+
+'<div class="r2"><span>Por menor</span><b>'+money(mm)+'</b></div>'+
+'<div class="r2"><span>Online (tienda)</span><b>'+money(on)+'</b></div></div>'+
+'<button class="go alt" id="pdfb">Descargar resumen en PDF</button>'+
+'<div class="note">El costo se calcula con el precio promedio al que compraste cada producto.</div>';
 $('pdfb').onclick=function(){pdf({buy:buy,sell:sell,gain:gain,my:my,mm:mm,on:on,units:units,ub:ub})}}
 function drawHist(){
 var l=M.filter(function(x){return x.d.slice(0,7)==month}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
 var h='<div class="card">'+mselect();
 if(!l.length)h+='<div class="empty">Todavía no cargaste nada este mes.</div>';
-l.forEach(function(x){h+='<div class="it"><div><b>'+esc(x.p)+'</b><small>'+x.d.split('-').reverse().join('/')+' · '+x.q+' × '+money(x.u)+(x.s?' · '+esc(x.s):'')+(x.k=='online'?' · online':x.k?' · por '+x.k:'')+(x.bn?' · '+esc(x.bn):'')+'</small></div><div style="text-align:right"><b class="'+(x.t=='c'?'neg':'pos')+'">'+(x.t=='c'?'−':'+')+money(x.q*x.u)+'</b><small>'+(x.t=='c'?'compra':'venta')+'</small></div><button class="x" data-del="'+esc(x.id)+'" aria-label="Borrar">×</button></div>'});
+l.forEach(function(x){var tp=x.t=='c'?'compra':x.k=='online'?'online':x.k=='mayor'?'mayor':'menor';h+='<div class="it"><div><b>'+esc(x.p)+'</b>'+(x.s?'<span class="sku">'+esc(x.s)+'</span>':'')+'<small><em class="tag">'+tp+'</em>'+x.d.split('-').reverse().join('/')+(x.bn?'<span style="margin-left:8px">'+esc(x.bn)+'</span>':'')+'</small></div><div class="amt"><b class="'+(x.t=='c'?'neg':'pos')+'">'+(x.t=='c'?'−':'+')+money(x.q*x.u)+'</b><small>'+x.q+' × '+money(x.u)+'</small></div><button class="x" data-del="'+esc(x.id)+'" aria-label="Borrar">×</button></div>'});
 $('s-hist').innerHTML=h+'</div>'}
 function drawStk(){
 var h;
@@ -335,7 +378,7 @@ window.print()}
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=e.target.dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;drawAdd();return}
 if(d.inv){var role=d.inv,id=(role=='admin'?'a':'e')+rnd(6);
