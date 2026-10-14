@@ -143,7 +143,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc'].forEach(stop)}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -679,10 +679,18 @@ h+=bizCard()+catCard();
 h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h}
 function catLink(){return location.origin+location.pathname.replace(/[^\/]*$/,'')+'catalogo.html?t='+SID}
+function logoNow(p){return CLOGO===null?(p.logo||''):CLOGO}
+function readLogo(file,cb){var fr=new FileReader();fr.onerror=function(){cb('')};fr.onload=function(){var im=new Image();im.onerror=function(){cb('')};im.onload=function(){var m=256,k=Math.min(1,m/Math.max(im.width,im.height)),w=Math.round(im.width*k),h=Math.round(im.height*k),c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);var q=.85,o=c.toDataURL('image/jpeg',q);while(o.length>60000&&q>.3){q-=.1;o=c.toDataURL('image/jpeg',q)}cb(o.length>90000?'':o)};im.src=fr.result};fr.readAsDataURL(file)}
 function catCard(){
 var p=PUB||{};
 var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style="margin:4px 0 0">Una página con tus productos, fotos y talles con stock. El cliente arma el pedido y te lo manda por WhatsApp. No muestra costos ni ganancias.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="cat_on" type="checkbox" style="width:auto"'+(p.enabled?' checked':'')+'> Catálogo activado</label>'+
+'<label>Logo de tu negocio</label><div class="row" style="gap:12px;align-items:center"><img id="cat_lgv" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--line);'+(logoNow(p)?'':'display:none')+'" src="'+esc(logoNow(p))+'"><input id="cat_logo" type="file" accept="image/*" style="flex:1"></div><button class="go alt" data-cat="nologo" style="margin-top:6px">Quitar logo</button>'+
+'<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: Zapatillas y ropa por mayor y menor" value="'+esc(p.tag||'')+'" autocomplete="off">'+
+'<label>Color de tu marca</label><input id="cat_col" type="color" value="'+esc(/^#[0-9a-f]{6}$/i.test(p.color||'')?p.color:'#111111')+'" style="height:46px;padding:4px">'+
+'<label>Horario de atención (opcional)</label><input id="cat_hrs" maxlength="60" placeholder="Ej: Lunes a sábado 9 a 18 hs" value="'+esc(p.hours||'')+'" autocomplete="off">'+
+'<label>Dirección o zona (opcional)</label><input id="cat_adr" maxlength="80" placeholder="Ej: Yerba Buena, Tucumán" value="'+esc(p.addr||'')+'" autocomplete="off">'+
+'<label>Instagram (opcional)</label><input id="cat_ig" maxlength="40" placeholder="Ej: @minegocio" value="'+esc(p.ig||'')+'" autocomplete="off">'+
 '<label>WhatsApp del negocio (con código de país y área, sin + ni espacios)</label><input id="cat_wa" inputmode="numeric" placeholder="Ej: 5493815551234" value="'+esc(p.wa||'')+'" autocomplete="off">'+
 '<label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
@@ -693,10 +701,11 @@ return h+'</div>'}
 function catAction(a){
 if(a=='copy'){var l=catLink();if(navigator.clipboard)navigator.clipboard.writeText(l).then(function(){alert('Link copiado.')},function(){prompt('Copiá el link:',l)});else prompt('Copiá el link:',l);return}
 if(a=='open'){window.open(catLink(),'_blank');return}
+if(a=='nologo'){CLOGO='';var v=$('cat_lgv');if(v)v.style.display='none';return}
 var wa=$('cat_wa').value.replace(/\D/g,'');
 if($('cat_on').checked&&wa.length<10){alert('Escribí el WhatsApp con código de país y área. Ejemplo: 5493815551234');return}
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{enabled:$('cat_on').checked,wa:wa,mode:mode,minCart:mc,name:SNAME}).then(function(){alert('Guardado.')}).catch(fail)}
+setDoc(doc(db,'stores',SID,'public','info'),{enabled:$('cat_on').checked,wa:wa,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()}).then(function(){alert('Guardado.')}).catch(fail)}
 function planCard(){
 var ACCX=ACC||{limits:{},effectivePlan:'inicial'};
 var d=dstate()||{state:'libre'},L=ACCX.limits||{},nA=0,nE=0;
@@ -902,6 +911,7 @@ else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
 document.addEventListener('change',function(e){if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}
 if(e.target.id=='eph'){var f=e.target.files&&e.target.files[0];if(f)readPhoto(f,function(o){if(!o){alert('No pude leer esa foto. Probá con otra.');return}EPH=o;var v=$('epv');v.src=o;v.style.display=''})}
 if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}if(e.target.id=='gt')togglePlat()});
 
