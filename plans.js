@@ -1,0 +1,60 @@
+// Configuración comercial por defecto. Se puede cambiar desde el panel de plataforma
+// (se guarda en Firestore: platform/config) sin tocar el código.
+export const DEFAULT_CONFIG = {
+  currency: 'ARS',
+  trialDays: 14,
+  trialPlan: 'inicial', // plan cuyos límites rigen durante la prueba (decisión pendiente de confirmar)
+  plans: {
+    inicial: {
+      name: 'Inicial', priceARS: 14999, admins: 2, empleados: 4, sucursales: 1,
+      features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos']
+    },
+    profesional: {
+      name: 'Profesional', priceARS: 24999, admins: 4, empleados: 10, sucursales: 3,
+      features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos',
+        'transferencias', 'informes_avanzados', 'filtros', 'analisis_gastos', 'pdf']
+    },
+    empresarial: {
+      name: 'Empresarial', priceARS: 55999, admins: 10, empleados: 30, sucursales: 10,
+      features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos',
+        'transferencias', 'informes_avanzados', 'filtros', 'analisis_gastos', 'pdf',
+        'informes_consolidados', 'comparar_sucursales', 'finanzas_centralizadas', 'permisos_detallados', 'soporte_prioritario_preparado']
+    }
+  }
+};
+export const PLAN_IDS = ['inicial', 'profesional', 'empresarial'];
+
+// Topes técnicos (protección frente a abuso accidental; no son límites comerciales)
+export const TECH = { maxStoresPerCustomer: 10, maxStoresPerOwner: 5000, maxActiveInvites: 500, nameMax: 60, reasonMax: 300 };
+
+export function mergeConfig(stored) {
+  const c = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  if (!stored || typeof stored !== 'object') return c;
+  if (Number.isInteger(stored.trialDays) && stored.trialDays >= 0) c.trialDays = stored.trialDays;
+  if (PLAN_IDS.includes(stored.trialPlan)) c.trialPlan = stored.trialPlan;
+  for (const id of PLAN_IDS) {
+    const s = stored.plans && stored.plans[id];
+    if (!s) continue;
+    for (const k of ['priceARS', 'admins', 'empleados', 'sucursales']) if (Number.isInteger(s[k]) && s[k] >= 0) c.plans[id][k] = s[k];
+    if (Array.isArray(s.features)) c.plans[id].features = s.features.filter(f => typeof f === 'string').slice(0, 60);
+  }
+  return c;
+}
+
+export function validateConfigInput(input) {
+  if (!input || typeof input !== 'object') throw new Error('Configuración inválida.');
+  const out = { trialDays: input.trialDays, trialPlan: input.trialPlan, plans: {} };
+  if (!Number.isInteger(out.trialDays) || out.trialDays < 0 || out.trialDays > 365) throw new Error('Los días de prueba deben ser un número entero entre 0 y 365.');
+  if (!PLAN_IDS.includes(out.trialPlan)) throw new Error('El plan de la prueba no es válido.');
+  for (const id of PLAN_IDS) {
+    const p = input.plans && input.plans[id];
+    if (!p) throw new Error('Falta el plan ' + id + '.');
+    const o = {};
+    for (const k of ['priceARS', 'admins', 'empleados', 'sucursales']) {
+      if (!Number.isInteger(p[k]) || p[k] < 0 || p[k] > 100000000) throw new Error('Valor inválido en ' + id + ' / ' + k + '.');
+      o[k] = p[k];
+    }
+    out.plans[id] = o;
+  }
+  return out;
+}
