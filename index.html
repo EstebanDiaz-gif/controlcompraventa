@@ -143,7 +143,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var EDK=null,ESZ=[],EPH,PPH='',STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var MAN=false,EDK=null,ESZ=[],EPH,PPH='',STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc'].forEach(stop)}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -268,7 +268,7 @@ function show(t){TAB=t;Array.prototype.forEach.call($('tabs').children,function(
 ['add','sell','res','hist','stk','team','plat'].forEach(function(i){$('s-'+i).hidden=i!=t});
 if(t=='add')drawAdd();else if(t=='sell')drawSell();else if(t=='plat')drawPlat();else redrawData()}
 function redrawData(){
-if(ROLE=='admin'){if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='add')fillList()}
+if(ROLE=='admin'){if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='add'){if($('es'))refreshSell();else if($('prods'))fillList()}}
 else{if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
 
 var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>';
@@ -315,6 +315,7 @@ function fillList(){var dl='',n=names(),seen={};for(var k in n){var kk=key(n[k])
 function drawAdd(){
 if(!canWrite()){$('s-add').innerHTML=blockedCard();return}
 SZ=[];SZON=false;
+if(type=='v'&&!MAN&&ST.length){drawSell();return}
 $('s-add').innerHTML='<div class="card"><div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>'+
 '<label>Producto</label><input id="p" list="prods" placeholder="Ej: Adidas Duramo 2 azul" autocomplete="off">'+
 '<label>Código (SKU) · el mismo que en tu tienda</label><input id="s" placeholder="Ej: DURAMO2-AZ" autocomplete="off">'+
@@ -378,12 +379,13 @@ function sellOpts(){var h=ST.filter(selMatch).sort(function(a,b){return a.n.loca
 function autoP(){var s=$('es'),u=$('eu'),k=$('ek');if(!s||!u||!k)return;var d=null;ST.forEach(function(x){if(x.id==s.value)d=x});var pv=$('esp');if(pv){var im=d?photoOf(key(d.s||d.n)):'';if(im){pv.src=im;pv.style.display=''}else{pv.removeAttribute('src');pv.style.display='none'}}if(!d)return;if(u.value&&u.dataset.auto!='1')return;var v=k.value=='mayor'?d.pm:d.pn;if(v){u.value=v;u.dataset.auto='1';var q=+$('eq').value;$('etot').textContent=q?'Total: '+money(q*v):''}}
 function refreshSell(){var s=$('es');if(!s)return;var v=s.value;s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;autoP()}
 function drawSell(){
-if(!canWrite()){$('s-sell').innerHTML=blockedCard();return}
-if(!ST.length){$('s-sell').innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
-$('s-sell').innerHTML='<div class="card"><label>Buscar producto</label><input id="esq" type="search" placeholder="Nombre, código o talle" autocomplete="off" value="'+esc(SELQ)+'"><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
+var adm=ROLE=='admin',box=adm?$('s-add'):$('s-sell');
+if(!canWrite()){box.innerHTML=blockedCard();return}
+if(!ST.length){box.innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
+box.innerHTML='<div class="card">'+(adm?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'')+'<label>Buscar producto</label><input id="esq" type="search" placeholder="Nombre, código o talle" autocomplete="off" value="'+esc(SELQ)+'"><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
-'<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button></div>';
+'<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>';
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};
 function upd(){var q=+$('eq').value,u=+$('eu').value;$('etot').textContent=q&&u?'Total: '+money(q*u):''}
 $('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
@@ -393,7 +395,7 @@ if(!d){alert('Elegí un producto.');return}
 if(!q||q<=0||u===''||isNaN(+u)){alert('Completá cantidad y precio.');return}
 if(q>d.q&&!confirm('Hay '+d.q+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
 sellMov({id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,z:d.z||'',q:q,u:+u,k:$('ek').value,by:U.uid,bn:nm()},d.id);
-drawSell();$('etot').textContent='Venta guardada ✓'}}
+if(adm)month=$('ed').value.slice(0,7)||month;drawSell();$('etot').textContent='Venta guardada ✓'}}
 
 /* ---------- Resumen / Historial / Stock ---------- */
 function months(){var o={};o[today().slice(0,7)]=1;M.forEach(function(x){o[x.d.slice(0,7)]=1});return Object.keys(o).sort().reverse()}
@@ -628,9 +630,10 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
-if(d.y){type=d.y;drawAdd();return}
+if(d.y){type=d.y;MAN=false;drawAdd();return}
+if(d.man){MAN=true;drawAdd();return}
 if(d.inv){
 if(!SERVER_MODE){var iid=(d.inv=='admin'?'a':'e')+rnd(6);
 setDoc(doc(db,'stores',SID,'invites',iid),{role:d.inv,created:Date.now()}).then(function(){shareCode(SID+iid)}).catch(fail);return}
