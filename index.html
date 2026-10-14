@@ -123,8 +123,8 @@ import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmai
 import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,writeBatch,increment} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 import {firebaseConfig} from './firebase-config.js';
-import {deriveState} from './functions/lib/access.js';
-import {mergeConfig,PLAN_IDS} from './functions/lib/plans.js';
+import {deriveState} from './access.js';
+import {mergeConfig,PLAN_IDS} from './plans.js';
 
 var $=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
