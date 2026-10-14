@@ -130,6 +130,7 @@ var $=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var money=function(n){return '$'+Math.round(n).toLocaleString('es-AR')};
 var key=function(s){return String(s||'').trim().toLowerCase()};
+function vz(r){return [String(r.z||'').trim(),String(r.c||'').trim()].filter(Boolean).join(' · ')}
 var skey=function(k){return k.replace(/\//g,'_')};
 var today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 var MN=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -390,12 +391,12 @@ var p=$('p').value.trim(),q=+$('q').value,u=+$('u').value;
 if(!p||!q||q<=0||isNaN(u)||$('u').value===''){alert('Completá producto, cantidad y precio.');return}
 var sku=$('s').value.trim(),d=$('d').value||today(),k=type=='v'?$('k').value:'',rows=[{z:'',q:q}];
 if(SZON){var mg={};
-SZ.forEach(function(r){var z=String(r.z).trim(),n=+r.q;if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
+SZ.forEach(function(r){var z=vz(r),n=+r.q;if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
 rows=Object.keys(mg).map(function(x){return mg[x]});
 if(!rows.length){alert('Escribí el talle y la cantidad de cada uno, o tocá "Sin talles".');return}
 var tot=rows.reduce(function(a,r){return a+r.q},0);
 if(tot!=q){alert('Los talles suman '+tot+' y la cantidad es '+q+'. Revisalos.');return}
-if(rows.some(function(r){return r.z.length>20})){alert('Un talle es demasiado largo.');return}}
+if(rows.some(function(r){return r.z.length>20})){alert('El talle y el color juntos son demasiado largos (máximo 20 letras). Abreviá el color.');return}}
 var base=Date.now(),list=rows.map(function(r,i){return {id:base+i,t:type,d:d,p:p,s:sku,z:r.z,q:r.q,u:u,k:k,by:U.uid,bn:nm()}});
 if(type=='v'){var low=list.filter(function(m){return m.q>stock(pk(m))});
 if(low.length&&!confirm('Hay menos stock del que querés vender ('+low.map(function(m){return (m.z?'talle '+m.z:'total')+': '+stock(pk(m))}).join(', ')+'). ¿Guardar igual?'))return}
@@ -403,10 +404,10 @@ addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0,mm:Math.floor(
 function sumSizes(){var e=$('szsum');if(!e)return;var t=0;SZ.forEach(function(r){t+=+r.q||0});var q=+$('q').value||0;e.textContent='Repartidos '+t+' de '+q;e.style.color=t==q?'var(--sell)':'var(--buy)'}
 function drawSizes(){
 var b=$('szbox');if(!b)return;var q=+$('q').value||0,h='';
-if(!SZON){if(q>0)h='<button class="x" data-sz="open" style="font-size:15px;font-weight:700;text-decoration:underline;margin-top:12px;color:var(--ink)">Dividir por talles</button>'}
-else{h='<label>Talles</label>';
-SZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="sz-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="sz-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-sz="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
-h+='<div class="tot" id="szsum"></div><button class="x" data-sz="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle</button> <button class="x" data-sz="off" style="font-size:14px;text-decoration:underline;margin-left:14px">Sin talles</button>'}
+if(!SZON){if(q>0)h='<button class="x" data-sz="open" style="font-size:15px;font-weight:700;text-decoration:underline;margin-top:12px;color:var(--ink)">Dividir por talles o colores</button>'}
+else{h='<label>Talles y colores (el color es opcional)</label>';
+SZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="sz-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="sz-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="sz-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-sz="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
+h+='<div class="tot" id="szsum"></div><button class="x" data-sz="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle o color</button> <button class="x" data-sz="off" style="font-size:14px;text-decoration:underline;margin-left:14px">Sin talles</button>'}
 b.innerHTML=h;sumSizes()}
 function sizeAction(a,i){
 if(a=='open'){var q=+$('q').value||0;SZON=true;SZ=[];
@@ -519,9 +520,9 @@ var h='<div class="card"><b>'+esc(g.n)+'</b>'+(g.s?'<small style="display:block"
 '<label style="margin-top:14px">Mínimo de unidades para precio mayorista</label><input id="emm" type="number" inputmode="numeric" min="0" placeholder="Ej: 4 (vacío = sin mínimo)" value="'+(fieldOf(b,'mm')||'')+'">'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="eoh" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.oh})?' checked':'')+'> No mostrar en el catálogo</label>'+
 '<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*"><button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>';
-if(st0>0){h+='<label style="margin-top:18px">Agregar talles ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
-ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
-h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle</button>'}
+if(st0>0){h+='<label style="margin-top:18px">Agregar talles y colores ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
+ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
+h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle o color</button>'}
 else h+='<div class="k" style="margin-top:14px">Este producto no tiene unidades sin talle para repartir.</div>';
 var ml=M.filter(function(x){return key(x.s||x.p)==b}).sort(function(a,c){return c.d.localeCompare(a.d)||c.id-a.id});
 if(ml.length){h+='<div style="margin-top:20px"><b>Compras y ventas de este producto</b></div><div class="k" style="margin:2px 0 6px">Si cargaste mal una cantidad, un precio o un talle, tocá Corregir.</div>';
@@ -543,7 +544,7 @@ var o=document.createElement('div');o.id='emdlg';o.style.cssText='position:fixed
 var isC=mv.t=='c';
 o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:20px;max-width:420px;width:100%;margin:auto"><b style="font-size:19px">Corregir '+(isC?'compra':'venta')+'</b><div class="k" style="margin:2px 0 8px">'+esc(mv.p)+'</div>'+
 '<div class="row"><div><label>Cantidad</label><input id="em_q" type="number" inputmode="numeric" min="1" value="'+mv.q+'"></div><div><label>'+(isC?'Precio de compra por unidad':'Precio de venta por unidad')+'</label><input id="em_u" type="number" inputmode="decimal" min="0" value="'+mv.u+'"></div></div>'+
-'<label>Talle (vacío = sin talle)</label><input id="em_z" maxlength="20" value="'+esc(mv.z||'')+'" autocomplete="off">'+
+'<label>Talle y color (ej: 35 · Rosa). Vacío = sin talle</label><input id="em_z" maxlength="20" value="'+esc(mv.z||'')+'" autocomplete="off">'+
 (isC?'':'<label>Tipo de venta</label><select id="em_k"><option value="mayor"'+(mv.k=='mayor'?' selected':'')+'>Por mayor</option><option value="menor"'+(mv.k=='menor'?' selected':'')+'>Por menor</option>'+(mv.k=='online'?'<option value="online" selected>Online</option>':'')+'</select>')+
 '<label>Fecha</label><input id="em_d" type="date" value="'+esc(mv.d)+'">'+
 '<div class="k" style="margin-top:10px">El stock, los costos y las ganancias se recalculan solos.</div>'+
@@ -575,9 +576,9 @@ function saveEdit(){
 var b=EDK,pm=+$('epm').value||0,pn=+$('epn').value||0,mm=Math.max(0,Math.floor(+$('emm').value)||0),oh=$('eoh').checked;
 if(pm<0||pn<0){alert('Los precios no pueden ser negativos.');return}
 var st0=stock(b),mg={};
-if(st0>0)ESZ.forEach(function(r){var z=String(r.z).trim(),n=Math.floor(+r.q);if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
+if(st0>0)ESZ.forEach(function(r){var z=vz(r),n=Math.floor(+r.q);if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
 var needs=Object.keys(mg).map(function(k){return mg[k]}),tot=needs.reduce(function(a,r){return a+r.q},0);
-if(needs.some(function(n){return n.z.length>20})){alert('Un talle es demasiado largo.');return}
+if(needs.some(function(n){return n.z.length>20})){alert('El talle y el color juntos son demasiado largos (máximo 20 letras). Abreviá el color.');return}
 if(tot>st0){alert('Repartiste '+tot+' unidades y solo hay '+st0+' sin talle. Revisalo.');return}
 var bt=writeBatch(db),name='',sku='';
 baseDocs(b).forEach(function(d){name=d.n;sku=d.s;bt.set(doc(db,'stores',SID,'stock',d.id),{pm:pm,pn:pn,mm:mm,oh:oh},{merge:true})});
@@ -981,6 +982,8 @@ document.addEventListener('input',function(e){var t=e.target;if(!t.classList)ret
 if(t.classList.contains('sz-z')&&SZ[+t.dataset.i])SZ[+t.dataset.i].z=t.value;
 else if(t.classList.contains('sz-q')&&SZ[+t.dataset.i]){SZ[+t.dataset.i].q=t.value;sumSizes()}
 else if(t.classList.contains('ez-z')&&ESZ[+t.dataset.i])ESZ[+t.dataset.i].z=t.value;
+else if(t.classList.contains('sz-c')&&SZ[+t.dataset.i])SZ[+t.dataset.i].c=t.value;
+else if(t.classList.contains('ez-c')&&ESZ[+t.dataset.i])ESZ[+t.dataset.i].c=t.value;
 else if(t.id=='sv_n'&&SVD)SVD.n=t.value;
 else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;

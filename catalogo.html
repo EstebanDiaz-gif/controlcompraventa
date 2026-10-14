@@ -149,7 +149,7 @@ return '<div class="card" data-k="'+esc(g.k)+'"><div class="im">'+(g.img?'<img l
 function prod(k){var g=G.filter(function(x){return x.k==k})[0];if(!g)return;OPEN=k;
 var s=SEL[k]||(SEL[k]={z:g.sz.length==1?g.sz[0].z:'',q:1}),mt=mayTxt(g);
 $('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div class="big">'+(g.img?'<img alt="" src="'+esc(g.img)+'">':'')+'</div><div class="dn">'+esc(g.n)+'</div><div class="dp">'+money(base(g))+'</div>'+(mt?'<div class="may">'+esc(mt)+'</div>':'')+
-(g.sz.length?'<div class="lbl">Talle</div><div class="chips">'+g.sz.map(function(z){return '<button class="chip'+(s.z==z.z?' on':'')+'" data-z="'+esc(z.z)+'">'+esc(z.z)+'</button>'}).join('')+'</div>':'')+
+(g.sz.length?'<div class="lbl">Elegí una opción</div><div class="chips">'+g.sz.map(function(z){return '<button class="chip'+(s.z==z.z?' on':'')+'" data-z="'+esc(z.z)+'">'+esc(z.z)+'</button>'}).join('')+'</div>':'')+
 '<div class="row"><div class="q"><button data-m="-1">−</button><span>'+s.q+'</span><button data-m="1">+</button></div><button class="add" data-add="1">Agregar al pedido</button></div>';
 $('sh').hidden=false}
 /* precios: modo 'producto' o 'carrito' */
