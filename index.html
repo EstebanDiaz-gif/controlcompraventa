@@ -143,7 +143,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var EDK=null,ESZ=[],STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc'].forEach(stop)}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -233,7 +233,7 @@ if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;gate('nostore')}
 },function(){gate('nostore')})});
 
 function openStore(sid){
-stopStore();SID=sid;ROLE=null;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';$('s-stk').innerHTML='';
+stopStore();SID=sid;ROLE=null;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
@@ -242,7 +242,7 @@ var r=s.data().role;if(r!=ROLE){ROLE=r;startData()}},function(){})}
 
 function startData(){
 ['stock','movs','mem','inv','acc'].forEach(stop);M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0})});redrawData()},function(){});
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0})});redrawData()},function(){});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(){ACC=null;drawBanner()});
 if(ROLE=='admin'){
 un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){});
@@ -284,8 +284,12 @@ window.addEventListener('online',drawAcct);window.addEventListener('offline',dra
 /* ---------- escritura (movimiento + contador de stock en un solo paso) ---------- */
 function mref(id){return doc(db,'stores',SID,'movs',String(id))}
 function sref(k){return doc(db,'stores',SID,'stock',skey(k))}
-function addMovs(list){var b=writeBatch(db);list.forEach(function(mv){b.set(mref(mv.id),mv);
-b.set(sref(pk(mv)),{n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(mv.t=='c'?mv.q:-mv.q)},{merge:true})});b.commit().catch(fail)}
+function addMovs(list,pr){var b=writeBatch(db);list.forEach(function(mv){b.set(mref(mv.id),mv);
+var o={n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(mv.t=='c'?mv.q:-mv.q)};
+if(pr&&pr.pm)o.pm=pr.pm;if(pr&&pr.pn)o.pn=pr.pn;
+b.set(sref(pk(mv)),o,{merge:true})});b.commit().catch(fail)}
+function baseDocs(b){return ST.filter(function(d){return key(d.s||d.n)==b})}
+function priceOf(b,k){var v=0;baseDocs(b).forEach(function(d){var x=k=='mayor'?d.pm:d.pn;if(x)v=x});return v}
 function addMov(mv){addMovs([mv])}
 function delMov(mv){var b=writeBatch(db);b.delete(mref(mv.id));
 b.set(sref(pk(mv)),{q:increment(mv.t=='c'?-mv.q:mv.q)},{merge:true});b.commit().catch(fail)}
@@ -307,6 +311,7 @@ $('s-add').innerHTML='<div class="card"><div class="seg"><button class="c '+(typ
 '<label>Producto</label><input id="p" list="prods" placeholder="Ej: Adidas Duramo 2 azul" autocomplete="off">'+
 '<label>Código (SKU) · el mismo que en tu tienda</label><input id="s" placeholder="Ej: DURAMO2-AZ" autocomplete="off">'+
 '<div class="row"><div><label>Cantidad</label><input id="q" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="u" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
+(type=='c'?'<div class="row"><div><label>Venta por mayor (opcional)</label><input id="pm" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Venta por menor (opcional)</label><input id="pn" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>':'')+
 '<div id="szbox"></div>'+
 (type=='v'?'<label>Tipo de venta</label><select id="k"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>':'')+
 '<label>Fecha</label><input id="d" type="date" value="'+today()+'">'+
@@ -320,6 +325,12 @@ $('tot').textContent=t}
 ['p','s','q','u'].forEach(function(i){$(i).oninput=upd});
 $('q').addEventListener('input',function(){if(SZON)sumSizes();else drawSizes()});
 $('p').addEventListener('input',function(){if($('s').value)return;var f=M.filter(function(x){return key(x.p)==key($('p').value)&&x.s}).pop();if(f){$('s').value=f.s;upd()}});
+function autoU(){var b=ck();if(!b)return;
+if(type=='v'){var u=$('u');if(u.value&&u.dataset.auto!='1')return;var v=priceOf(b,$('k').value);if(v){u.value=v;u.dataset.auto='1';upd()}}
+else{['pm','pn'].forEach(function(id){var e=$(id);if(!e||(e.value&&e.dataset.auto!='1'))return;var v=priceOf(b,id=='pm'?'mayor':'menor');if(v){e.value=v;e.dataset.auto='1'}})}}
+['p','s'].forEach(function(i){$(i).addEventListener('input',autoU)});
+['u','pm','pn'].forEach(function(i){var e=$(i);if(e)e.addEventListener('input',function(){e.dataset.auto=''})});
+if(type=='v')$('k').onchange=autoU;
 $('ok').onclick=function(){
 var p=$('p').value.trim(),q=+$('q').value,u=+$('u').value;
 if(!p||!q||q<=0||isNaN(u)||$('u').value===''){alert('Completá producto, cantidad y precio.');return}
@@ -334,7 +345,7 @@ if(rows.some(function(r){return r.z.length>20})){alert('Un talle es demasiado la
 var base=Date.now(),list=rows.map(function(r,i){return {id:base+i,t:type,d:d,p:p,s:sku,z:r.z,q:r.q,u:u,k:k,by:U.uid,bn:nm()}});
 if(type=='v'){var low=list.filter(function(m){return m.q>stock(pk(m))});
 if(low.length&&!confirm('Hay menos stock del que querés vender ('+low.map(function(m){return (m.z?'talle '+m.z:'total')+': '+stock(pk(m))}).join(', ')+'). ¿Guardar igual?'))return}
-addMovs(list);month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
+addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0}:null);month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
 function sumSizes(){var e=$('szsum');if(!e)return;var t=0;SZ.forEach(function(r){t+=+r.q||0});var q=+$('q').value||0;e.textContent='Repartidos '+t+' de '+q;e.style.color=t==q?'var(--sell)':'var(--buy)'}
 function drawSizes(){
 var b=$('szbox');if(!b)return;var q=+$('q').value||0,h='';
@@ -354,7 +365,8 @@ drawSizes()}
 /* ---------- Vender (empleado) ---------- */
 function selMatch(d){var t=key(SELQ).split(/\s+/).filter(Boolean);if(!t.length)return true;var hay=key(d.n+' '+d.s+' '+d.z+' t'+d.z);return t.every(function(w){return hay.indexOf(w)>=0})}
 function sellOpts(){var h=ST.filter(selMatch).sort(function(a,b){return a.n.localeCompare(b.n)||String(a.z).localeCompare(String(b.z),undefined,{numeric:true})}).map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+(d.s?' · '+esc(d.s):'')+' (stock '+d.q+')</option>'}).join('');return h||'<option value="">Sin resultados</option>'}
-function refreshSell(){var s=$('es');if(!s)return;var v=s.value;s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0}
+function autoP(){var s=$('es'),u=$('eu'),k=$('ek');if(!s||!u||!k)return;var d=null;ST.forEach(function(x){if(x.id==s.value)d=x});if(!d)return;if(u.value&&u.dataset.auto!='1')return;var v=k.value=='mayor'?d.pm:d.pn;if(v){u.value=v;u.dataset.auto='1';var q=+$('eq').value;$('etot').textContent=q?'Total: '+money(q*v):''}}
+function refreshSell(){var s=$('es');if(!s)return;var v=s.value;s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;autoP()}
 function drawSell(){
 if(!canWrite()){$('s-sell').innerHTML=blockedCard();return}
 if(!ST.length){$('s-sell').innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
@@ -364,7 +376,7 @@ $('s-sell').innerHTML='<div class="card"><label>Buscar producto</label><input id
 '<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button></div>';
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};
 function upd(){var q=+$('eq').value,u=+$('eu').value;$('etot').textContent=q&&u?'Total: '+money(q*u):''}
-$('eq').oninput=upd;$('eu').oninput=upd;
+$('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
 $('eok').onclick=function(){var d=null,id=$('es').value;ST.forEach(function(x){if(x.id==id)d=x});
 var q=+$('eq').value,u=$('eu').value;
 if(!d){alert('Elegí un producto.');return}
@@ -404,11 +416,11 @@ function stkRows(){
 var G={},out=[];
 if(ROLE=='admin'){var P={};
 M.forEach(function(x){var k=pk(x);if(!P[k])P[k]={b:key(x.s||x.p),z:x.z||'',s:''};P[k].n=x.p;if(x.s)P[k].s=x.s});
-Object.keys(P).forEach(function(k){var p=P[k],st=stock(k),a=avg(k),g=G[p.b]||(G[p.b]={n:p.n,s:p.s,q:0,v:0,sz:[]});g.n=p.n;if(p.s)g.s=p.s;g.q+=st;g.v+=Math.max(st,0)*a;if(p.z)g.sz.push({z:p.z,q:st})});
+Object.keys(P).forEach(function(k){var p=P[k],st=stock(k),a=avg(k),g=G[p.b]||(G[p.b]={b:p.b,n:p.n,s:p.s,q:0,v:0,sz:[]});g.n=p.n;if(p.s)g.s=p.s;g.q+=st;g.v+=Math.max(st,0)*a;if(p.z)g.sz.push({z:p.z,q:st})});
 Object.keys(G).forEach(function(b){var g=G[b],qq=0,tt=0;M.forEach(function(x){if(x.t=='c'&&key(x.s||x.p)==b){qq+=x.q;tt+=x.q*x.u}});g.avg=qq?tt/qq:0;out.push(g)})}
-else{ST.forEach(function(d){var b=key(d.s||d.n),g=G[b]||(G[b]={n:d.n,s:d.s,q:0,sz:[]});g.q+=d.q;if(d.z)g.sz.push({z:d.z,q:d.q})});
+else{ST.forEach(function(d){var b=key(d.s||d.n),g=G[b]||(G[b]={b:b,n:d.n,s:d.s,q:0,sz:[]});g.q+=d.q;if(d.z)g.sz.push({z:d.z,q:d.q})});
 Object.keys(G).forEach(function(b){out.push(G[b])})}
-out.forEach(function(g){g.sz.sort(sizeSort)});
+out.forEach(function(g){g.sz.sort(sizeSort);g.pm=priceOf(g.b,'mayor');g.pn=priceOf(g.b,'menor')});
 return out.sort(function(a,b){return a.n.localeCompare(b.n)})}
 function stkMatch(g){var t=key(STQ).split(/\s+/).filter(Boolean);if(!t.length)return true;
 var hay=key(g.n+' '+g.s+' '+g.sz.map(function(z){return z.z+' t'+z.z}).join(' '));return t.every(function(w){return hay.indexOf(w)>=0})}
@@ -416,12 +428,64 @@ function szLine(g){return '<small>Talles: '+g.sz.map(function(z){return esc(z.z)
 function stkBody(){
 var all=stkRows(),rows=all.filter(stkMatch),adm=ROLE=='admin';
 var h='<div class="card tbl"><table><tr><th>Producto</th><th>Stock</th>'+(adm?'<th>Costo prom.</th><th>Valor</th>':'')+'</tr>';
-rows.forEach(function(g){h+='<tr><td>'+esc(g.n)+(g.s?'<br><small>'+esc(g.s)+'</small>':'')+(g.sz.length?'<br>'+szLine(g):'')+'</td><td class="'+(g.q<0?'neg':'')+'">'+g.q+'</td>'+(adm?'<td>'+money(g.avg)+'</td><td>'+money(g.v)+'</td>':'')+'</tr>'});
+rows.forEach(function(g){h+='<tr><td>'+esc(g.n)+(g.s?'<br><small>'+esc(g.s)+'</small>':'')+(g.sz.length?'<br>'+szLine(g):'')+((g.pm||g.pn)?'<br><small>Mayor '+(g.pm?money(g.pm):'—')+' · Menor '+(g.pn?money(g.pn):'—')+'</small>':'')+(adm?'<br><button class="x" data-ed="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>':'')+'</td><td class="'+(g.q<0?'neg':'')+'">'+g.q+'</td>'+(adm?'<td>'+money(g.avg)+'</td><td>'+money(g.v)+'</td>':'')+'</tr>'});
 if(!rows.length)h+='<tr><td colspan="'+(adm?4:2)+'" class="empty">'+(all.length?'No encontré productos con esa búsqueda.':(adm?'Cargá tu primera compra para ver el stock.':'Todavía no hay productos cargados.'))+'</td></tr>';
 $('stkbody').innerHTML=h+'</table></div>'}
 function drawStk(){
+if(EDK)return;
 if(!$('sq')){$('s-stk').innerHTML='<input id="sq" type="search" placeholder="Buscar producto, código o talle" autocomplete="off" value="'+esc(STQ)+'" style="margin-bottom:14px"><div id="stkbody"></div>';$('sq').oninput=function(){STQ=this.value;stkBody()}}
 stkBody()}
+
+/* ---------- Editar producto (administrador): precios y talles ---------- */
+function splitPlan(pur,needs,base){
+var rem=needs.map(function(n){return n.q}),tot=rem.reduce(function(a,b){return a+b},0),left=tot,ni=0,cnt=0,ops=[],qs={};
+pur.forEach(function(x){if(left<=0)return;var take=Math.min(left,x.q),tk=take;left-=take;
+while(tk>0){while(rem[ni]==0)ni++;var c=Math.min(tk,rem[ni]);rem[ni]-=c;tk-=c;
+ops.push({op:'set',mov:{id:base+cnt++,t:'c',d:x.d,p:x.p,s:x.s||'',z:needs[ni].z,q:c,u:x.u,k:'',by:x.by||'',bn:x.bn||''}});
+qs[ni]=(qs[ni]||0)+c}
+if(take==x.q)ops.push({op:'del',id:x.id});
+else{var o=JSON.parse(JSON.stringify(x));o.q=x.q-take;ops.push({op:'set',mov:o})}});
+return {ops:ops,qs:qs,tot:tot,left:left}}
+function startEdit(b){EDK=b;var st0=stock(b);ESZ=[];
+if(st0>0){if(st0<=12)for(var n=0;n<st0;n++)ESZ.push({z:'',q:'1'});else ESZ.push({z:'',q:String(st0)})}
+drawEdit()}
+function closeEdit(){EDK=null;ESZ=[];$('s-stk').innerHTML='';drawStk()}
+function sumEd(){var e=$('ezsum');if(!e)return;var t=0;ESZ.forEach(function(r){t+=+r.q||0});var st0=stock(EDK);e.textContent='Repartidos '+t+' de '+st0;e.style.color=t>st0?'var(--buy)':(t==st0?'var(--sell)':'var(--ink)')}
+function drawEdit(){
+var b=EDK,g=null;stkRows().forEach(function(x){if(x.b==b)g=x});if(!g){EDK=null;return}
+var st0=stock(b);
+var h='<div class="card"><b>'+esc(g.n)+'</b>'+(g.s?'<small style="display:block">'+esc(g.s)+'</small>':'')+
+'<div class="row"><div><label>Venta por mayor</label><input id="epm" type="number" inputmode="decimal" min="0" placeholder="0" value="'+(g.pm||'')+'"></div><div><label>Venta por menor</label><input id="epn" type="number" inputmode="decimal" min="0" placeholder="0" value="'+(g.pn||'')+'"></div></div>'+
+'<div class="k" style="margin-top:6px">Con estos precios, quien carga una venta no tiene que escribirlos.</div>';
+if(st0>0){h+='<label style="margin-top:18px">Agregar talles ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
+ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
+h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle</button>'}
+else h+='<div class="k" style="margin-top:14px">Este producto no tiene unidades sin talle para repartir.</div>';
+h+='<button class="go" data-edx="save">Guardar cambios</button><button class="go alt" data-edx="cancel">Cancelar</button></div>';
+$('s-stk').innerHTML=h;sumEd()}
+function editAction(a,i){
+if(a=='add'){ESZ.push({z:'',q:'1'});drawEdit()}
+else if(a=='del'){ESZ.splice(+i,1);drawEdit()}
+else if(a=='cancel')closeEdit();
+else if(a=='save')saveEdit()}
+function saveEdit(){
+var b=EDK,pm=+$('epm').value||0,pn=+$('epn').value||0;
+if(pm<0||pn<0){alert('Los precios no pueden ser negativos.');return}
+var st0=stock(b),mg={};
+if(st0>0)ESZ.forEach(function(r){var z=String(r.z).trim(),n=Math.floor(+r.q);if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
+var needs=Object.keys(mg).map(function(k){return mg[k]}),tot=needs.reduce(function(a,r){return a+r.q},0);
+if(needs.some(function(n){return n.z.length>20})){alert('Un talle es demasiado largo.');return}
+if(tot>st0){alert('Repartiste '+tot+' unidades y solo hay '+st0+' sin talle. Revisalo.');return}
+var bt=writeBatch(db),name='',sku='';
+baseDocs(b).forEach(function(d){name=d.n;sku=d.s;bt.set(doc(db,'stores',SID,'stock',d.id),{pm:pm,pn:pn},{merge:true})});
+if(tot>0){
+var pur=M.filter(function(x){return x.t=='c'&&pk(x)==b}).sort(function(a,c){return a.d.localeCompare(c.d)||a.id-c.id});
+var pl=splitPlan(pur,needs,Date.now());
+if(pl.left>0){alert('No pude repartir esas unidades. Probá recalcular el stock en Equipo y reintentá.');return}
+pl.ops.forEach(function(o){if(o.op=='set')bt.set(mref(o.mov.id),o.mov);else bt.delete(mref(o.id))});
+bt.set(sref(b),{q:increment(-tot)},{merge:true});
+needs.forEach(function(n){bt.set(sref(b+'|'+key(n.z)),{n:name,s:sku,z:n.z,q:increment(n.q),pm:pm,pn:pn},{merge:true})})}
+bt.commit().catch(fail);closeEdit()}
 
 /* ---------- Equipo (administrador) ---------- */
 function drawTeam(){
@@ -461,7 +525,7 @@ function fixStock(){
 if(!confirm('¿Recalcular el stock de empleados con todo el historial?'))return;
 var st={};M.forEach(function(x){var k=pk(x),o=st[k]||(st[k]={n:x.p,s:x.s||'',z:x.z||'',q:0});o.q+=x.t=='c'?x.q:-x.q;o.n=x.p});
 var ks=Object.keys(st),i,b;
-for(i=0;i<ks.length;i+=400){b=writeBatch(db);ks.slice(i,i+400).forEach(function(k){b.set(sref(k),st[k])});b.commit().catch(fail)}
+for(i=0;i<ks.length;i+=400){b=writeBatch(db);ks.slice(i,i+400).forEach(function(k){b.set(sref(k),st[k],{merge:true})});b.commit().catch(fail)}
 alert('Listo, stock recalculado.')}
 
 /* ---------- PDF (administrador) ---------- */
@@ -549,7 +613,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;drawAdd();return}
 if(d.inv){
@@ -561,13 +625,17 @@ if(d.an){if(confirm('¿Anular este código?'))deleteDoc(doc(db,'stores',SID,'inv
 if(d.rm){if(confirm('¿Quitar a esta persona de la tienda?'))deleteDoc(doc(db,'stores',SID,'members',d.rm)).catch(fail);return}
 if(d.del){var mv=null;M.forEach(function(x){if(String(x.id)==d.del)mv=x});if(mv&&confirm('¿Borrar este movimiento?'))delMov(mv);return}
 if(d.sz){sizeAction(d.sz,d.i);return}
+if(d.ed){startEdit(d.ed);return}
+if(d.edx){editAction(d.edx,d.i);return}
 if(d.pa){platAction(d.pa);return}
 if(d.pd){openDetail(d.pd);return}
 if(d.pr){revoke(d.pr);return}
 if(e.target.id=='fix')fixStock()});
 document.addEventListener('input',function(e){var t=e.target;if(!t.classList)return;
 if(t.classList.contains('sz-z')&&SZ[+t.dataset.i])SZ[+t.dataset.i].z=t.value;
-else if(t.classList.contains('sz-q')&&SZ[+t.dataset.i]){SZ[+t.dataset.i].q=t.value;sumSizes()}});
+else if(t.classList.contains('sz-q')&&SZ[+t.dataset.i]){SZ[+t.dataset.i].q=t.value;sumSizes()}
+else if(t.classList.contains('ez-z')&&ESZ[+t.dataset.i])ESZ[+t.dataset.i].z=t.value;
+else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
 document.addEventListener('change',function(e){if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}if(e.target.id=='gt')togglePlat()});
 
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
