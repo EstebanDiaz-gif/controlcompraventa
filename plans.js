@@ -2,7 +2,7 @@
 // (se guarda en Firestore: platform/config) sin tocar el código.
 export const DEFAULT_CONFIG = {
   currency: 'ARS',
-  trialDays: 14,
+  trialDays: 10,
   graceDays: 3, // días de cortesía después de que vence el acceso
   trialPlan: 'inicial', // plan cuyos límites rigen durante la prueba (decisión pendiente de confirmar)
   plans: {
