@@ -1,5 +1,5 @@
-var C='ventas-v7',G='https://www.gstatic.com/firebasejs/10.12.2/';
-var F=['./','./index.html','./app.html','./firebase-config.js','./access.js','./plans.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+var C='ventas-v9',G='https://www.gstatic.com/firebasejs/10.12.2/';
+var F=['./','./index.html','./app.html','./firebase-config.js','./access.js','./plans.js','./almacen.js','./almacen-calc.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 var X=[G+'firebase-app.js',G+'firebase-auth.js',G+'firebase-firestore.js',G+'firebase-functions.js'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(C).then(function(c){return Promise.all(F.map(function(u){return fetch(u,{cache:'reload'}).then(function(r){return c.put(u,r)})})).then(function(){return Promise.all(X.map(function(u){return c.add(u).catch(function(){})}))})}));self.skipWaiting()});
 self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(k){return Promise.all(k.filter(function(n){return n!==C}).map(function(n){return caches.delete(n)}))}));self.clients.claim()});
