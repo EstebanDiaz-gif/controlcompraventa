@@ -41,7 +41,10 @@ export function computeAccess({ nowMs, config, paidPlan = null, trialStartMs = n
   const ends = phases.filter(p => p.untilMs != null).map(p => p.untilMs);
   const activeUntilMs = unlimited ? null : (ends.length ? Math.max(...ends) : null);
   const current = phases.find(p => p.untilMs == null || p.untilMs > nowMs);
-  const state = current ? current.state : 'expired';
+  const graceMs = cfg.graceDays * DAY;
+  const graceUntilMs = (!unlimited && activeUntilMs != null) ? activeUntilMs + graceMs : null;
+  const inGrace = !current && graceUntilMs != null && graceMs > 0 && nowMs < graceUntilMs;
+  const state = current ? current.state : (inGrace ? 'grace' : 'expired');
 
   // Plan y límites vigentes
   const up = gs.filter(g => g.type === 'plan_upgrade' && g.startMs <= nowMs && (g.endMs == null || g.endMs > nowMs)).pop();
@@ -52,14 +55,17 @@ export function computeAccess({ nowMs, config, paidPlan = null, trialStartMs = n
   if (unlimited) limits = { admins: null, empleados: null, sucursales: null }; // null = sin límite
   const features = unlimited ? 'all' : cfg.plans[effectivePlan].features;
 
-  return { state, unlimited, activeUntilMs, trialStartMs, trialEndMs, paidUntilMs: paidEffMs, effectivePlan, limits, features, phases, active: state !== 'expired' };
+  return { state, unlimited, activeUntilMs, trialStartMs, trialEndMs, paidUntilMs: paidEffMs, effectivePlan, limits, features, phases, graceUntilMs, active: state !== 'expired' };
 }
 
 // Para el navegador: con el documento billing/access y la hora actual, devuelve el estado vigente.
 export function deriveState(access, nowMs) {
   if (!access) return { state: 'unknown', active: false };
   const cur = (access.phases || []).find(p => p.untilMs == null || p.untilMs > nowMs);
-  if (!cur) return { state: 'expired', active: false };
+  if (!cur) {
+    if (access.graceUntilMs != null && nowMs < access.graceUntilMs) return { state: 'grace', active: true, untilMs: access.graceUntilMs, daysLeft: Math.max(0, Math.ceil((access.graceUntilMs - nowMs) / DAY)) };
+    return { state: 'expired', active: false };
+  }
   const daysLeft = cur.untilMs == null ? null : Math.max(0, Math.ceil((cur.untilMs - nowMs) / DAY));
   return { state: cur.state, active: true, untilMs: cur.untilMs, daysLeft };
 }

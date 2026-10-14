@@ -143,7 +143,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc'].forEach(stop)}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -154,7 +154,7 @@ function fail(e){var c=e&&e.code?String(e.code):'';
 if(c.indexOf('functions/')===0&&c!='functions/internal'&&c!='functions/unavailable'&&e.message){alert(e.message);return}
 if(c=='functions/unavailable'){alert('Necesitás internet para hacer esto.');return}
 alert('No se pudo guardar'+(c?' ('+c+')':'')+'. Si no tenés permiso, avisale a un administrador.')}
-var STATE_LABEL={trial:'Prueba gratuita',paid:'Suscripción activa',free_forever:'Acceso gratuito permanente',free_timed:'Acceso gratuito temporal',owner_free:'Cuenta de la plataforma',expired:'Vencido',unknown:'—',sin_inicializar:'Sin inicializar'};
+var STATE_LABEL={trial:'Prueba gratuita',paid:'Suscripción activa',free_forever:'Acceso gratuito permanente',free_timed:'Acceso gratuito temporal',owner_free:'Cuenta de la plataforma',grace:'Vencido · días de gracia',expired:'Vencido',unknown:'—',sin_inicializar:'Sin inicializar'};
 var fdate=function(ms){var d=new Date(ms);return String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+d.getUTCFullYear()};
 function dstate(){return ACC?deriveState(ACC,Date.now()):null}
 function canWrite(){var d=dstate();return !d||d.active}
@@ -191,9 +191,9 @@ try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
 if(r.trial)alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita.');
 importLegacy(r.sid)}).catch(fail)}
 function joinStore(){
-var c=(prompt('Pegá el código que te dieron:')||'').trim();if(!c)return;
+var c=(prompt('Pegá el código (o el mensaje completo) que te dieron:')||'').trim();if(!c)return;
+c=extractCode(c);
 if(!SERVER_MODE){
-c=c.toLowerCase().replace(/\s/g,'');
 if(c.length!=17||'ae'.indexOf(c[10])<0){alert('Ese código no es válido.');return}
 var sid=c.slice(0,10),iid=c.slice(10),role=iid[0]=='a'?'admin':'empleado';
 setDoc(doc(db,'stores',sid,'members',U.uid),{role:role,email:U.email,name:nm(),code:iid})
@@ -257,6 +257,7 @@ function drawBanner(){
 var b=$('banner'),d=dstate(),h='';
 if(d&&ROLE){
 if(d.state=='expired')h='<div class="bn bad"><b>El acceso de esta tienda venció.</b> Tus datos están a salvo y podés consultarlos, pero no se pueden cargar movimientos nuevos hasta renovar.'+(ROLE=='admin'?'':' Avisale a un administrador.')+'</div>';
+else if(d.state=='grace')h='<div class="bn warn"><b>El acceso venció.</b> Tenés '+(d.daysLeft<=1?'1 día':d.daysLeft+' días')+' de gracia para renovar. Después solo vas a poder consultar tus datos.</div>';
 else if(d.state=='trial')h='<div class="bn'+(d.daysLeft<=3?' warn':'')+'"><b>Prueba gratuita:</b> '+(d.daysLeft<=1?'te queda 1 día':'te quedan '+d.daysLeft+' días')+'.</div>';
 else if(d.state=='free_timed')h='<div class="bn">Acceso gratuito hasta el '+fdate(d.untilMs)+'.</div>';
 else if(d.state=='free_forever')h='<div class="bn">Acceso gratuito.</div>'}
@@ -518,18 +519,18 @@ bt.commit().catch(fail);closeEdit()}
 function drawGas(){
 if(!canWrite()){$('s-gas').innerHTML=blockedCard();return}
 if(GAERR){$('s-gas').innerHTML='<div class="card"><b>Falta un paso</b><div class="k" style="margin-top:6px">Para guardar gastos hay que actualizar las reglas de Firebase. Los pasos están en el archivo LEEME (Parte C).</div></div>';return}
-if($('gf')){gasList();return}
+if($('xgf')){gasList();return}
 $('s-gas').innerHTML='<div class="card"><b>Cargar un gasto</b>'+
-'<label>Detalle</label><input id="gn" placeholder="Ej: Alquiler del local" autocomplete="off">'+
-'<label>Tipo de gasto</label><select id="gc">'+GCATS.map(function(c){return '<option>'+esc(c)+'</option>'}).join('')+'</select>'+
-'<div class="row"><div><label>Monto</label><input id="ga" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Fecha</label><input id="gd" type="date" value="'+today()+'"></div></div>'+
-'<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="gr" type="checkbox" style="width:auto"> Se repite todos los meses</label>'+
-'<button class="go" id="gf">Guardar gasto</button></div><div id="glist"></div>';
-$('gf').onclick=function(){var n=$('gn').value.trim(),a=+$('ga').value,d=$('gd').value||today();
+'<label>Detalle</label><input id="xgn" placeholder="Ej: Alquiler del local" autocomplete="off">'+
+'<label>Tipo de gasto</label><select id="xgc">'+GCATS.map(function(c){return '<option>'+esc(c)+'</option>'}).join('')+'</select>'+
+'<div class="row"><div><label>Monto</label><input id="xga" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Fecha</label><input id="xgd" type="date" value="'+today()+'"></div></div>'+
+'<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="xgr" type="checkbox" style="width:auto"> Se repite todos los meses</label>'+
+'<button class="go" id="xgf">Guardar gasto</button></div><div id="xglist"></div>';
+$('xgf').onclick=function(){var n=$('xgn').value.trim(),a=+$('xga').value,d=$('xgd').value||today();
 if(!n||!a||a<=0){alert('Completá el detalle y el monto.');return}
-var g={id:Date.now(),d:d,c:$('gc').value,n:n,a:a,by:U.uid,bn:nm()};if($('gr').checked)g.r=1;
+var g={id:Date.now(),d:d,c:$('xgc').value,n:n,a:a,by:U.uid,bn:nm()};if($('xgr').checked)g.r=1;
 setDoc(doc(db,'stores',SID,'gastos',String(g.id)),g).catch(fail);month=d.slice(0,7);
-$('gn').value='';$('ga').value='';$('gr').checked=false;gasList()};
+$('xgn').value='';$('xga').value='';$('xgr').checked=false;gasList()};
 gasList()}
 function gasList(){
 var l=GA.filter(function(g){return gApplies(g,month)}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id}),tot=0,by={};
@@ -540,7 +541,7 @@ h+='</div>';
 if(!l.length)h+='<div class="empty">No cargaste gastos este mes.</div>';
 l.forEach(function(g){var rep=g.r&&g.d.slice(0,7)!=month;
 h+='<div class="it"><div><b>'+esc(g.n)+'</b><small><em class="tag">'+esc(g.c)+'</em>'+(g.r?'se repite todos los meses':g.d.split('-').reverse().join('/'))+'</small>'+(g.r&&!g.e?'<button class="x" data-gend="'+esc(g.id)+'" style="font-size:13px;text-decoration:underline;color:var(--ink)">Dejar de repetir después de este mes</button>':'')+'</div><div class="amt"><b class="neg">−'+money(g.a)+'</b></div>'+(rep?'':'<button class="x" data-gdel="'+esc(g.id)+'" aria-label="Borrar">×</button>')+'</div>'});
-h+='</div>';$('glist').innerHTML=h}
+h+='</div>';$('xglist').innerHTML=h}
 
 /* ---------- Equipo (administrador) ---------- */
 function drawTeam(){
@@ -569,13 +570,22 @@ var h='<div class="card"><b>Plan y límites</b><div class="rows" style="margin:6
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
 if(!ACC.unlimited){h+='<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it"><div><b>'+esc(p.name)+'</b><small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+money(p.priceARS)+'</b><small>por mes</small></div></div>'});
-h+='<div class="k" style="margin-top:8px">La contratación en línea todavía no está habilitada. Mientras tanto, para cambiar de plan escribinos.</div>'}
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b><small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+money(p.priceARS)+'</b><small>por mes</small></div>'+(p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)">Contratar '+esc(p.name)+'</a>':'')+'</div>'});
+h+='<div class="k" style="margin-top:8px">Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.</div>'}
 return h+'</div>'}
-function shareCode(c){var t='Código para unirte a '+SNAME+' en la app: '+c+'\nAbrí la app, tocá el selector de tienda y elegí "Unirme con un código".';
-if(navigator.share)navigator.share({text:t}).catch(function(){});
-else if(navigator.clipboard)navigator.clipboard.writeText(t).then(function(){alert('Copiado. Pegalo en un mensaje.')},function(){prompt('Copiá este texto:',t)});
-else prompt('Copiá este texto:',t)}
+function shareCode(c){
+var msg='Para unirte a '+SNAME+': abrí la app, tocá el selector de tienda, elegí "Unirme con un código" y pegá este código:\n\n'+c;
+var o=document.createElement('div');o.id='cdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px';
+o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:22px;max-width:380px;width:100%"><b style="font-size:18px">Código de invitación</b><div class="code" style="font-size:22px;margin:16px 0;padding:14px;background:var(--bg);border-radius:14px;text-align:center;user-select:all">'+esc(c)+'</div><button class="go" id="cdc" style="margin-top:0">Copiar código</button><button class="go alt" id="cds">Enviar mensaje con instrucciones</button><button class="x" id="cdx" style="display:block;margin:14px auto 0;font-size:14px;text-decoration:underline">Cerrar</button></div>';
+document.body.appendChild(o);
+function cl(){o.remove()}
+$('cdx').onclick=cl;o.onclick=function(e){if(e.target==o)cl()};
+$('cdc').onclick=function(){var b=this;
+function ok(){b.textContent='¡Copiado! Pegalo donde lo necesites'}
+if(navigator.clipboard)navigator.clipboard.writeText(c).then(ok,function(){prompt('Copiá este código:',c)});else prompt('Copiá este código:',c)};
+$('cds').onclick=function(){if(navigator.share)navigator.share({text:msg}).catch(function(){});
+else if(navigator.clipboard)navigator.clipboard.writeText(msg).then(function(){alert('Mensaje copiado. Pegalo en un chat.')},function(){prompt('Copiá este texto:',msg)});else prompt('Copiá este texto:',msg)}}
+function extractCode(t){var w=String(t||'').toLowerCase().split(/[^a-z0-9]+/).filter(function(x){return x.length==17&&'ae'.indexOf(x[10])>=0});return w.length?w[w.length-1]:String(t||'').toLowerCase().replace(/\s/g,'')}
 function fixStock(){
 if(!confirm('¿Recalcular el stock de empleados con todo el historial?'))return;
 var st={};M.forEach(function(x){var k=pk(x),o=st[k]||(st[k]={n:x.p,s:x.s||'',z:x.z||'',q:0});o.q+=x.t=='c'?x.q:-x.q;o.n=x.p});
@@ -605,7 +615,7 @@ window.print()}
 
 /* ---------- Panel del propietario de la plataforma ---------- */
 var GT={free_forever:'Acceso gratuito permanente',free_timed:'Acceso gratuito por tiempo',trial_extension:'Ampliar la prueba gratuita',subscription_extension:'Extender suscripción',plan_upgrade:'Plan superior o límites personalizados'};
-var AC={grant:'Beneficio otorgado',revoke:'Beneficio revocado',plan_config:'Cambio de planes y precios',migrate_legacy:'Inicialización de tiendas anteriores'};
+var AC={payment:'Pago registrado',grant:'Beneficio otorgado',revoke:'Beneficio revocado',plan_config:'Cambio de planes y precios',migrate_legacy:'Inicialización de tiendas anteriores'};
 function drawPlat(){
 if(!IS_OWNER){$('s-plat').innerHTML='';return}
 var h='<div class="card"><b>Tiendas</b><label>Buscar por nombre, código de tienda o email del administrador</label><input id="pq" value="'+esc(PL.q)+'" autocomplete="off"><button class="go" data-pa="search">Buscar</button></div>';
@@ -625,7 +635,7 @@ var h='<div class="card"><b>'+esc(d.name)+'</b><div class="k">'+esc(d.sid)+'</di
 '<div class="r2"><span>Administradores / empleados</span><b style="font-size:16px">'+lim(L.admins)+' / '+lim(L.empleados)+'</b></div></div>'+
 '<div style="margin-top:10px"><b>Personas</b></div>';
 (d.members||[]).forEach(function(m){h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+esc(m.email)+'</small></div><span class="tag">'+(m.role=='admin'?'admin':'empleado')+'</span></div>'});
-h+='</div><div class="card"><b>Otorgar beneficio</b><label>Tipo</label><select id="gt">'+Object.keys(GT).map(function(k){return '<option value="'+k+'">'+GT[k]+'</option>'}).join('')+'</select>'+
+h+='</div><div class="card"><b>Registrar pago recibido</b><label>Plan pagado</label><select id="pyp">'+PLAN_IDS.map(function(k){return '<option value="'+k+'">'+esc(CFG.plans[k].name)+' · '+money(CFG.plans[k].priceARS)+'</option>'}).join('')+'</select><label>Meses pagados</label><input id="pym" type="number" min="1" max="24" value="1" inputmode="numeric"><button class="go" data-pa="pay">Registrar pago</button></div><div class="card"><b>Otorgar beneficio</b><label>Tipo</label><select id="gt">'+Object.keys(GT).map(function(k){return '<option value="'+k+'">'+GT[k]+'</option>'}).join('')+'</select>'+
 '<div id="gp1"><label>Cuánto tiempo</label><div class="row"><div><input id="gn" type="number" min="1" inputmode="numeric" placeholder="Cantidad"></div><div><select id="gu"><option value="days">días</option><option value="months">meses</option><option value="years">años</option></select></div></div></div>'+
 '<div id="gp2"><label>Plan</label><select id="gpl">'+PLAN_IDS.map(function(k){return '<option value="'+k+'">'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select>'+
 '<label>Límites propios (opcional)</label><div class="row"><div><input id="gla" type="number" min="0" placeholder="Admins"></div><div><input id="gle" type="number" min="0" placeholder="Empleados"></div><div><input id="gls" type="number" min="0" placeholder="Sucursales"></div></div>'+
@@ -662,6 +672,9 @@ if(type!='free_forever'){var n=parseInt($('gn').value,10);
 if(type=='plan_upgrade'){params.plan=$('gpl').value;[['gla','admins'],['gle','empleados'],['gls','sucursales']].forEach(function(x){if($(x[0]).value!=='')params[x[1]]=parseInt($(x[0]).value,10)})}
 if(!confirm('¿Otorgar "'+GT[type]+'" a '+PL.detail.name+'?'))return;
 callFn('ownerGrantBenefit',{sid:PL.detail.sid,type:type,params:params,reason:why}).then(function(){alert('Beneficio otorgado.');openDetail(PL.detail.sid)}).catch(fail);return}
+if(a=='pay'){var pm=parseInt($('pym').value,10),pp=$('pyp').value;if(!(pm>=1)){alert('Indicá los meses pagados.');return}
+if(!confirm('¿Registrar '+pm+' mes(es) del plan '+CFG.plans[pp].name+' para '+PL.detail.name+'?'))return;
+callFn('ownerRegisterPayment',{sid:PL.detail.sid,plan:pp,months:pm,reason:'Pago por Mercado Pago'}).then(function(){alert('Pago registrado.');openDetail(PL.detail.sid)}).catch(fail);return}
 if(a=='cfg'){var num=function(i){return parseInt($(i).value,10)},c={trialDays:num('c_td'),trialPlan:$('c_tp').value,plans:{}};
 PLAN_IDS.forEach(function(id){c.plans[id]={priceARS:num('c_'+id+'_p'),admins:num('c_'+id+'_a'),empleados:num('c_'+id+'_e'),sucursales:num('c_'+id+'_s')}});
 if(!confirm('¿Guardar los nuevos planes y precios?'))return;

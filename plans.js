@@ -3,19 +3,20 @@
 export const DEFAULT_CONFIG = {
   currency: 'ARS',
   trialDays: 14,
+  graceDays: 3, // días de cortesía después de que vence el acceso
   trialPlan: 'inicial', // plan cuyos límites rigen durante la prueba (decisión pendiente de confirmar)
   plans: {
     inicial: {
-      name: 'Inicial', priceARS: 14999, admins: 2, empleados: 4, sucursales: 1,
+      name: 'Inicial', payUrl: 'https://mpago.la/11tidko', priceARS: 14999, admins: 2, empleados: 4, sucursales: 1,
       features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos']
     },
     profesional: {
-      name: 'Profesional', priceARS: 24999, admins: 4, empleados: 10, sucursales: 3,
+      name: 'Profesional', payUrl: 'https://mpago.la/19EF6QE', priceARS: 24999, admins: 4, empleados: 10, sucursales: 3,
       features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos',
         'transferencias', 'informes_avanzados', 'filtros', 'analisis_gastos', 'pdf']
     },
     empresarial: {
-      name: 'Empresarial', priceARS: 55999, admins: 10, empleados: 30, sucursales: 10,
+      name: 'Empresarial', payUrl: 'https://mpago.la/1Dncr9a', priceARS: 55999, admins: 10, empleados: 30, sucursales: 10,
       features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos',
         'transferencias', 'informes_avanzados', 'filtros', 'analisis_gastos', 'pdf',
         'informes_consolidados', 'comparar_sucursales', 'finanzas_centralizadas', 'permisos_detallados', 'soporte_prioritario_preparado']
@@ -32,6 +33,7 @@ export function mergeConfig(stored) {
   if (!stored || typeof stored !== 'object') return c;
   if (Number.isInteger(stored.trialDays) && stored.trialDays >= 0) c.trialDays = stored.trialDays;
   if (PLAN_IDS.includes(stored.trialPlan)) c.trialPlan = stored.trialPlan;
+  if (Number.isInteger(stored.graceDays) && stored.graceDays >= 0 && stored.graceDays <= 30) c.graceDays = stored.graceDays;
   for (const id of PLAN_IDS) {
     const s = stored.plans && stored.plans[id];
     if (!s) continue;
@@ -44,6 +46,7 @@ export function mergeConfig(stored) {
 export function validateConfigInput(input) {
   if (!input || typeof input !== 'object') throw new Error('Configuración inválida.');
   const out = { trialDays: input.trialDays, trialPlan: input.trialPlan, plans: {} };
+  if (input.graceDays !== undefined) { if (!Number.isInteger(input.graceDays) || input.graceDays < 0 || input.graceDays > 30) throw new Error('Los días de gracia deben ser un número entero entre 0 y 30.'); out.graceDays = input.graceDays; }
   if (!Number.isInteger(out.trialDays) || out.trialDays < 0 || out.trialDays > 365) throw new Error('Los días de prueba deben ser un número entero entre 0 y 365.');
   if (!PLAN_IDS.includes(out.trialPlan)) throw new Error('El plan de la prueba no es válido.');
   for (const id of PLAN_IDS) {
