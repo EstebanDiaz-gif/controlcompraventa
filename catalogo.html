@@ -131,6 +131,7 @@ if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');r
 INFO=s.data();ALM=!!INFO.alm;theme();head();
 if(ALM){$('sq').placeholder='Buscar producto'}
 return (ALM?loadLista():Promise.resolve(false)).then(function(ok){if(ok)return;
+if(ALM){fail('El catálogo se está preparando. Probá de nuevo en unos minutos.');return}
 return getDocs(collection(db,'stores',sid,'stock')).then(function(sn){
 var m={};sn.forEach(function(d){var x=d.data(),k=ALM?d.id:key(x.s||x.n);var g=m[k]||(m[k]={k:k,n:x.n||'',s:x.s||'',pm:0,pn:0,mm:0,img:'',oh:false,sz:[],q:0,w:!!x.w,cat:x.cat||''});
 g.n=x.n||g.n;if(x.pm)g.pm=x.pm;if(x.pn)g.pn=x.pn;if(x.mm)g.mm=x.mm;if(x.img)g.img=x.img;if(x.oh)g.oh=true;
