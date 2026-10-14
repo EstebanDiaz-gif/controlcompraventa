@@ -5,7 +5,7 @@
 try{if(window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true||/[?&]app=1/.test(location.search)){location.replace('./app.html')}}catch(e){}
 </script>
 <title>Control Pekeron · Controlá tu negocio desde el celular</title>
-<meta name="description" content="Compras, ventas, stock, gastos, servicios y catálogo con pedidos por WhatsApp. Probala 10 días gratis.">
+<meta name="description" content="Para tiendas de ropa, almacenes y locales de servicios: caja, fiado, compras, ventas, stock, gastos y catálogo con pedidos por WhatsApp. Probala 10 días gratis.">
 <meta name="theme-color" content="#0f7a55">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png">
@@ -47,6 +47,11 @@ h2{font-size:clamp(26px,4vw,36px);letter-spacing:-.01em;margin:0 0 8px;text-alig
 .sub{text-align:center;color:var(--mut);max-width:620px;margin:0 auto 28px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .f{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
+.biz{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.bz{background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:22px}
+.bz .e{font-size:34px}.bz h3{margin:6px 0 4px;font-size:21px}.bz p{color:var(--mut);margin:0 0 10px;font-size:15px}
+.bz ul{list-style:none;padding:0;margin:0}.bz li{padding:4px 0 4px 24px;position:relative;font-size:15px}.bz li::before{content:"✓";position:absolute;left:0;color:var(--g);font-weight:800}
+.new{display:inline-block;background:var(--g);color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px;vertical-align:middle;margin-left:6px}
 .f .ic{width:44px;height:44px;border-radius:12px;background:var(--soft);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:10px}
 .f b{display:block;font-size:18px;margin-bottom:4px}.f span{color:var(--mut);font-size:15px}
 .steps{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
@@ -77,7 +82,7 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 <div>
 <span class="pill">10 días gratis · sin pagar hoy</span>
 <h1>Controlá tu negocio desde el celular</h1>
-<p class="lead">Compras, ventas, stock, gastos y ganancias en un solo lugar. Para tiendas de ropa y calzado, y también para locales de servicios con comisiones. Funciona aunque se corte internet.</p>
+<p class="lead">Compras, ventas, stock, gastos y ganancias en un solo lugar. Para tiendas de ropa y calzado, <b>almacenes y minimercados</b>, y locales de servicios con comisiones. Funciona aunque se corte internet.</p>
 <div class="cta"><button class="btn p" id="inst">⬇ Descargar la app</button><a class="btn o" href="./app.html?app=1">Entrar desde el navegador</a></div>
 <div class="note">Gratis para probar · Se instala en segundos · Android, iPhone y computadora</div>
 </div>
@@ -91,11 +96,21 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 </div>
 </div>
 
+<section id="negocios"><div class="wrap">
+<h2>Una app para tu tipo de negocio</h2><p class="sub">Al crear tu tienda elegís qué hace tu negocio y la app se arma con las pantallas que necesitás.</p>
+<div class="biz">
+<div class="bz"><div class="e">👟</div><h3>Ropa y calzado</h3><p>Por mayor y por menor.</p><ul><li>Stock por talle y color</li><li>Precio mayorista con mínimo de unidades</li><li>Catálogo con talles disponibles</li></ul></div>
+<div class="bz"><div class="e">🛒</div><h3>Almacén y minimercado <span class="new">NUEVO</span></h3><p>Para el almacén de barrio que vende de todo.</p><ul><li>Caja rápida: buscás, tocás y cobrás</li><li>Venta suelta por kilo: fiambre, queso, yerba</li><li>Libreta de fiado con el saldo de cada cliente</li><li>Lector de código de barras</li><li>Aumentá precios por % en un toque</li></ul></div>
+<div class="bz"><div class="e">💄</div><h3>Servicios</h3><p>Peluquerías, barberías, maquillaje.</p><ul><li>Atenciones y precios por forma de pago</li><li>Comisión de cada empleada</li><li>Insumos que se descuentan solos</li></ul></div>
+</div></div></section>
+
 <section id="funciones"><div class="wrap">
 <h2>Todo lo que necesitás, sin complicarte</h2><p class="sub">Hecha para comerciantes: simple de usar, sin planillas ni cuadernos.</p>
 <div class="grid">
 <div class="f"><div class="ic">🛒</div><b>Compras y ventas</b><span>Cargá lo que comprás y lo que vendés, por mayor o por menor, con el precio ya armado.</span></div>
-<div class="f"><div class="ic">👟</div><b>Stock con talles</b><span>Cada talle con su cantidad. Sabés qué tenés y qué se está terminando.</span></div>
+<div class="f"><div class="ic">📦</div><b>Stock siempre al día</b><span>Por unidad, por talle o por kilo. Sabés qué tenés y qué se está terminando.</span></div>
+<div class="f"><div class="ic">💵</div><b>Caja rápida</b><span>Buscá el producto o escanealo, sumá al carrito y cobrá. Te calcula el vuelto.</span></div>
+<div class="f"><div class="ic">📒</div><b>Fiado sin cuaderno</b><span>Cada cliente con lo que debe, sus compras y sus pagos. Le recordás el saldo por WhatsApp.</span></div>
 <div class="f"><div class="ic">📈</div><b>Ganancia real</b><span>Costo, ventas y gastos del mes: ves cuánto ganás de verdad.</span></div>
 <div class="f"><div class="ic">🌐</div><b>Catálogo online</b><span>Una página con tus productos y fotos. Tus clientes eligen y te mandan el pedido por WhatsApp.</span></div>
 <div class="f"><div class="ic">💄</div><b>Servicios y comisiones</b><span>Para peluquerías, maquillaje y más: atenciones, comisión de cada empleada e insumos.</span></div>
@@ -105,7 +120,7 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 </div></div></section>
 
 <section><div class="wrap"><h2>Empezás en 3 pasos</h2><p class="sub">En unos minutos ya estás cargando tu primera venta.</p>
-<div class="steps"><div class="st"><b>Instalá la app</b><span>Un toque en “Descargar la app” y queda en tu pantalla de inicio.</span></div><div class="st"><b>Creá tu tienda</b><span>Elegí qué hace tu negocio y el plan. Hoy no pagás nada.</span></div><div class="st"><b>Cargá y vendé</b><span>Cargá tus productos o servicios y sumá a tu equipo con un código.</span></div></div></div></section>
+<div class="steps"><div class="st"><b>Instalá la app</b><span>Un toque en “Descargar la app” y queda en tu pantalla de inicio.</span></div><div class="st"><b>Creá tu tienda</b><span>Elegí qué hace tu negocio (ropa, almacén o servicios) y el plan. Hoy no pagás nada.</span></div><div class="st"><b>Cargá y vendé</b><span>Cargá tus productos o servicios y sumá a tu equipo con un código.</span></div></div></div></section>
 
 <section id="planes"><div class="wrap"><h2>Planes simples</h2><p class="sub">Todos arrancan con <b>10 días gratis</b>. Elegís el plan al registrarte y recién cuando termina la prueba se paga.</p>
 <div class="plans" id="plans"></div>
@@ -117,7 +132,8 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 <details><summary>¿Qué pasa si no pago?</summary><p>Tus datos no se pierden. La tienda queda en modo solo lectura: podés consultar todo, pero no cargar movimientos nuevos hasta que renueves.</p></details>
 <details><summary>¿Funciona sin internet?</summary><p>Sí. Podés seguir cargando ventas sin señal y se sincronizan solas cuando vuelve la conexión.</p></details>
 <details><summary>¿Se instala desde una tienda de apps?</summary><p>No hace falta. Se instala directo desde esta página, en segundos, y no ocupa casi espacio.</p></details>
-<details><summary>¿Mis clientes ven mis costos o ganancias?</summary><p>Nunca. El catálogo público muestra solo productos, fotos, talles con stock y precios de venta.</p></details>
+<details><summary>¿Sirve para mi almacén o minimercado?</summary><p>Sí. Al crear la tienda elegí "Almacén, despensa o minimercado": tenés caja rápida, venta por kilo, libreta de fiado, reposición con costo promedio y aumento de precios por categoría. Tus empleados cobran desde su celular y vos ves la ganancia del mes.</p></details>
+<details><summary>¿Mis clientes ven mis costos o ganancias?</summary><p>Nunca. El catálogo público muestra solo productos, fotos, talles o categorías y precios de venta.</p></details>
 </div></section>
 
 <div class="wrap"><div class="band"><h2>Probala 10 días gratis</h2><p>Sin tarjeta, sin compromiso.</p><button class="btn p" id="inst2">⬇ Descargar la app</button></div></div>
@@ -130,7 +146,7 @@ import {DEFAULT_CONFIG,PLAN_IDS} from './plans.js';
 var $=function(i){return document.getElementById(i)};
 var money=function(n){return '$'+Math.round(n).toLocaleString('es-AR')};
 var FE={
-inicial:['Productos, compras y ventas','Stock con talles y precios por mayor/menor','Catálogo online con pedidos por WhatsApp','Gastos y ganancia mensual'],
+inicial:['Productos, compras y ventas','Stock con talles, por unidad o por kilo','Caja y fiado para almacenes','Catálogo online con pedidos por WhatsApp','Gastos y ganancia mensual'],
 profesional:['Todo lo del plan Inicial','Más personas en tu equipo','Informes avanzados y filtros','Análisis de gastos y PDF'],
 empresarial:['Todo lo del plan Profesional','Equipo grande y varias sucursales','Informes consolidados','Soporte prioritario']};
 $('plans').innerHTML=PLAN_IDS.map(function(id){var p=DEFAULT_CONFIG.plans[id],hot=id=='profesional';
