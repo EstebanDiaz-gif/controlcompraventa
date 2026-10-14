@@ -525,9 +525,17 @@ h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="fo
 else h+='<div class="k" style="margin-top:14px">Este producto no tiene unidades sin talle para repartir.</div>';
 var ml=M.filter(function(x){return key(x.s||x.p)==b}).sort(function(a,c){return c.d.localeCompare(a.d)||c.id-a.id});
 if(ml.length){h+='<div style="margin-top:20px"><b>Compras y ventas de este producto</b></div><div class="k" style="margin:2px 0 6px">Si cargaste mal una cantidad, un precio o un talle, tocá Corregir.</div>';
-ml.forEach(function(x){h+='<div class="it"><div><b>'+(x.t=='c'?'Compra':'Venta')+(x.z?' · talle '+esc(x.z):'')+'</b><small>'+x.d.split('-').reverse().join('/')+' · '+x.q+' × '+money(x.u)+'</small></div><button class="x" data-em="'+esc(x.id)+'" style="font-size:14px;text-decoration:underline">Corregir</button></div>'})}
-h+='<button class="go" data-edx="save">Guardar cambios</button><button class="go alt" data-edx="cancel">Cancelar</button></div>';
+ml.forEach(function(x){h+='<div class="it"><div><b>'+(x.t=='c'?'Compra':'Venta')+(x.z?' · talle '+esc(x.z):'')+'</b><small>'+x.d.split('-').reverse().join('/')+' · '+x.q+' × '+money(x.u)+'</small></div><span style="white-space:nowrap"><button class="x" data-em="'+esc(x.id)+'" style="font-size:14px;text-decoration:underline">Corregir</button> <button class="x" data-emd="'+esc(x.id)+'" style="font-size:14px;text-decoration:underline;color:var(--buy)">Borrar</button></span></div>'})}
+h+='<button class="go" data-edx="save">Guardar cambios</button><button class="go alt" data-edx="cancel">Cancelar</button><button class="x" data-edx="delprod" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:var(--buy)">Eliminar este producto</button></div>';
 $('s-stk').innerHTML=h;sumEd()}
+function afterDel(){setTimeout(function(){if(!EDK)return;var b=EDK;if(M.some(function(x){return key(x.s||x.p)==b}))drawEdit();else closeEdit()},350)}
+function delProduct(){
+var b=EDK,ml=M.filter(function(x){return key(x.s||x.p)==b}),ds=baseDocs(b),nm0=ml.length?ml[0].p:(ds[0]?ds[0].n:'');
+if(!canWrite()){alert('El acceso venció: por ahora no se pueden borrar datos.');return}
+if(!confirm('¿Eliminar "'+nm0+'" por completo? Se borran sus '+ml.length+' movimiento(s) (compras y ventas) y su stock. Esto afecta tus resúmenes y no se puede deshacer.'))return;
+var ops=[];ml.forEach(function(x){ops.push(mref(x.id))});ds.forEach(function(d){ops.push(doc(db,'stores',SID,'stock',d.id))});
+var chunks=[];for(var i=0;i<ops.length;i+=400)chunks.push(ops.slice(i,i+400));
+Promise.all(chunks.map(function(c){var bt=writeBatch(db);c.forEach(function(r){bt.delete(r)});return bt.commit()})).then(function(){closeEdit()}).catch(fail)}
 function editMov(id){
 if(!canWrite()){alert('El acceso venció: por ahora no se pueden modificar movimientos.');return}
 var mv=null;M.forEach(function(x){if(String(x.id)==String(id))mv=x});if(!mv)return;
@@ -561,6 +569,7 @@ if(a=='add'){ESZ.push({z:'',q:'1'});drawEdit()}
 else if(a=='del'){ESZ.splice(+i,1);drawEdit()}
 else if(a=='cancel')closeEdit();
 else if(a=='rmph'){EPH='';var v=$('epv');if(v){v.removeAttribute('src');v.style.display='none'}}
+else if(a=='delprod')delProduct();
 else if(a=='save')saveEdit()}
 function saveEdit(){
 var b=EDK,pm=+$('epm').value||0,pn=+$('epn').value||0,mm=Math.max(0,Math.floor(+$('emm').value)||0),oh=$('eoh').checked;
@@ -940,7 +949,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-em]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-em],[data-emd]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -952,6 +961,7 @@ if(d.cp){shareCode(d.cp);return}
 if(d.an){if(confirm('¿Anular este código?'))deleteDoc(doc(db,'stores',SID,'invites',d.an)).catch(fail);return}
 if(d.rm){if(confirm('¿Quitar a esta persona de la tienda?'))deleteDoc(doc(db,'stores',SID,'members',d.rm)).catch(fail);return}
 if(d.em){editMov(d.em);return}
+if(d.emd){var mv2=null;M.forEach(function(x){if(String(x.id)==d.emd)mv2=x});if(mv2&&confirm('¿Borrar esta '+(mv2.t=='c'?'compra':'venta')+' de '+mv2.q+' unidad(es)? El stock se ajusta solo.')){delMov(mv2);afterDel()}return}
 if(d.del){var mv=null;M.forEach(function(x){if(String(x.id)==d.del)mv=x});if(mv&&confirm('¿Borrar este movimiento?'))delMov(mv);return}
 if(d.sz){sizeAction(d.sz,d.i);return}
 if(d.gdel){if(confirm('¿Borrar este gasto?'))deleteDoc(doc(db,'stores',SID,'gastos',d.gdel)).catch(fail);return}
