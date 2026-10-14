@@ -468,7 +468,7 @@ function drawHist(){
 var l=M.filter(function(x){return x.d.slice(0,7)==month}).sort(function(a,b){return b.d.localeCompare(a.d)||b.id-a.id});
 var h='<div class="card">'+mselect();
 if(!l.length)h+='<div class="empty">Todavía no cargaste nada este mes.</div>';
-l.forEach(function(x){var tp=x.t=='c'?'compra':x.k=='online'?'online':x.k=='mayor'?'mayor':'menor';h+='<div class="it"><div><b>'+esc(x.p)+'</b>'+(x.z?'<span class="sku">talle '+esc(x.z)+'</span>':'')+(x.s?'<span class="sku">'+esc(x.s)+'</span>':'')+'<small><em class="tag">'+tp+'</em>'+x.d.split('-').reverse().join('/')+(x.bn?'<span style="margin-left:8px">'+esc(x.bn)+'</span>':'')+'</small></div><div class="amt"><b class="'+(x.t=='c'?'neg':'pos')+'">'+(x.t=='c'?'−':'+')+money(x.q*x.u)+'</b><small>'+x.q+' × '+money(x.u)+'</small></div><button class="x" data-del="'+esc(x.id)+'" aria-label="Borrar">×</button></div>'});
+l.forEach(function(x){var tp=x.t=='c'?'compra':x.k=='online'?'online':x.k=='mayor'?'mayor':'menor';h+='<div class="it"><div><b>'+esc(x.p)+'</b>'+(x.z?'<span class="sku">talle '+esc(x.z)+'</span>':'')+(x.s?'<span class="sku">'+esc(x.s)+'</span>':'')+'<small><em class="tag">'+tp+'</em>'+x.d.split('-').reverse().join('/')+(x.bn?'<span style="margin-left:8px">'+esc(x.bn)+'</span>':'')+'</small></div><div class="amt"><b class="'+(x.t=='c'?'neg':'pos')+'">'+(x.t=='c'?'−':'+')+money(x.q*x.u)+'</b><small>'+x.q+' × '+money(x.u)+'</small></div><button class="x" data-em="'+esc(x.id)+'" aria-label="Corregir" style="font-size:14px;text-decoration:underline;margin-right:4px">Corregir</button><button class="x" data-del="'+esc(x.id)+'" aria-label="Borrar">×</button></div>'});
 $('s-hist').innerHTML=h+'</div>'}
 function sizeSort(a,b){var x=parseFloat(a.z),y=parseFloat(b.z);if(!isNaN(x)&&!isNaN(y)&&x!=y)return x-y;return String(a.z).localeCompare(String(b.z),undefined,{numeric:true})}
 function stkRows(){
@@ -523,8 +523,39 @@ if(st0>0){h+='<label style="margin-top:18px">Agregar talles ('+st0+' unidades si
 ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
 h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle</button>'}
 else h+='<div class="k" style="margin-top:14px">Este producto no tiene unidades sin talle para repartir.</div>';
+var ml=M.filter(function(x){return key(x.s||x.p)==b}).sort(function(a,c){return c.d.localeCompare(a.d)||c.id-a.id});
+if(ml.length){h+='<div style="margin-top:20px"><b>Compras y ventas de este producto</b></div><div class="k" style="margin:2px 0 6px">Si cargaste mal una cantidad, un precio o un talle, tocá Corregir.</div>';
+ml.forEach(function(x){h+='<div class="it"><div><b>'+(x.t=='c'?'Compra':'Venta')+(x.z?' · talle '+esc(x.z):'')+'</b><small>'+x.d.split('-').reverse().join('/')+' · '+x.q+' × '+money(x.u)+'</small></div><button class="x" data-em="'+esc(x.id)+'" style="font-size:14px;text-decoration:underline">Corregir</button></div>'})}
 h+='<button class="go" data-edx="save">Guardar cambios</button><button class="go alt" data-edx="cancel">Cancelar</button></div>';
 $('s-stk').innerHTML=h;sumEd()}
+function editMov(id){
+if(!canWrite()){alert('El acceso venció: por ahora no se pueden modificar movimientos.');return}
+var mv=null;M.forEach(function(x){if(String(x.id)==String(id))mv=x});if(!mv)return;
+var o=document.createElement('div');o.id='emdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto';
+var isC=mv.t=='c';
+o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:20px;max-width:420px;width:100%;margin:auto"><b style="font-size:19px">Corregir '+(isC?'compra':'venta')+'</b><div class="k" style="margin:2px 0 8px">'+esc(mv.p)+'</div>'+
+'<div class="row"><div><label>Cantidad</label><input id="em_q" type="number" inputmode="numeric" min="1" value="'+mv.q+'"></div><div><label>'+(isC?'Precio de compra por unidad':'Precio de venta por unidad')+'</label><input id="em_u" type="number" inputmode="decimal" min="0" value="'+mv.u+'"></div></div>'+
+'<label>Talle (vacío = sin talle)</label><input id="em_z" maxlength="20" value="'+esc(mv.z||'')+'" autocomplete="off">'+
+(isC?'':'<label>Tipo de venta</label><select id="em_k"><option value="mayor"'+(mv.k=='mayor'?' selected':'')+'>Por mayor</option><option value="menor"'+(mv.k=='menor'?' selected':'')+'>Por menor</option>'+(mv.k=='online'?'<option value="online" selected>Online</option>':'')+'</select>')+
+'<label>Fecha</label><input id="em_d" type="date" value="'+esc(mv.d)+'">'+
+'<div class="k" style="margin-top:10px">El stock, los costos y las ganancias se recalculan solos.</div>'+
+'<button class="go" id="em_ok">Guardar corrección</button><button class="x" id="em_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
+document.body.appendChild(o);
+$('em_x').onclick=function(){o.remove()};
+$('em_ok').onclick=function(){
+var q=Math.floor(+$('em_q').value),u=+$('em_u').value,z=$('em_z').value.trim(),d=$('em_d').value;
+if(!(q>=1)){alert('La cantidad tiene que ser 1 o más.');return}
+if(!(u>=0)||$('em_u').value===''){alert('Revisá el precio.');return}
+if(!d){alert('Elegí la fecha.');return}
+var nm2=JSON.parse(JSON.stringify(mv));nm2.q=q;nm2.u=u;nm2.d=d;if(z)nm2.z=z;else delete nm2.z;
+if(!isC&&$('em_k'))nm2.k=$('em_k').value;
+var e0=isC?mv.q:-mv.q,e1=isC?q:-q,k0=pk(mv),k1=pk(nm2),b=writeBatch(db);
+b.set(mref(mv.id),nm2);
+if(k0==k1){if(e1!=e0)b.set(sref(k0),{n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(e1-e0)},{merge:true})}
+else{b.set(sref(k0),{n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(-e0)},{merge:true});
+b.set(sref(k1),{n:mv.p,s:mv.s||'',z:z,q:increment(e1)},{merge:true})}
+$('em_ok').disabled=true;
+b.commit().then(function(){o.remove();if(EDK)setTimeout(drawEdit,150)}).catch(function(e){$('em_ok').disabled=false;fail(e)})}}
 function editAction(a,i){
 if(a=='add'){ESZ.push({z:'',q:'1'});drawEdit()}
 else if(a=='del'){ESZ.splice(+i,1);drawEdit()}
@@ -909,7 +940,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-em]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -920,6 +951,7 @@ callFn('createInvite',{sid:SID,role:d.inv}).then(function(r){shareCode(r.code)})
 if(d.cp){shareCode(d.cp);return}
 if(d.an){if(confirm('¿Anular este código?'))deleteDoc(doc(db,'stores',SID,'invites',d.an)).catch(fail);return}
 if(d.rm){if(confirm('¿Quitar a esta persona de la tienda?'))deleteDoc(doc(db,'stores',SID,'members',d.rm)).catch(fail);return}
+if(d.em){editMov(d.em);return}
 if(d.del){var mv=null;M.forEach(function(x){if(String(x.id)==d.del)mv=x});if(mv&&confirm('¿Borrar este movimiento?'))delMov(mv);return}
 if(d.sz){sizeAction(d.sz,d.i);return}
 if(d.gdel){if(confirm('¿Borrar este gasto?'))deleteDoc(doc(db,'stores',SID,'gastos',d.gdel)).catch(fail);return}
