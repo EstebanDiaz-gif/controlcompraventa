@@ -11,6 +11,7 @@
 import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 import { fotoId } from './fotos.js';
+import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, PAY, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista } from './almacen-calc.js';
 export { CATS, PAY };
 
@@ -136,7 +137,12 @@ export function createAlmacen(X) {
   function renderRes() {
     const e = $('cjres'); if (!e) return;
     const r = results();
-    if (!r) { e.innerHTML = '<div class="k" style="margin-top:10px">Escribí el nombre o el código, o elegí una categoría. Con lector de códigos: escaneá y se agrega solo.</div>'; return; }
+    if (!r) {
+      const ps = combos(X.promos(), Date.now());
+      e.innerHTML = (ps.length ? '<div class="k" style="margin:12px 0 2px"><b>🔥 Promos</b></div>' + ps.map((p) => '<button class="pl" data-al="addpromo" data-id="' + esc(p.id) + '"><span><b>' + esc(p.titulo) + '</b>' + (p.items && p.items.length ? '<small>' + p.items.map((i) => (i.q > 1 ? i.q + '× ' : '') + esc(i.n)).join(' + ') + '</small>' : '') + '</span><b>' + money(p.precio) + '</b></button>').join('') : '') +
+        '<div class="k" style="margin-top:10px">Escribí el nombre o el código, o elegí una categoría. Con lector de códigos: escaneá y se agrega solo.</div>';
+      return;
+    }
     if (!r.length) { e.innerHTML = '<div class="empty">No encontré productos.</div>'; return; }
     e.innerHTML = r.map((p) => '<button class="pl" data-al="add" data-id="' + esc(p.id) + '"><span><b>' + esc(p.n) + '</b><small>' + (p.w ? 'por peso · ' : '') + 'stock ' + fq(p.q, p.w) + '</small></span><b>' + priceTxt(p) + '</b></button>').join('');
   }
@@ -174,17 +180,40 @@ export function createAlmacen(X) {
     };
     show(); setTimeout(() => wk.focus(), 50);
   }
+  function addPromo(id) {
+    const p = combos(X.promos(), Date.now()).find((x) => x.id === id); if (!p) return;
+    const l = S.cart.find((x) => x.promo === id);
+    if (l) l.q += 1;
+    else S.cart.push({ promo: id, n: '🔥 ' + p.titulo, q: 1, u: p.precio, w: false, items: (p.items || []).map((i) => ({ id: i.id, n: i.n, q: i.q })),
+      c: (p.items || []).reduce((a, i) => a + ((prod(i.id) || {}).c || 0) * i.q, 0) });
+    S.last = ''; renderCart();
+  }
+  // Carrito con el descuento por cantidad aplicado (baja el precio de los productos que entran en la promo).
+  function efectivo() {
+    const suel = S.cart.map((l, i) => ({ l, i })).filter((x) => !x.l.promo);
+    const d = descuento(X.promos(), Date.now(), suel.map((x) => ({ cat: (prod(x.l.id) || {}).cat || '', unidades: x.l.w ? 1 : x.l.q, total: lineTotal(x.l) })));
+    const lines = S.cart.map((l) => Object.assign({}, l));
+    let dsc = null;
+    if (d.mejor) {
+      const f = 1 - d.mejor.monto / d.mejor.base;
+      d.mejor.idx.forEach((j) => { lines[suel[j].i].u = lines[suel[j].i].u * f; });
+      dsc = { t: tituloCant(d.mejor.p, 'productos'), m: d.mejor.monto };
+    }
+    return { lines, dsc, cerca: d.cerca };
+  }
   function renderCart() {
     const e = $('cjcart'); if (!e) return;
     if (!S.cart.length) { e.innerHTML = S.last ? '<div class="card"><div class="tot" style="color:var(--sell);font-size:16px;margin:0">' + S.last + '</div></div>' : ''; return; }
-    const { tot } = cartTotals(S.cart);
+    const EF = efectivo(), { tot } = cartTotals(EF.lines);
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Venta en curso</b><button class="x" data-al="clear" style="font-size:14px;text-decoration:underline">Vaciar</button></div>';
     S.cart.forEach((l, i) => {
-      h += '<div class="it"><div><b>' + esc(l.n) + '</b><small>' + fq(l.q, l.w) + ' × ' + money(l.u) + (l.w ? '/kg' : '') + '</small></div>' +
+      h += '<div class="it"><div><b>' + esc(l.n) + '</b>' + (l.items && l.items.length ? '<small>' + l.items.map((x) => (x.q > 1 ? x.q + '× ' : '') + esc(x.n)).join(' + ') + '</small>' : '') + '<small>' + fq(l.q, l.w) + ' × ' + money(l.u) + (l.w ? '/kg' : '') + '</small></div>' +
         '<div style="display:flex;align-items:center;gap:6px">' +
         (l.w ? '<button class="qb" data-al="wedit" data-i="' + i + '" aria-label="Cambiar peso">✎</button>' : '<button class="qb" data-al="dec" data-i="' + i + '" aria-label="Uno menos">−</button><button class="qb" data-al="inc" data-i="' + i + '" aria-label="Uno más">+</button>') +
         '<b style="min-width:76px;text-align:right">' + money(lineTotal(l)) + '</b><button class="x" data-al="rm" data-i="' + i + '" aria-label="Quitar">×</button></div></div>';
     });
+    if (EF.dsc) h += '<div class="it" style="color:var(--buy);font-weight:800"><div>🏷️ ' + esc(EF.dsc.t) + '</div><div>−' + money(EF.dsc.m) + '</div></div>';
+    else if (EF.cerca) h += '<div class="k" style="margin-top:8px">🏷️ Sumá ' + EF.cerca.faltan + ' más' + (EF.cerca.p.cat ? ' de ' + esc(EF.cerca.p.cat) : '') + ' y tiene ' + EF.cerca.p.pct + '% OFF.</div>';
     h += '<div class="big" style="font-size:40px;margin:14px 0 4px">' + money(tot) + '</div>';
     h += '<div class="seg" style="flex-wrap:wrap">' + Object.keys(PAY).map((k) => '<button class="pay' + (S.pay === k ? ' on' : '') + '" data-al="pay" data-v="' + k + '">' + PAY[k] + '</button>').join('') + '</div>';
     if (S.pay === 'ef') {
@@ -216,10 +245,19 @@ export function createAlmacen(X) {
     if (!X.canWrite()) { alert('El acceso de la tienda venció.'); return; }
     if (S.pay === 'fi' && !cli(S.cli)) { alert('Elegí a quién le fiás.'); return; }
     const sid = X.sid(), d = X.today(), m = d.slice(0, 7), dd = d.slice(8, 10), u = X.user();
-    const it = S.cart.map((l) => ({ id: l.id, n: l.n, q: r3(l.q), u: l.u, c: l.c || 0, w: l.w ? 1 : 0 }));
+    const EF = efectivo(), it = [];
+    EF.lines.forEach((l) => {
+      if (!l.promo) { it.push({ id: l.id, n: l.n, q: r3(l.q), u: l.u, c: l.c || 0, w: l.w ? 1 : 0 }); return; }
+      const total = Math.round(l.q * l.u), ps = l.items || [];
+      if (!ps.length) { it.push({ id: '', n: l.n, q: l.q, u: l.u, c: 0, w: 0, pr: l.n }); return; }
+      // el precio del combo se reparte entre sus productos según su precio normal (así la ganancia por producto es real)
+      const parts = repartir(total, ps.map((x) => ((prod(x.id) || {}).pn || 1) * x.q));
+      ps.forEach((x, j) => { const p = prod(x.id) || {}, q = x.q * l.q; it.push({ id: x.id, n: x.n, q, u: parts[j] / q, c: p.c || 0, w: p.w ? 1 : 0, pr: l.n }); });
+    });
     const { tot, cost } = cartTotals(it);
     const id = uid();
     const v = { id, d, m, h: now(), it, tot, cost, pay: S.pay, by: u.uid, bn: X.nm() };
+    if (EF.dsc) v.dsc = EF.dsc;
     const b = writeBatch(db);
     if (S.pay === 'fi') {
       const c = cli(S.cli), fid = uid();
@@ -595,6 +633,7 @@ export function createAlmacen(X) {
     const a = el.dataset.al, id = el.dataset.id, i = +el.dataset.i;
     if (a === 'cat') { S.cat = S.cat === el.dataset.v ? '' : el.dataset.v; renderCats(); renderRes(); }
     else if (a === 'add') { const p = prod(id); if (p) addProd(p); }
+    else if (a === 'addpromo') addPromo(id);
     else if (a === 'inc') { S.cart[i].q += 1; renderCart(); }
     else if (a === 'dec') { if (S.cart[i].q > 1) S.cart[i].q -= 1; else S.cart.splice(i, 1); renderCart(); }
     else if (a === 'rm') { S.cart.splice(i, 1); renderCart(); }

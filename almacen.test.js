@@ -70,3 +70,28 @@ test('lista del catálogo: se parte en varios documentos si es grande', () => {
   assert.equal(L.data.flat().length, 3000);
   L.data.forEach((c) => assert.ok(JSON.stringify(c).length < 100000));
 });
+
+import { descuento, repartir, vigentes, tituloCant, precioNormal, ahorro } from './promos.js';
+test('promos: vigentes respeta pausa y vencimiento', () => {
+  const L = [{ id: 'a', t: 'combo', on: true }, { id: 'b', t: 'combo', on: false }, { id: 'c', t: 'combo', hasta: 1000 }, { id: 'd', t: 'combo', hasta: 5000 }];
+  assert.deepEqual(vigentes(L, 2000).map((p) => p.id), ['a', 'd']);
+});
+test('promos: descuento por cantidad (por categoría y el mejor)', () => {
+  const L = [{ t: 'cant', min: 2, pct: 10 }, { t: 'cant', min: 3, pct: 20, cat: 'Zapatillas' }];
+  const lin = [{ cat: 'Zapatillas', unidades: 2, total: 100000 }, { cat: 'Remeras', unidades: 1, total: 20000 }];
+  let r = descuento(L, 0, lin);
+  assert.equal(r.mejor.monto, 12000); assert.deepEqual(r.mejor.idx, [0, 1]);
+  r = descuento(L, 0, [{ cat: 'Zapatillas', unidades: 3, total: 150000 }]);
+  assert.equal(r.mejor.monto, 30000); assert.equal(r.mejor.p.pct, 20);
+  r = descuento(L, 0, [{ cat: 'Zapatillas', unidades: 1, total: 50000 }]);
+  assert.equal(r.mejor, null); assert.equal(r.cerca.faltan, 1);
+  assert.equal(tituloCant(L[1], 'prendas'), 'Llevando 3 o más, 20% OFF en Zapatillas');
+  assert.equal(tituloCant(L[0], 'prendas'), 'Llevando 2 o más prendas, 10% OFF');
+});
+test('promos: reparto del precio del combo', () => {
+  const a = repartir(10000, [9000, 2750]);
+  assert.equal(a[0] + a[1], 10000); assert.equal(a[0], 7660);
+  assert.deepEqual(repartir(100, [0, 0]), [50, 50]);
+  assert.equal(precioNormal([{ id: 'f', q: 1 }, { id: 'c', q: 2 }], (id) => ({ f: 9000, c: 2750 })[id]), 14500);
+  assert.equal(ahorro({ precio: 12000, antes: 14500 }), 17);
+});
