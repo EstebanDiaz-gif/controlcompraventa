@@ -1,0 +1,186 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function memberPath(sid) {
+      return /databases/$(database)/documents/stores/$(sid)/members/$(request.auth.uid);
+    }
+    function isMember(sid) { return signedIn() && exists(memberPath(sid)); }
+    function isAdmin(sid) { return isMember(sid) && get(memberPath(sid)).data.role == 'admin'; }
+
+    // Propietario de la plataforma: su documento en platform_owners se crea a mano desde la consola de Firebase.
+    function isPlatformOwner() {
+      return signedIn() && (request.auth.uid in ['MgqYIhoyV2gHVluyQBtz8A3LZsw1', 'w2jqVcijMyOytIdFqw2lPhPxQxr1']
+        || exists(/databases/$(database)/documents/platform_owners/$(request.auth.uid)));
+    }
+    // Estado de la suscripción de la tienda. Si la tienda no tiene documento de acceso, funciona sin límite de tiempo.
+    function accessPath(sid) { return /databases/$(database)/documents/stores/$(sid)/billing/access; }
+    // Catálogo público: solo si la tienda lo activó (stores/{sid}/public/info con enabled = true).
+    function catalogOn(sid) {
+      return exists(/databases/$(database)/documents/stores/$(sid)/public/info)
+        && get(/databases/$(database)/documents/stores/$(sid)/public/info).data.enabled == true;
+    }
+    // Los almacenes guardan el costo dentro del stock, así que su catálogo NO lee el stock:
+    // lee la lista de precios resumida (public/lista_*), que no tiene costos.
+    function catalogReadsStock(sid) {
+      return catalogOn(sid)
+        && get(/databases/$(database)/documents/stores/$(sid)/public/info).data.get('alm', false) != true;
+    }
+
+    function accessOk(sid) {
+      return !exists(accessPath(sid))
+        || get(accessPath(sid)).data.unlimited == true
+        || (get(accessPath(sid)).data.activeUntil != null && get(accessPath(sid)).data.activeUntil > request.time);
+    }
+
+    // Datos de la primera versión de la app (solo el dueño de la cuenta)
+    match /users/{uid}/movs/{id} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    // Lista personal de tiendas de cada persona
+    match /users/{uid}/stores/{sid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Marca de propietario: cada persona solo puede consultar SU documento. Nadie lo escribe desde la app.
+    match /platform_owners/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Links con el nombre de la tienda (pekeronapp.com/minombre): slugs/{nombre} → {sid}.
+    // Cualquiera lo lee (para abrir el catálogo). Solo un administrador de esa tienda lo crea o lo borra.
+    // Nadie lo puede pisar: así cada nombre pertenece a una sola tienda.
+    match /slugs/{slug} {
+      allow get: if true;
+      allow create: if signedIn()
+        && slug.matches('^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$')
+        && request.resource.data.keys().hasOnly(['sid', 'at'])
+        && isAdmin(request.resource.data.sid);
+      allow delete: if isAdmin(resource.data.sid);
+    }
+
+    match /stores/{sid} {
+      allow read: if isMember(sid) || isPlatformOwner();
+      allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
+      allow update: if isAdmin(sid) && request.resource.data.owner == resource.data.owner;
+
+      match /members/{uid} {
+        allow read: if signedIn() && (request.auth.uid == uid || isAdmin(sid) || isPlatformOwner());
+        allow create: if signedIn() && (
+          isAdmin(sid)
+          || (request.auth.uid == uid
+              && request.resource.data.role == 'admin'
+              && getAfter(/databases/$(database)/documents/stores/$(sid)).data.owner == request.auth.uid)
+          || (request.auth.uid == uid
+              && exists(/databases/$(database)/documents/stores/$(sid)/invites/$(request.resource.data.code))
+              && get(/databases/$(database)/documents/stores/$(sid)/invites/$(request.resource.data.code)).data.role == request.resource.data.role)
+        );
+        allow update: if isAdmin(sid);
+        allow delete: if isAdmin(sid)
+          && uid != get(/databases/$(database)/documents/stores/$(sid)).data.owner;
+      }
+
+      // Estado de la suscripción: lo ven los miembros; solo el propietario de la plataforma lo modifica.
+      match /billing/{doc} {
+        allow read: if isMember(sid) || isPlatformOwner();
+        // Al crear la tienda, quien la crea puede iniciar SU prueba gratuita (máximo 15 días, sin pago registrado).
+        allow create: if isPlatformOwner() || (signedIn()
+          && getAfter(/databases/$(database)/documents/stores/$(sid)).data.owner == request.auth.uid
+          && request.resource.data.paidPlan == null
+          && request.resource.data.paidUntilMs == null
+          && request.resource.data.unlimited == false
+          && request.resource.data.activeUntil != null
+          && request.resource.data.activeUntil <= request.time + duration.value(15, 'd')
+          && request.resource.data.chosenPlan in ['inicial', 'profesional', 'empresarial']);
+        allow update, delete: if isPlatformOwner();
+      }
+
+      match /invites/{code} {
+        allow read, write: if isAdmin(sid);
+      }
+
+      // Compras y ventas: solo los administradores las leen.
+      // Un empleado solo puede agregar ventas a su nombre.
+      match /movs/{id} {
+        allow read: if isAdmin(sid);
+        allow create: if accessOk(sid) && (isAdmin(sid)
+          || (isMember(sid)
+              && request.resource.data.t == 'v'
+              && request.resource.data.by == request.auth.uid
+              && request.resource.data.k in ['mayor', 'menor']));
+        allow update, delete: if isAdmin(sid) && accessOk(sid);
+      }
+
+      // Servicios (lista de precios e insumos) y configuración de comisiones y formas de pago:
+      // los ven todos los de la tienda; solo un administrador los modifica.
+      match /servicios/{id} {
+        allow read: if isMember(sid);
+        allow write: if isAdmin(sid) && accessOk(sid);
+      }
+      match /cfg/{doc} {
+        allow read: if isMember(sid);
+        allow write: if isAdmin(sid) && accessOk(sid);
+      }
+      // Atenciones: el administrador ve todas; cada empleado puede crear y ver solo las suyas.
+      match /atenciones/{id} {
+        allow read: if isAdmin(sid) || (isMember(sid) && resource.data.by == request.auth.uid);
+        allow create: if accessOk(sid) && (isAdmin(sid) || (isMember(sid) && request.resource.data.by == request.auth.uid));
+        allow update, delete: if isAdmin(sid) && accessOk(sid);
+      }
+
+      // Gastos del local: solo los administradores.
+      match /gastos/{id} {
+        allow read: if isAdmin(sid);
+        allow write: if isAdmin(sid) && accessOk(sid);
+      }
+
+      // Datos públicos de la tienda (nombre, WhatsApp, reglas del catálogo) y lista de precios
+      // del catálogo del almacén (public/lista, lista_d0…, lista_i0…). Los ve cualquiera; solo un administrador los cambia.
+      match /public/{doc} {
+        allow read: if true;
+        allow write: if isAdmin(sid);
+      }
+
+      // Stock: lo ven todos los de la tienda.
+      // Un empleado solo puede bajar la cantidad, no cambiar nada más.
+      match /stock/{id} {
+        allow read: if isMember(sid) || catalogReadsStock(sid);
+        allow create, delete: if isAdmin(sid) && accessOk(sid);
+        allow update: if accessOk(sid) && (isAdmin(sid)
+          || (isMember(sid)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['q'])
+              && request.resource.data.q < resource.data.q));
+      }
+
+      // ---------------- Rubro almacén ----------------
+      // Ventas de la caja: el empleado ve solo las suyas; el administrador ve todas y es el único que anula.
+      match /ventas/{id} {
+        allow read: if isAdmin(sid) || (isMember(sid) && resource.data.by == request.auth.uid);
+        allow create: if accessOk(sid) && isMember(sid) && request.resource.data.by == request.auth.uid;
+        allow delete: if isAdmin(sid) && accessOk(sid);
+      }
+      // Compras a proveedores (Reponer): solo administradores.
+      match /compras/{id} {
+        allow read: if isAdmin(sid);
+        allow write: if isAdmin(sid) && accessOk(sid);
+      }
+      // Totales del mes ya sumados: los suma cualquiera de la tienda al vender; solo el administrador los ve.
+      match /totales/{mes} {
+        allow read: if isAdmin(sid);
+        allow create, update: if isMember(sid) && accessOk(sid);
+      }
+      // Libreta de fiado: clientes y sus movimientos. Todos anotan; solo el administrador borra.
+      match /clientes/{id} {
+        allow read: if isMember(sid);
+        allow create, update: if isMember(sid) && accessOk(sid);
+        allow delete: if isAdmin(sid);
+      }
+      match /fiado/{id} {
+        allow read: if isMember(sid);
+        allow create: if accessOk(sid) && isMember(sid) && request.resource.data.by == request.auth.uid;
+        allow delete: if isAdmin(sid);
+      }
+    }
+  }
+}

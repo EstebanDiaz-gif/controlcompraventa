@@ -124,7 +124,9 @@ import {firebaseConfig} from './firebase-config.js';
 import {fotoId} from './fotos.js';
 import {TEMAS,temaActivo,cuentaRegresiva,proxima,adornos,fechaTitulo} from './temas.js';
 var $=function(i){return document.getElementById(i)};
-var sid=(new URLSearchParams(location.search).get('t')||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+// El catálogo se abre con ?t=CODIGO (link viejo) o con el nombre de la tienda: pekeronapp.com/minombre
+// (esa dirección la atiende 404.html, que redirige acá con ?s=minombre).
+var Q0=new URLSearchParams(location.search),sid=(Q0.get('t')||'').toLowerCase().replace(/[^a-z0-9]/g,''),SLUG=(Q0.get('s')||'').toLowerCase().replace(/[^a-z0-9-]/g,''),BASE=location.pathname.replace(/[^\/]*$/,'');
 var TEMA='',GIFT=false,HDC={},HDL={},db,INFO=null,G=[],CART=[],SEL={},Q='',ORD='az',VIEW='grid',OPEN='',ALM=false,CAT='';
 var fq=function(q){return (Math.round(q*1000)/1000).toLocaleString('es-AR',{maximumFractionDigits:3})+' kg'};
 var CORDER=['Almacén','Bebidas','Galletitas y golosinas','Lácteos','Fiambrería','Panadería','Verdulería','Congelados','Limpieza','Perfumería','Cigarrillos','Otros'];
@@ -153,11 +155,13 @@ if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)i.
 if(i.length){$('inf').hidden=false;$('inf').innerHTML=i.join('')}
 if(INFO.wa){$('waf').hidden=false;$('waf').href='https://wa.me/'+String(INFO.wa).replace(/\D/g,'')+'?text='+encodeURIComponent('Hola! Vi tu catálogo y quería consultar.')}
 $('ft').textContent=n}
-if(!sid){fail('Falta el código de la tienda en el link.')}
+if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
-getDoc(doc(db,'stores',sid,'public','info')).then(function(s){
+(sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return getDoc(doc(db,'stores',sid,'public','info'))}).then(function(s){
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
 INFO=s.data();ALM=!!INFO.alm;theme();head();tema();
+// mostrar siempre el link lindo en la barra de direcciones
+if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
 if(ALM){$('sq').placeholder='Buscar producto'}
 return (ALM?loadLista():Promise.resolve(false)).then(function(ok){if(ok)return;
 if(ALM){fail('El catálogo se está preparando. Probá de nuevo en unos minutos.');return}
@@ -166,7 +170,7 @@ var m={};sn.forEach(function(d){var x=d.data(),k=ALM?d.id:key(x.s||x.n);var g=m[
 g.n=x.n||g.n;if(x.pm)g.pm=x.pm;if(x.pn)g.pn=x.pn;if(x.mm)g.mm=x.mm;if(x.img){g.img=x.img;g.hd=!!x.hd}if(x.oh)g.oh=true;
 g.q+=Math.max(x.q||0,0);if(x.z&&(x.q||0)>0)g.sz.push({z:x.z,q:x.q})});
 G=Object.keys(m).map(function(k){return m[k]}).filter(function(g){return !g.oh&&g.q>0&&(g.pn||g.pm)});
-G.forEach(function(g){g.sz.sort(function(a,b){return sizeSort(a.z,b.z)})});draw()})})}).catch(function(){fail('No pude cargar el catálogo. Probá de nuevo.')})}
+G.forEach(function(g){g.sz.sort(function(a,b){return sizeSort(a.z,b.z)})});draw()})})}).catch(function(e){fail(e&&e.nf?'No encontramos ese catálogo. Revisá que el link esté bien escrito.':'No pude cargar el catálogo. Probá de nuevo.')})}
 /* Almacén: lista de precios ya resumida por la app (pocas lecturas en vez de una por producto) */
 function loadLista(){return getDoc(doc(db,'stores',sid,'public','lista')).then(function(s){
 if(!s.exists()||!s.data().n)return false;var L=s.data(),ps=[];
