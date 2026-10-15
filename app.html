@@ -100,6 +100,14 @@ td small{color:var(--mut)}
 .qb{width:36px;height:36px;border-radius:12px;border:0;background:var(--line);color:var(--ink);font:inherit;font-size:20px;font-weight:800;line-height:1}
 .bar{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}
 .bar i{display:block;height:12px;border-radius:6px;background:var(--sell)}.bar span{color:var(--mut)}
+/* tema de temporada: Día de la Madre */
+:root[data-tema="madre"]{--bg:#f8edf1;--card:#fff8fa;--hero:#f4c9d6;--nav:#f3dbe3;--btn:#8e1f4f;--btnink:#fff;--line:rgba(142,31,79,.13)}
+@media (prefers-color-scheme:dark){:root[data-tema="madre"]:not([data-theme="light"]){--bg:#1c1217;--card:#2a1a21;--nav:#2a1a21;--btn:#f3a6c0;--btnink:#2a0f1a;--line:rgba(243,166,192,.16)}}
+:root[data-theme="dark"][data-tema="madre"]{--bg:#1c1217;--card:#2a1a21;--nav:#2a1a21;--btn:#f3a6c0;--btnink:#2a0f1a;--line:rgba(243,166,192,.16)}
+.tmb{position:relative;overflow:hidden;border-radius:18px;padding:14px 16px 14px 18px;margin-bottom:14px;background:linear-gradient(120deg,#fbe1ea,#f6c3d4 60%,#f1a9c1);color:#4a0f28;font-size:14px}
+.tmb b{display:block;font-size:17px;font-weight:900;font-stretch:112%}.tmb small{display:block;margin-top:2px;opacity:.85}
+.tmb .fl{position:absolute;opacity:.9}.tmb>div{position:relative;max-width:78%}
+.brand .tmf{display:inline-block;vertical-align:middle;margin-left:6px}
 #pr{display:none}
 @media print{body.printing main>*:not(#pr){display:none!important}body.printing{background:#fff}body.printing #pr{display:block;color:#000;background:#fff;font-size:13px;font-family:sans-serif}#pr h2{margin:0 0 4px}#pr td,#pr th{text-align:left;padding:6px 4px;border-top:1px solid #bbb;color:#000}#pr td.r,#pr th.r{text-align:right}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -138,6 +146,7 @@ import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {makePhotos,fotoId} from './fotos.js';
+import {TEMAS,temaActivo,cuentaRegresiva,fechaLarga,flor} from './temas.js';
 
 var $=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
@@ -282,14 +291,14 @@ if(biz()=='almacen'){stop('movs');M=[];ALM.start();return}
 ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function startData(){
-['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);ALM.stop();PUB=null;CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
+['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);ALM.stop();PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
 un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(biz()!=ob)buildTabs();else redrawData()},function(){syncBiz()});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},function(){});
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(){ACC=null;drawBanner()});
+un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
 if(ROLE=='admin'){
-un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;if(TAB=='team')drawTeam();if(biz()=='almacen')ALM.publishSoon()},function(){PUB=null});
 un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=false;sn.forEach(function(d){GA.push(d.data())});redrawData()},function(){GAERR=true;redrawData()});
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},function(){});
 un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
@@ -305,7 +314,22 @@ else if(d.state=='grace')h='<div class="bn warn"><b>El acceso venció.</b> Tené
 else if(d.state=='trial')h='<div class="bn'+(d.daysLeft<=3?' warn':'')+'"><b>Prueba gratuita:</b> '+(d.daysLeft<=1?'te queda 1 día':'te quedan '+d.daysLeft+' días')+'.</div>';
 else if(d.state=='free_timed')h='<div class="bn">Acceso gratuito hasta el '+fdate(d.untilMs)+'.</div>';
 else if(d.state=='free_forever')h='<div class="bn">Acceso gratuito.</div>'}
+var tm=temaActivo(PUB,Date.now());
+if(tm=='madre'&&ROLE){var f=TEMAS.madre.fecha(Date.now());
+h='<div class="tmb"><span class="fl" style="right:-8px;top:-10px">'+flor(64,'#e05a8a','#ffd36b',12)+'</span><span class="fl" style="right:44px;bottom:-14px">'+flor(40,'#fff','#f39ab8',-20)+'</span><div><b>Día de la Madre</b>'+esc(fechaLarga(f))+' · '+cuentaRegresiva(Date.now(),f)+(ROLE=='admin'?'<small>'+(PUB&&PUB.enabled?'Tu catálogo también tiene el tema activado.':'El tema está activo en la app de tu equipo.')+'</small>':'')+'</div></div>'+h}
 b.innerHTML=h}
+// Tema de temporada: colores de la app para todo el equipo (lo elige un administrador en Equipo).
+function applyTema(){var tm=SID?temaActivo(PUB,Date.now()):'',r=document.documentElement;
+if(tm)r.setAttribute('data-tema',tm);else r.removeAttribute('data-tema');
+var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm=='madre'?'#8e1f4f':'#0f7a55';
+if(ROLE){drawBanner();drawHdr()}}
+function temaCard(){var tm=temaActivo(PUB,Date.now()),f=TEMAS.madre.fecha(Date.now());
+return '<div class="card"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Decorá la app de tu equipo y tu catálogo para una fecha especial. Se quita solo cuando termina la fecha.</div>'+
+(tm=='madre'?'<div class="bn" style="margin:12px 0 0"><b>💐 Día de la Madre activado</b><br><small>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'.</small></div><button class="go alt" data-stema="">Quitar el tema</button>':
+'<div style="display:flex;gap:12px;align-items:center;margin-top:12px">'+flor(44,'#e05a8a','#ffd36b',0)+'<div><b>Día de la Madre</b><div class="k">'+esc(fechaLarga(f))+' · colores rosa, cartel en el catálogo y opción de envolver para regalo en los pedidos</div></div></div><button class="go" data-stema="madre">Activar Día de la Madre</button>')+'</div>'}
+function setTema(t){if(ROLE!='admin')return;
+var o=t?{tema:t,temaHasta:TEMAS[t].hasta(Date.now())}:{tema:deleteField(),temaHasta:deleteField()};
+setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(fail)}
 
 var ICON={add:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',sell:'<svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8zM9 8a3 3 0 016 0"/></svg>',res:'<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',hist:'<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',stk:'<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10"/></svg>',att:'<svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11a2.1 2.1 0 00-3-3L5 16l-1 4zM14 7l3 3"/></svg>',svc:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',gas:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6"/></svg>',team:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18 14.8c2 .6 3.3 2.4 3.5 5.2"/></svg>'};
 ICON.caja='<svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M7 9V5h10v4M7 14h2M11 14h2M15 14h2M7 17h10"/></svg>';
@@ -335,7 +359,7 @@ else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){i
 var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>';
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
-$('hdr').innerHTML='<div class="top">'+BRAND+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
+$('hdr').innerHTML='<div class="top">'+(temaActivo(PUB,Date.now())=='madre'?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf">'+flor(22,'#e05a8a','#ffd36b',0)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
 a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
@@ -759,7 +783,7 @@ h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin
 if(INV.length){h+='<div class="card"><b>Códigos activos</b>';
 INV.forEach(function(v){var c=SID+v.id;h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Anulá el código cuando la persona ya haya entrado.</div></div>'}
-h+=bizCard()+catCard();
+h+=temaCard()+bizCard()+catCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h}
 function catLink(){return location.origin+location.pathname.replace(/[^\/]*$/,'')+'catalogo.html?t='+SID}
@@ -789,7 +813,7 @@ if(a=='nologo'){CLOGO='';var v=$('cat_lgv');if(v)v.style.display='none';return}
 var wa=$('cat_wa').value.replace(/\D/g,'');
 if($('cat_on').checked&&wa.length<10){alert('Escribí el WhatsApp con código de país y área. Ejemplo: 5493815551234');return}
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',enabled:$('cat_on').checked,wa:wa,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()}).then(function(){alert('Guardado.')}).catch(fail)}
+setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',enabled:$('cat_on').checked,wa:wa,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail)}
 function planCard(){
 var ACCX=ACC||{limits:{},effectivePlan:'inicial'};
 var d=dstate()||{state:'libre'},L=ACCX.limits||{},nA=0,nE=0;
@@ -975,7 +999,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-em],[data-emd]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-em],[data-emd]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -995,6 +1019,7 @@ if(d.gend){setDoc(doc(db,'stores',SID,'gastos',d.gend),{e:month},{merge:true}).c
 if(d.cat){catAction(d.cat);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
+if(d.stema!==undefined){setTema(d.stema);return}
 if(d.bz){setDoc(doc(db,'stores',SID,'cfg','servicios'),{biz:$('bz').value},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
 if(d.ed){startEdit(d.ed);return}

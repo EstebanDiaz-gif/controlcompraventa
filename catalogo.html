@@ -83,6 +83,21 @@ main{max-width:1200px;margin:0 auto;padding:10px 16px 130px}
 .tot{display:flex;justify-content:space-between;font-weight:800;font-size:20px;margin:14px 0}
 .note{background:var(--bg);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}.hint{color:var(--ok);font-weight:700}
 .cats{display:flex;gap:8px;overflow-x:auto;max-width:1080px;margin:0 auto;padding:0 16px 12px;scrollbar-width:none}.cats::-webkit-scrollbar{display:none}.cats .chip{white-space:nowrap;flex:none}.kg{font-size:.7em;font-weight:700;opacity:.75}
+/* tema Día de la Madre */
+html{overflow-anchor:none}
+html[data-tema="madre"]{--bg:#fdf1f5;--line:#f5d9e3}
+html[data-tema="madre"] .top{background:#fff}
+.tmb{max-width:1200px;margin:0 auto;padding:14px 16px 0}
+.tmb .box{position:relative;overflow:hidden;border-radius:22px;padding:22px 24px;background:linear-gradient(120deg,#fde3ec 0%,#f8c2d5 55%,#ee9ab9 100%);color:#4a0f28}
+.tmb small{display:inline-block;background:rgba(255,255,255,.7);border-radius:99px;padding:4px 11px;font-weight:800;font-size:12px;letter-spacing:.02em}
+.tmb b{display:block;font-size:clamp(24px,6vw,34px);line-height:1.05;margin:10px 0 6px;letter-spacing:-.02em;font-family:Georgia,"Times New Roman",serif;font-style:italic}
+.tmb span.t{display:block;font-size:15px;font-weight:600;max-width:70%}.tmb .cd{display:inline-block;margin-top:10px;background:#8e1f4f;color:#fff;border-radius:10px;padding:6px 12px;font-weight:800;font-size:14px}
+.tmb .fl{position:absolute;pointer-events:none}
+.tmb .in{position:relative;z-index:1}
+@media(prefers-reduced-motion:no-preference){.tmb .fl.a{animation:sway 6s ease-in-out infinite}.tmb .fl.b{animation:sway 7s ease-in-out infinite reverse}}
+@keyframes sway{50%{transform:translateY(-5px) rotate(8deg)}}
+html[data-tema="madre"] .card .im::after{content:"🎁";position:absolute;right:8px;bottom:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.gift{display:flex;gap:10px;align-items:center;background:#fdf1f5;border:1.5px solid #f5d9e3;border-radius:12px;padding:12px;margin:10px 0;font-weight:700;cursor:pointer}.gift input{width:20px;height:20px;accent-color:#8e1f4f}
 .x{background:none;border:0;color:var(--mut);font:inherit;text-decoration:underline}
 footer{text-align:center;color:var(--mut);font-size:12px;padding:0 16px 20px}
 </style></head><body>
@@ -91,6 +106,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;padding:0 16px 20px}
 <div class="sbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sq" type="search" placeholder="Buscar producto o talle" autocomplete="off"></div>
 <button class="cartb" id="cb" aria-label="Ver pedido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h14l-1.4 9.1a2 2 0 0 1-2 1.7H8.4a2 2 0 0 1-2-1.7L5 9Z"/><path d="M9 9l3-5 3 5"/></svg><i id="cbn" hidden>0</i></button>
 </div></header>
+<div id="tmb" class="tmb" hidden></div>
 <div id="hero" class="hero" hidden><div class="box"><b id="hb"></b><div id="hs"></div></div></div>
 <div id="inf" class="info" hidden></div>
 <div class="tools"><div class="tl"><button class="pill" id="all">Ver todos</button><span class="cnt" id="cnt"></span></div>
@@ -107,9 +123,10 @@ import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase
 import {getFirestore,collection,doc,getDoc,getDocs} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {firebaseConfig} from './firebase-config.js';
 import {fotoId} from './fotos.js';
+import {TEMAS,temaActivo,cuentaRegresiva,fechaLarga,flor} from './temas.js';
 var $=function(i){return document.getElementById(i)};
 var sid=(new URLSearchParams(location.search).get('t')||'').toLowerCase().replace(/[^a-z0-9]/g,'');
-var HDC={},HDL={},db,INFO=null,G=[],CART=[],SEL={},Q='',ORD='az',VIEW='grid',OPEN='',ALM=false,CAT='';
+var TEMA='',GIFT=false,HDC={},HDL={},db,INFO=null,G=[],CART=[],SEL={},Q='',ORD='az',VIEW='grid',OPEN='',ALM=false,CAT='';
 var fq=function(q){return (Math.round(q*1000)/1000).toLocaleString('es-AR',{maximumFractionDigits:3})+' kg'};
 var CORDER=['Almacén','Bebidas','Galletitas y golosinas','Lácteos','Fiambrería','Panadería','Verdulería','Congelados','Limpieza','Perfumería','Cigarrillos','Otros'];
 var key=function(s){return String(s||'').trim().toLowerCase()};
@@ -120,6 +137,14 @@ function fail(m){$('grid').innerHTML='<div class="empty">'+esc(m)+'</div>'}
 function goodColor(c){return /^#[0-9a-f]{6}$/i.test(c||'')}
 function lum(c){var r=parseInt(c.substr(1,2),16),g=parseInt(c.substr(3,2),16),b=parseInt(c.substr(5,2),16);return (r*299+g*587+b*114)/1000}
 function theme(){var c=goodColor(INFO.color)?INFO.color:'#111111';document.documentElement.style.setProperty('--b',c);document.documentElement.style.setProperty('--bi',lum(c)>150?'#111':'#fff')}
+/* tema de temporada (lo activa la tienda desde la app; se apaga solo después de la fecha) */
+function tema(){TEMA=temaActivo(INFO,Date.now());if(TEMA!='madre')return;
+var r=document.documentElement;r.setAttribute('data-tema','madre');r.style.setProperty('--b','#8e1f4f');r.style.setProperty('--bi','#fff');
+var f=TEMAS.madre.fecha(Date.now()),e=$('tmb');e.hidden=false;
+e.innerHTML='<div class="box"><span class="fl a" style="right:-14px;top:-18px">'+flor(110,'#e05a8a','#ffd36b',10)+'</span><span class="fl b" style="right:70px;bottom:-26px">'+flor(70,'#fff','#f39ab8',-15)+'</span><span class="fl a" style="right:120px;top:6px;opacity:.8">'+flor(34,'#c2185b','#fff3c4',30)+'</span>'+
+'<div class="in"><small>💐 '+esc(fechaLarga(f).replace(/^./,function(c){return c.toUpperCase()}))+'</small><b>Feliz Día de la Madre</b><span class="t">Encontrá el regalo ideal para mamá y pedilo por WhatsApp.</span><span class="cd">'+cuentaRegresiva(Date.now(),f)+'</span></div></div>';
+// el cartel aparece arriba de todo: que no empuje la página hacia abajo
+requestAnimationFrame(function(){if(window.scrollY<=e.offsetHeight+5)window.scrollTo(0,0)})}
 function head(){var n=INFO.name||'Catálogo';$('ttl').textContent=n;document.title=n;
 var lg=$('lg');if(INFO.logo&&/^data:image\//.test(INFO.logo)){lg.outerHTML='<img id="lg" class="logo" alt="" src="'+esc(INFO.logo)+'">';var ic=document.querySelector('link[rel=icon]')||document.head.appendChild(document.createElement('link'));ic.rel='icon';ic.href=INFO.logo}else{lg.textContent=(n[0]||'C').toUpperCase()}
 if(INFO.tag){$('hero').hidden=false;$('hb').textContent=INFO.tag;var s=[];if(!ALM&&INFO.mode=='carrito'&&INFO.minCart>0)s.push('Llevando '+INFO.minCart+' o más prendas accedés a precio mayorista.');$('hs').textContent=s.join(' ');if(!s.length)$('hs').hidden=true}
@@ -132,7 +157,7 @@ if(!sid){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
 getDoc(doc(db,'stores',sid,'public','info')).then(function(s){
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
-INFO=s.data();ALM=!!INFO.alm;theme();head();
+INFO=s.data();ALM=!!INFO.alm;theme();head();tema();
 if(ALM){$('sq').placeholder='Buscar producto'}
 return (ALM?loadLista():Promise.resolve(false)).then(function(ok){if(ok)return;
 if(ALM){fail('El catálogo se está preparando. Probá de nuevo en unos minutos.');return}
@@ -196,13 +221,13 @@ var total=r.ls.reduce(function(a,x){return a+x.u*x.l.q},0),h='<button class="cl"
 r.ls.forEach(function(x,i){h+='<div class="ln">'+(x.g.img?'<img alt="" src="'+esc(x.g.img)+'">':'<div class="t"></div>')+'<div class="d"><b>'+esc(x.g.n)+'</b><small>'+(x.l.z?'Talle '+esc(x.l.z)+' · ':'')+(x.l.w?fq(x.l.q):x.l.q)+' × '+money(x.u)+(x.l.w?'/kg':'')+(x.may?' (mayorista)':'')+'</small></div><div style="text-align:right"><b>'+money(x.u*x.l.q)+'</b><br><button class="x" data-del="'+i+'">Quitar</button></div></div>'});
 var hn=hint(r);
 h+='<div class="tot"><span>Total</span><span>'+money(total)+'</span></div>'+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
-'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
+(TEMA=='madre'?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
 (INFO.wa?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
-$('shc').innerHTML=h;$('sh').hidden=false}
-function waLink(r,total){var m='Hola! Quiero hacer este pedido:\n';
+$('shc').innerHTML=h;$('sh').hidden=false;var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total)}}
+function waLink(r,total){var m=TEMA=='madre'?'Hola! Quiero hacer este pedido para el Día de la Madre 💐\n':'Hola! Quiero hacer este pedido:\n';
 r.ls.forEach(function(x){m+=x.l.w?'- '+fq(x.l.q)+' de '+x.g.n+' — '+money(x.u*x.l.q)+'\n':'- '+x.l.q+' × '+x.g.n+(x.l.z?', talle '+x.l.z:'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+(x.may?' (mayorista)':'')+'\n'});
-m+='Total: '+money(total);return 'https://wa.me/'+String(INFO.wa).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
+m+='Total: '+money(total);if(TEMA=='madre'&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return 'https://wa.me/'+String(INFO.wa).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
 $('sq').oninput=function(){Q=this.value;draw()};
 $('cats').onclick=function(e){var b=e.target.closest('[data-c]');if(!b)return;CAT=b.dataset.c;draw()};
 $('all').onclick=function(){Q='';CAT='';$('sq').value='';ORD='az';$('ord').value='az';draw()};
