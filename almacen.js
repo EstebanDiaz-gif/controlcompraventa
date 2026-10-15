@@ -10,6 +10,7 @@
 // - Cada cliente del fiado tiene su saldo ya calculado (campo s).
 import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
+import { fotoId } from './fotos.js';
 import { CATS, PAY, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista } from './almacen-calc.js';
 export { CATS, PAY };
 
@@ -406,7 +407,7 @@ export function createAlmacen(X) {
       '<div class="row"><div><label id="lpn">Precio de venta</label><input id="fpn" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.pn || '') + '"></div><div><label id="lco">Costo</label><input id="fco" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.c || '') + '"></div></div><div class="tot" id="fmg"></div>' +
       '<div class="row"><div><label id="lq">' + (p ? 'Stock actual (contado)' : 'Stock inicial') + '</label><input id="fq" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + (p ? n3(c.q) : '') + '"></div><div><label>Avisar cuando quede (opcional)</label><input id="fmin" type="text" inputmode="decimal" placeholder="Ej: 3" autocomplete="off" value="' + (c.min ? n3(c.min) : '') + '"></div></div>' +
       (p ? '<div class="k" style="margin-top:6px">Si contás la mercadería y no coincide, corregí el stock acá. Para cargar mercadería que compraste usá Reponer (así se calcula bien el costo).</div>' : '') +
-      '<label style="margin-top:14px">Foto (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="fph" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:12px;' + (c.img ? '' : 'display:none') + '" src="' + (c.img || '') + '"><input id="fpf" type="file" accept="image/*" style="flex:1"></div>' +
+      (c.img && !c.hd ? '<div class="bn warn" style="margin:14px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla para que se vea nítida en el catálogo.</div>' : '') + '<label style="margin-top:14px">Foto (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="fph" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:12px;' + (c.img ? '' : 'display:none') + '" src="' + (c.img || '') + '"><input id="fpf" type="file" accept="image/*" style="flex:1"></div>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="foh" type="checkbox" style="width:auto"' + (c.oh ? ' checked' : '') + '> No mostrar en el catálogo</label>' +
       '<button class="go" data-al="savep">Guardar</button>' + (p ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:var(--buy)">Eliminar este producto</button>' : '') + '</div>';
     $('s-stk').innerHTML = h;
@@ -414,7 +415,7 @@ export function createAlmacen(X) {
     const mg = () => { const pn = +$('fpn').value, co = +$('fco').value; $('fmg').textContent = pn > 0 && co > 0 ? 'Ganás ' + money(pn - co) + (S.edit.w ? ' por kilo' : ' por unidad') + ' (' + Math.round((pn - co) / pn * 100) + '% del precio)' : ''; };
     const lbl = () => { $('lpn').textContent = S.edit.w ? 'Precio de venta por kilo' : 'Precio de venta'; $('lco').textContent = S.edit.w ? 'Costo por kilo' : 'Costo por unidad'; $('lq').textContent = (p ? 'Stock actual (contado)' : 'Stock inicial') + (S.edit.w ? ' en kg' : ''); };
     $('fpn').oninput = mg; $('fco').oninput = mg; mg(); lbl(); S.edit.lbl = () => { lbl(); mg(); };
-    $('fpf').onchange = function () { const f = this.files && this.files[0]; if (!f) return; X.readPhoto(f, (o) => { if (!o) { alert('No pude leer esa foto. Probá con otra.'); return; } S.edit.img = o; const v = $('fph'); v.src = o; v.style.display = ''; }); };
+    $('fpf').onchange = function () { const f = this.files && this.files[0]; if (!f) return; X.readPhoto(f, (o, hd) => { if (!o) { alert('No pude leer esa foto. Probá con otra.'); return; } S.edit.img = o; S.edit.hd = hd || ''; const v = $('fph'); v.src = o; v.style.display = ''; }); };
     window.scrollTo(0, 0);
     if (!p) setTimeout(() => $('fn').focus(), 50);
   }
@@ -430,15 +431,20 @@ export function createAlmacen(X) {
     if (!E.id && P().some((x) => x.n.toLowerCase() === n.toLowerCase()) && !confirm('Ya existe "' + n + '". ¿Crear otro con el mismo nombre?')) return;
     const id = E.id || 'al_' + X.rnd(10);
     const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1 };
-    if (E.img !== undefined) o.img = E.img;
+    const b = writeBatch(db);
+    if (E.img !== undefined) {
+      o.img = E.img; o.hd = E.hd ? 1 : deleteField();
+      if (E.hd) b.set(ref('public', fotoId(id)), { f: E.hd, at: Date.now() }); else b.delete(ref('public', fotoId(id)));
+    }
     if (p) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = q;
-    setDoc(ref('stock', id), o, { merge: true }).catch(failW);
+    b.set(ref('stock', id), o, { merge: true });
+    b.commit().catch(failW);
     closeForms();
   }
   function delProd() {
     const p = prod(S.edit && S.edit.id); if (!p) return;
     if (!confirm('¿Eliminar "' + p.n + '"? Las ventas ya hechas se conservan en los resúmenes.')) return;
-    deleteDoc(ref('stock', p.id)).catch(failW); closeForms();
+    const b = writeBatch(db); b.delete(ref('stock', p.id)); b.delete(ref('public', fotoId(p.id))); b.commit().catch(failW); closeForms();
   }
 
   function repoForm(id) {
