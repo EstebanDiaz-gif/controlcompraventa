@@ -100,13 +100,11 @@ td small{color:var(--mut)}
 .qb{width:36px;height:36px;border-radius:12px;border:0;background:var(--line);color:var(--ink);font:inherit;font-size:20px;font-weight:800;line-height:1}
 .bar{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}
 .bar i{display:block;height:12px;border-radius:6px;background:var(--sell)}.bar span{color:var(--mut)}
-/* tema de temporada: Día de la Madre */
-:root[data-tema="madre"]{--bg:#f8edf1;--card:#fff8fa;--hero:#f4c9d6;--nav:#f3dbe3;--btn:#8e1f4f;--btnink:#fff;--line:rgba(142,31,79,.13)}
-@media (prefers-color-scheme:dark){:root[data-tema="madre"]:not([data-theme="light"]){--bg:#1c1217;--card:#2a1a21;--nav:#2a1a21;--btn:#f3a6c0;--btnink:#2a0f1a;--line:rgba(243,166,192,.16)}}
-:root[data-theme="dark"][data-tema="madre"]{--bg:#1c1217;--card:#2a1a21;--nav:#2a1a21;--btn:#f3a6c0;--btnink:#2a0f1a;--line:rgba(243,166,192,.16)}
-.tmb{position:relative;overflow:hidden;border-radius:18px;padding:14px 16px 14px 18px;margin-bottom:14px;background:linear-gradient(120deg,#fbe1ea,#f6c3d4 60%,#f1a9c1);color:#4a0f28;font-size:14px}
+/* tema de temporada (los colores de cada tema los agrega applyTema, ver temas.js) */
+.tmb{position:relative;overflow:hidden;border-radius:18px;padding:14px 16px 14px 18px;margin-bottom:14px;font-size:14px}
+.tmb .fl{position:absolute;pointer-events:none}.tml{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.tml:first-of-type{border-top:0}.tml .e{font-size:28px;width:36px;text-align:center}.tml>div{flex:1;min-width:0}.tml button{flex:none;width:auto;margin:0;padding:10px 14px;font-size:13px;border-radius:12px}
 .tmb b{display:block;font-size:17px;font-weight:900;font-stretch:112%}.tmb small{display:block;margin-top:2px;opacity:.85}
-.tmb .fl{position:absolute;opacity:.9}.tmb>div{position:relative;max-width:78%}
+.tmb .fl{position:absolute;opacity:.95}.tmb>div{position:relative;max-width:74%}
 .brand .tmf{display:inline-block;vertical-align:middle;margin-left:6px}
 #pr{display:none}
 @media print{body.printing main>*:not(#pr){display:none!important}body.printing{background:#fff}body.printing #pr{display:block;color:#000;background:#fff;font-size:13px;font-family:sans-serif}#pr h2{margin:0 0 4px}#pr td,#pr th{text-align:left;padding:6px 4px;border-top:1px solid #bbb;color:#000}#pr td.r,#pr th.r{text-align:right}}
@@ -146,7 +144,7 @@ import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {makePhotos,fotoId} from './fotos.js';
-import {TEMAS,temaActivo,cuentaRegresiva,fechaLarga,flor} from './temas.js';
+import {TEMAS,temaActivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
 
 var $=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
@@ -315,20 +313,25 @@ else if(d.state=='trial')h='<div class="bn'+(d.daysLeft<=3?' warn':'')+'"><b>Pru
 else if(d.state=='free_timed')h='<div class="bn">Acceso gratuito hasta el '+fdate(d.untilMs)+'.</div>';
 else if(d.state=='free_forever')h='<div class="bn">Acceso gratuito.</div>'}
 var tm=temaActivo(PUB,Date.now());
-if(tm=='madre'&&ROLE){var f=TEMAS.madre.fecha(Date.now());
-h='<div class="tmb"><span class="fl" style="right:-8px;top:-10px">'+flor(64,'#e05a8a','#ffd36b',12)+'</span><span class="fl" style="right:44px;bottom:-14px">'+flor(40,'#fff','#f39ab8',-20)+'</span><div><b>Día de la Madre</b>'+esc(fechaLarga(f))+' · '+cuentaRegresiva(Date.now(),f)+(ROLE=='admin'?'<small>'+(PUB&&PUB.enabled?'Tu catálogo también tiene el tema activado.':'El tema está activo en la app de tu equipo.')+'</small>':'')+'</div></div>'+h}
+if(tm&&ROLE){var T=TEMAS[tm],f=proxima(tm,Date.now());
+h='<div class="tmb" style="background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.6,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+'</b>'+esc(fechaLarga(f))+' · '+cuentaRegresiva(Date.now(),f)+(ROLE=='admin'?'<small>'+(PUB&&PUB.enabled?'Tu catálogo también tiene el tema activado.':'El tema está activo en la app de tu equipo.')+'</small>':'')+'</div></div>'+h}
 b.innerHTML=h}
 // Tema de temporada: colores de la app para todo el equipo (lo elige un administrador en Equipo).
 function applyTema(){var tm=SID?temaActivo(PUB,Date.now()):'',r=document.documentElement;
 if(tm)r.setAttribute('data-tema',tm);else r.removeAttribute('data-tema');
-var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm=='madre'?'#8e1f4f':'#0f7a55';
+var st=$('tmcss');if(!st){st=document.createElement('style');st.id='tmcss';document.head.appendChild(st)}st.textContent=tm?cssApp(tm):'';
+var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm?TEMAS[tm].app.btn:'#0f7a55';
 if(ROLE){drawBanner();drawHdr()}}
-function temaCard(){var tm=temaActivo(PUB,Date.now()),f=TEMAS.madre.fecha(Date.now());
-return '<div class="card"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Decorá la app de tu equipo y tu catálogo para una fecha especial. Se quita solo cuando termina la fecha.</div>'+
-(tm=='madre'?'<div class="bn" style="margin:12px 0 0"><b>💐 Día de la Madre activado</b><br><small>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'.</small></div><button class="go alt" data-stema="">Quitar el tema</button>':
-'<div style="display:flex;gap:12px;align-items:center;margin-top:12px">'+flor(44,'#e05a8a','#ffd36b',0)+'<div><b>Día de la Madre</b><div class="k">'+esc(fechaLarga(f))+' · colores rosa, cartel en el catálogo y opción de envolver para regalo en los pedidos</div></div></div><button class="go" data-stema="madre">Activar Día de la Madre</button>')+'</div>'}
+var TMALL=false;
+function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now).filter(function(x){return x.id!=tm}),sh=TMALL?L:L.slice(0,4);
+var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Decorá la app de tu equipo y tu catálogo para una fecha especial. Se quita solo cuando termina la fecha.</div>';
+if(tm){var T=TEMAS[tm];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' activado</b>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'</div></div><button class="go alt" data-stema="">Quitar el tema</button><div class="k" style="margin:14px 0 0">Para cambiarlo, activá otra fecha:</div>'}
+h+='<div style="margin-top:8px">'+sh.map(function(x){var T=TEMAS[x.id],n=faltan(now,x.fecha);
+return '<div class="tml"><span class="e">'+T.emoji+'</span><div><b>'+esc(T.nombre)+'</b><div class="k">'+esc(fechaLarga(x.fecha))+' · '+(n<=0?'¡ahora!':n==1?'mañana':'en '+n+' días')+'</div></div><button class="go'+(n<=30?'':' alt')+'" data-stema="'+x.id+'">Activar</button></div>'}).join('')+'</div>';
+if(!TMALL&&L.length>4)h+='<button class="x" data-tmall="1" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Ver todas las fechas ('+L.length+')</button>';
+return h+'</div>'}
 function setTema(t){if(ROLE!='admin')return;
-var o=t?{tema:t,temaHasta:TEMAS[t].hasta(Date.now())}:{tema:deleteField(),temaHasta:deleteField()};
+var o=t?{tema:t,temaHasta:hasta(t,Date.now())}:{tema:deleteField(),temaHasta:deleteField()};
 setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(fail)}
 
 var ICON={add:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',sell:'<svg viewBox="0 0 24 24"><path d="M6 8h12l-1 12H7L6 8zM9 8a3 3 0 016 0"/></svg>',res:'<svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',hist:'<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',stk:'<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10"/></svg>',att:'<svg viewBox="0 0 24 24"><path d="M4 20l4-1 11-11a2.1 2.1 0 00-3-3L5 16l-1 4zM14 7l3 3"/></svg>',svc:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',gas:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6"/></svg>',team:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3-5.5 6.5-5.5s6 2 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18 14.8c2 .6 3.3 2.4 3.5 5.2"/></svg>'};
@@ -359,7 +362,8 @@ else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){i
 var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>';
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
-$('hdr').innerHTML='<div class="top">'+(temaActivo(PUB,Date.now())=='madre'?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf">'+flor(22,'#e05a8a','#ffd36b',0)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
+var tmh=temaActivo(PUB,Date.now());
+$('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#e05a8a','#ffd36b',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
 a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
@@ -999,7 +1003,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-em],[data-emd]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -1019,7 +1023,8 @@ if(d.gend){setDoc(doc(db,'stores',SID,'gastos',d.gend),{e:month},{merge:true}).c
 if(d.cat){catAction(d.cat);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
-if(d.stema!==undefined){setTema(d.stema);return}
+if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
+if(d.tmall){TMALL=true;drawTeam();var tc=$('tmcard');if(tc)tc.scrollIntoView({block:'start'});return}
 if(d.bz){setDoc(doc(db,'stores',SID,'cfg','servicios'),{biz:$('bz').value},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
 if(d.ed){startEdit(d.ed);return}
