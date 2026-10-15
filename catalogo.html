@@ -127,7 +127,7 @@ var $=function(i){return document.getElementById(i)};
 // El catálogo se abre con ?t=CODIGO (link viejo) o con el nombre de la tienda: pekeronapp.com/minombre
 // (esa dirección la atiende 404.html, que redirige acá con ?s=minombre).
 var Q0=new URLSearchParams(location.search),sid=(Q0.get('t')||'').toLowerCase().replace(/[^a-z0-9]/g,''),SLUG=(Q0.get('s')||'').toLowerCase().replace(/[^a-z0-9-]/g,''),BASE=location.pathname.replace(/[^\/]*$/,'');
-var TEMA='',GIFT=false,HDC={},HDL={},db,INFO=null,G=[],CART=[],SEL={},Q='',ORD='az',VIEW='grid',OPEN='',ALM=false,CAT='';
+var WAS=[],TEMA='',GIFT=false,HDC={},HDL={},db,INFO=null,G=[],CART=[],SEL={},Q='',ORD='az',VIEW='grid',OPEN='',ALM=false,CAT='';
 var fq=function(q){return (Math.round(q*1000)/1000).toLocaleString('es-AR',{maximumFractionDigits:3})+' kg'};
 var CORDER=['Almacén','Bebidas','Galletitas y golosinas','Lácteos','Fiambrería','Panadería','Verdulería','Congelados','Limpieza','Perfumería','Cigarrillos','Otros'];
 var key=function(s){return String(s||'').trim().toLowerCase()};
@@ -153,7 +153,9 @@ if(INFO.tag){$('hero').hidden=false;$('hb').textContent=INFO.tag;var s=[];if(!AL
 var i=[];if(INFO.hours)i.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)i.push('<span>📍 '+esc(INFO.addr)+'</span>');
 if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)i.push('<a target="_blank" rel="noopener" href="https://instagram.com/'+esc(u)+'">📷 @'+esc(u)+'</a>')}
 if(i.length){$('inf').hidden=false;$('inf').innerHTML=i.join('')}
-if(INFO.wa){$('waf').hidden=false;$('waf').href='https://wa.me/'+String(INFO.wa).replace(/\D/g,'')+'?text='+encodeURIComponent('Hola! Vi tu catálogo y quería consultar.')}
+WAS=(INFO.was||[]).filter(function(x){return x&&x.w});if(!WAS.length&&INFO.wa)WAS=[{n:'',w:INFO.wa}];
+if(WAS.length){var wf=$('waf');wf.hidden=false;wf.href=waUrl(WAS[0].w,'Hola! Vi tu catálogo y quería consultar.');
+if(WAS.length>1)wf.onclick=function(e){e.preventDefault();elegirWa()}}
 $('ft').textContent=n}
 if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
@@ -226,12 +228,16 @@ r.ls.forEach(function(x,i){h+='<div class="ln">'+(x.g.img?'<img alt="" src="'+es
 var hn=hint(r);
 h+='<div class="tot"><span>Total</span><span>'+money(total)+'</span></div>'+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
 (TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
-(INFO.wa?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
+(WAS.length>1?'<div class="lbl" style="text-align:center">¿A quién le mandás el pedido?</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
-$('shc').innerHTML=h;$('sh').hidden=false;var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total)}}
-function waLink(r,total){var m=TEMA&&TEMAS[TEMA].wa?'Hola! Quiero hacer este pedido '+TEMAS[TEMA].wa+'\n':'Hola! Quiero hacer este pedido:\n';
+$('shc').innerHTML=h;$('sh').hidden=false;var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})}}
+function waUrl(w,m){return 'https://wa.me/'+String(w).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
+/* Varios WhatsApp: el cliente elige a quién escribirle */
+function waBtns(fn,pre){return WAS.map(function(x,i){return '<a class="wa" data-wai="'+i+'" target="_blank" rel="noopener" href="'+esc(fn(x.w))+'" style="margin-top:10px">'+esc(x.n?(pre||'Escribirle a ')+x.n:'WhatsApp '+(i+1))+'</a>'}).join('')}
+function elegirWa(){OPEN='';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><b style="font-size:20px;display:block;margin:4px 44px 6px 0">¿A quién le querés escribir?</b>'+waBtns(function(w){return waUrl(w,'Hola! Vi tu catálogo y quería consultar.')})+'<button class="x" data-cl="1" style="display:block;margin:16px auto 0">Cancelar</button>';$('sh').hidden=false}
+function waLink(r,total,w){var m=TEMA&&TEMAS[TEMA].wa?'Hola! Quiero hacer este pedido '+TEMAS[TEMA].wa+'\n':'Hola! Quiero hacer este pedido:\n';
 r.ls.forEach(function(x){m+=x.l.w?'- '+fq(x.l.q)+' de '+x.g.n+' — '+money(x.u*x.l.q)+'\n':'- '+x.l.q+' × '+x.g.n+(x.l.z?', talle '+x.l.z:'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+(x.may?' (mayorista)':'')+'\n'});
-m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return 'https://wa.me/'+String(INFO.wa).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
+m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
 $('sq').oninput=function(){Q=this.value;draw()};
 $('cats').onclick=function(e){var b=e.target.closest('[data-c]');if(!b)return;CAT=b.dataset.c;draw()};
 $('all').onclick=function(){Q='';CAT='';$('sq').value='';ORD='az';$('ord').value='az';draw()};
