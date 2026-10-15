@@ -146,6 +146,7 @@ import {createAlmacen} from './almacen.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
 import {TEMAS,temaActivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
+import {introTema} from './intro.js';
 
 var $=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
@@ -331,7 +332,8 @@ function applyTema(){var tm=SID?temaActivo(PUB,Date.now()):'',r=document.documen
 if(tm)r.setAttribute('data-tema',tm);else r.removeAttribute('data-tema');
 var st=$('tmcss');if(!st){st=document.createElement('style');st.id='tmcss';document.head.appendChild(st)}st.textContent=tm?cssApp(tm):'';
 var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm?TEMAS[tm].app.btn:'#0f7a55';
-if(ROLE){drawBanner();drawHdr()}}
+if(ROLE){drawBanner();drawHdr()}
+if(tm&&ROLE)introTema(tm,'app')}
 var TMALL=false;
 function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now).filter(function(x){return x.id!=tm}),sh=TMALL?L:L.slice(0,4);
 var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Decorá la app de tu equipo y tu catálogo para una fecha especial. Se quita solo cuando termina la fecha.</div>';
