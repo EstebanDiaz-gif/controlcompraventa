@@ -825,9 +825,26 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<div class="k" style="margin-top:6px">En el modo por producto, el mínimo de cada uno se pone en Stock → Editar.</div></div>'+(biz()=='almacen'?'<div class="k" style="margin-top:10px">Los precios y productos del catálogo se actualizan solos unos segundos después de cada cambio, mientras un administrador tenga la app abierta con internet.</div>':'')+
 '<button class="go" data-cat="save">Guardar catálogo</button>';
 h+='<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)"><b>Link de tu catálogo</b><div class="k" style="margin:4px 0 8px">Elegí cómo termina el link que compartís con tus clientes.</div><div style="display:flex;align-items:center;gap:4px;background:var(--line);border-radius:14px;padding-left:14px;font-weight:600"><span style="color:var(--mut);white-space:nowrap">'+esc(catBase().replace(/^https?:\/\//,''))+'</span><input id="cat_slug" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40" placeholder="'+esc(slugify(SNAME)||'mitienda')+'" value="'+esc(p.slug||'')+'" style="padding-left:2px;background:transparent"></div><button class="go alt" data-cat="slug">'+(p.slug?'Cambiar link':'Guardar link')+'</button></div>';
-if(p.enabled){h+='<div class="k" style="margin-top:12px;word-break:break-all">'+esc(catLink())+'</div><div class="row" style="gap:8px"><button class="go alt" data-cat="copy">Copiar link</button><button class="go alt" data-cat="open">Abrir</button></div>'}
+if(p.enabled){h+='<div class="k" style="margin-top:12px;word-break:break-all">'+esc(catLink())+'</div><div class="row" style="gap:8px"><button class="go alt" data-cat="copy">Copiar link</button><button class="go alt" data-cat="open">Abrir</button></div>'+
+'<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)"><b>Compartir por WhatsApp</b><div class="k" style="margin:4px 0 8px">Mensaje listo para mandar a tus clientes o subir a tu estado. Podés cambiarlo antes de enviarlo.</div>'+
+'<textarea id="cat_msg" rows="8" style="width:100%;padding:14px 16px;border:0;border-radius:14px;background:var(--line);color:var(--ink);font:inherit;font-weight:500;line-height:1.4;resize:vertical">'+esc(shareMsg())+'</textarea>'+
+'<button class="go" data-cat="wa" style="background:#1fa855;color:#fff">Enviar por WhatsApp</button><div class="row" style="gap:8px"><button class="go alt" data-cat="msgcopy">Copiar mensaje</button><button class="go alt" data-cat="msgreset">Restablecer</button></div></div>'}
 return h+'</div>'}
+// Mensaje para compartir el catálogo: se arma con el nombre, el tipo de negocio, el tema de temporada y los datos del catálogo.
+function shareMsg(){var p=PUB||{},now=Date.now(),tm=temaActivo(p,now),L=[];
+if(tm){var T=TEMAS[tm],f=proxima(tm,now),n=faltan(now,f);
+L.push(T.emoji+' *'+T.nombre+'* · '+fechaLarga(f)+(n>1?' (faltan '+n+' días)':n==1?' (¡es mañana!)':n==0?' (¡es hoy!)':''));L.push(T.sub);L.push('')}
+L.push('¡Hola! 👋 Te comparto el catálogo de *'+(SNAME||'mi tienda')+'*.');
+L.push(biz()=='almacen'?'Mirá los productos y precios, armá tu pedido y me llega directo por WhatsApp 🛒':'Mirá los productos con fotos y precios, armá tu pedido y me llega directo por WhatsApp 🛍️');
+if(tm&&TEMAS[tm].regalo)L.push('🎁 Si es para regalo, te lo preparamos envuelto.');
+L.push('');L.push('👉 '+catLink());
+if(p.hours||p.addr){L.push('');if(p.hours)L.push('🕒 '+p.hours);if(p.addr)L.push('📍 '+p.addr)}
+if(p.ig){L.push('📷 Instagram: @'+String(p.ig).replace(/^@/,''))}
+return L.join('\n')}
 function catAction(a){
+if(a=='wa'){var m=($('cat_msg')||{}).value||shareMsg();window.open('https://wa.me/?text='+encodeURIComponent(m),'_blank');return}
+if(a=='msgcopy'){var m2=($('cat_msg')||{}).value||shareMsg();if(navigator.clipboard)navigator.clipboard.writeText(m2).then(function(){alert('Mensaje copiado. Pegalo en WhatsApp, Instagram o donde quieras.')},function(){prompt('Copiá el mensaje:',m2)});else prompt('Copiá el mensaje:',m2);return}
+if(a=='msgreset'){var t=$('cat_msg');if(t)t.value=shareMsg();return}
 if(a=='slug'){saveSlug();return}
 if(a=='copy'){var l=catLink();if(navigator.clipboard)navigator.clipboard.writeText(l).then(function(){alert('Link copiado.')},function(){prompt('Copiá el link:',l)});else prompt('Copiá el link:',l);return}
 if(a=='open'){window.open(catLink(),'_blank');return}
