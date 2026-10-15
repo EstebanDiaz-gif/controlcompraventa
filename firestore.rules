@@ -48,6 +48,14 @@ service cloud.firestore {
       allow get: if signedIn() && request.auth.uid == uid;
     }
 
+    // Tema de temporada general (para todas las tiendas). Lo lee cualquiera, también el catálogo.
+    // Solo el propietario de la plataforma lo activa o lo quita.
+    match /platform/tema {
+      allow get: if true;
+      allow create, update: if isPlatformOwner() && request.resource.data.keys().hasOnly(['tema', 'hasta', 'at']);
+      allow delete: if isPlatformOwner();
+    }
+
     // Links con el nombre de la tienda (pekeronapp.com/minombre): slugs/{nombre} → {sid}.
     // Cualquiera lo lee (para abrir el catálogo). Solo un administrador de esa tienda lo crea o lo borra.
     // Nadie lo puede pisar: así cada nombre pertenece a una sola tienda.

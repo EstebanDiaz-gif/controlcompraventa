@@ -139,7 +139,7 @@ import {getFirestore,collection,doc,getDoc,getDocs} from 'https://www.gstatic.co
 import {firebaseConfig} from './firebase-config.js';
 import {fotoId} from './fotos.js';
 import {combos,cantidades,descuento,tituloCant,ahorro} from './promos.js';
-import {TEMAS,temaActivo,cuentaRegresiva,proxima,adornos,fechaTitulo} from './temas.js';
+import {TEMAS,temaEfectivo,cuentaRegresiva,proxima,adornos,fechaTitulo} from './temas.js';
 import {introTema} from './intro.js';
 var $=function(i){return document.getElementById(i)};
 // El catálogo se abre con ?t=CODIGO (link viejo) o con el nombre de la tienda: pekeronapp.com/minombre
@@ -157,7 +157,7 @@ function goodColor(c){return /^#[0-9a-f]{6}$/i.test(c||'')}
 function lum(c){var r=parseInt(c.substr(1,2),16),g=parseInt(c.substr(3,2),16),b=parseInt(c.substr(5,2),16);return (r*299+g*587+b*114)/1000}
 function theme(){var c=goodColor(INFO.color)?INFO.color:'#111111';document.documentElement.style.setProperty('--b',c);document.documentElement.style.setProperty('--bi',lum(c)>150?'#111':'#fff')}
 /* tema de temporada (lo activa la tienda desde la app; se apaga solo después de la fecha) */
-function tema(){TEMA=temaActivo(INFO,Date.now());if(!TEMA)return;introTema(TEMA,'cat');
+function tema(g){TEMA=temaEfectivo(INFO,g,Date.now());if(!TEMA)return;introTema(TEMA,'cat');
 var T=TEMAS[TEMA],r=document.documentElement,c=T.cat;r.setAttribute('data-tema',TEMA);
 ['bg','line','b','bi'].forEach(function(k){r.style.setProperty('--'+k,c[k])});
 var f=proxima(TEMA,Date.now()),e=$('tmb');e.hidden=false;
@@ -177,9 +177,9 @@ if(WAS.length>1)wf.onclick=function(e){e.preventDefault();elegirWa()}}
 $('ft').textContent=n}
 if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
-(sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return getDoc(doc(db,'stores',sid,'public','info'))}).then(function(s){
+(sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
-INFO=s.data();ALM=!!INFO.alm;theme();head();tema();
+INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);
 // mostrar siempre el link lindo en la barra de direcciones
 if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
 if(ALM){$('sq').placeholder='Buscar producto'}

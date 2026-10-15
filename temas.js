@@ -202,6 +202,16 @@ export function temaActivo(info, now) {
   if (info.temaHasta && now > info.temaHasta) return '';
   return info.tema;
 }
+// Tema general que activa el propietario de Pekeron App para todas las tiendas (platform/tema = {tema, hasta}).
+export function temaGeneral(g, now) {
+  if (!g || !g.tema || !TEMAS[g.tema]) return '';
+  if (g.hasta && now > g.hasta) return '';
+  return g.tema;
+}
+// Tema que se ve: el que eligió la tienda; si no eligió ninguno, el general (salvo que la tienda lo haya desactivado con temaOff).
+export function temaEfectivo(info, g, now) {
+  return temaActivo(info, now) || (info && info.temaOff ? '' : temaGeneral(g, now));
+}
 export function faltan(now, fecha) {
   const n = new Date(now), hoy = new Date(n.getFullYear(), n.getMonth(), n.getDate());
   return Math.round((fecha - hoy) / 86400000);

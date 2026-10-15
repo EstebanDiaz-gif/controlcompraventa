@@ -145,7 +145,7 @@ import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
-import {TEMAS,temaActivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
+import {TEMAS,temaActivo,temaGeneral,temaEfectivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
 import {introTema} from './intro.js';
 
 var $=function(i){return document.getElementById(i)};
@@ -166,7 +166,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -271,10 +271,11 @@ b=writeBatch(db);Object.keys(st).forEach(function(k){b.set(doc(db,'stores',sid,'
 }).catch(function(){})}
 
 onAuthStateChanged(auth,function(u){
-stopStore();stop('stores');stop('owner');stop('cfg');U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
+stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
 if(!u){gate('auth');return}
 gate('load');
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
+un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
 un.stores=onSnapshot(collection(db,'users',u.uid,'stores'),function(sn){
 STORES=[];sn.forEach(function(d){STORES.push({id:d.id,name:d.data().name||'Tienda'})});
@@ -323,25 +324,43 @@ else if(d.state=='grace')h='<div class="bn warn"><b>El acceso venció.</b> Tené
 else if(d.state=='trial')h='<div class="bn'+(d.daysLeft<=3?' warn':'')+'"><b>Prueba gratuita:</b> '+(d.daysLeft<=1?'te queda 1 día':'te quedan '+d.daysLeft+' días')+'.</div>';
 else if(d.state=='free_timed')h='<div class="bn">Acceso gratuito hasta el '+fdate(d.untilMs)+'.</div>';
 else if(d.state=='free_forever')h='<div class="bn">Acceso gratuito.</div>'}
-var tm=temaActivo(PUB,Date.now());
+var tm=temaEfectivo(PUB,GLOB,Date.now());
 if(tm&&ROLE){var T=TEMAS[tm],f=proxima(tm,Date.now());
-h='<div class="tmb" style="background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.6,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+'</b>'+esc(fechaLarga(f))+' · '+cuentaRegresiva(Date.now(),f)+(ROLE=='admin'?'<small>'+(PUB&&PUB.enabled?'Tu catálogo también tiene el tema activado.':'El tema está activo en la app de tu equipo.')+'</small>':'')+'</div></div>'+h}
+h='<div class="tmb" style="background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.6,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+'</b>'+esc(fechaLarga(f))+' · '+cuentaRegresiva(Date.now(),f)+(ROLE=='admin'?'<small>'+(!temaActivo(PUB,Date.now())?'Tema general de Pekeron App. Lo podés cambiar o quitar en Equipo.':PUB&&PUB.enabled?'Tu catálogo también tiene el tema activado.':'El tema está activo en la app de tu equipo.')+'</small>':'')+'</div></div>'+h}
 b.innerHTML=h}
 // Tema de temporada: colores de la app para todo el equipo (lo elige un administrador en Equipo).
-function applyTema(){var tm=SID?temaActivo(PUB,Date.now()):'',r=document.documentElement;
+function applyTema(){var tm=SID?temaEfectivo(PUB,GLOB,Date.now()):'',r=document.documentElement;
 if(tm)r.setAttribute('data-tema',tm);else r.removeAttribute('data-tema');
 var st=$('tmcss');if(!st){st=document.createElement('style');st.id='tmcss';document.head.appendChild(st)}st.textContent=tm?cssApp(tm):'';
 var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm?TEMAS[tm].app.btn:'#0f7a55';
 if(ROLE){drawBanner();drawHdr()}
 if(tm&&ROLE)introTema(tm,'app')}
 var TMALL=false;
-function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now).filter(function(x){return x.id!=tm}),sh=TMALL?L:L.slice(0,4);
+function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),g0=tm||(PUB&&PUB.temaOff)?'':temaGeneral(GLOB,now),L=porFecha(now).filter(function(x){return x.id!=tm&&x.id!=g0}),sh=TMALL?L:L.slice(0,4);
 var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Decorá la app de tu equipo y tu catálogo para una fecha especial. Se quita solo cuando termina la fecha.</div>';
+var gen=temaGeneral(GLOB,now);
+if(!tm&&gen){var TG=TEMAS[gen];h+=(PUB&&PUB.temaOff?'<div class="k" style="margin:12px 0 0">Pekeron App activó el tema <b>'+TG.emoji+' '+esc(TG.nombre)+'</b> para todas las tiendas, pero en la tuya lo desactivaste.</div><button class="go alt" data-tmoff="0">Usar el tema '+esc(TG.nombre)+'</button>'
+:'<div class="tmb" style="margin:12px 0 0;background:'+TG.ban.g+';color:'+TG.ban.ink+'">'+adornos(gen,.55,1)+'<div><b>'+TG.emoji+' '+esc(TG.nombre)+'</b>Lo activó Pekeron App para todas las tiendas, hasta el '+esc(fechaLarga(new Date(GLOB.hasta)))+'.</div></div><button class="go alt" data-tmoff="1">No usarlo en mi tienda</button>')+'<div class="k" style="margin:14px 0 0">O elegí otra fecha para tu tienda:</div>'}
 if(tm){var T=TEMAS[tm];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' activado</b>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'</div></div><button class="go alt" data-stema="">Quitar el tema</button><div class="k" style="margin:14px 0 0">Para cambiarlo, activá otra fecha:</div>'}
 h+='<div style="margin-top:8px">'+sh.map(function(x){var T=TEMAS[x.id],n=faltan(now,x.fecha);
 return '<div class="tml"><span class="e">'+T.emoji+'</span><div><b>'+esc(T.nombre)+'</b><div class="k">'+esc(fechaLarga(x.fecha))+' · '+(n<=0?'¡ahora!':n==1?'mañana':'en '+n+' días')+'</div></div><button class="go'+(n<=30?'':' alt')+'" data-stema="'+x.id+'">Activar</button></div>'}).join('')+'</div>';
 if(!TMALL&&L.length>4)h+='<button class="x" data-tmall="1" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Ver todas las fechas ('+L.length+')</button>';
 return h+'</div>'}
+// Tema general: el propietario de la plataforma lo activa para todas las tiendas a la vez.
+var GTALL=false;
+function gTemaCard(){var now=Date.now(),g=temaGeneral(GLOB,now),L=porFecha(now).filter(function(x){return x.id!=g}),sh=GTALL?L:L.slice(0,4);
+var h='<div class="card"><b>Tema de temporada para todas las tiendas</b><div class="k" style="margin:4px 0 0">Se ve en la app y en el catálogo de todas las tiendas que no eligieron un tema propio. Cada tienda lo puede desactivar. Se quita solo cuando termina la fecha.</div>';
+if(g){var T=TEMAS[g];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(g,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' activado para todos</b>Hasta el '+esc(fechaLarga(new Date(GLOB.hasta)))+'</div></div><button class="go alt" data-gtema="">Quitar el tema para todos</button><div class="k" style="margin:14px 0 0">Para cambiarlo, activá otra fecha:</div>'}
+h+='<div style="margin-top:8px">'+sh.map(function(x){var T=TEMAS[x.id],n=faltan(now,x.fecha);
+return '<div class="tml"><span class="e">'+T.emoji+'</span><div><b>'+esc(T.nombre)+'</b><div class="k">'+esc(fechaLarga(x.fecha))+' · '+(n<=0?'¡ahora!':n==1?'mañana':'en '+n+' días')+'</div></div><button class="go'+(n<=30?'':' alt')+'" data-gtema="'+x.id+'">Activar</button></div>'}).join('')+'</div>';
+if(!GTALL&&L.length>4)h+='<button class="x" data-gtema="*" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Ver todas las fechas ('+L.length+')</button>';
+return h+'</div>'}
+function gTema(t){if(!IS_OWNER)return;
+if(t=='*'){GTALL=true;drawPlat();return}
+var T=t&&TEMAS[t];
+if(T&&!confirm('¿Activar el tema '+T.nombre+' en todas las tiendas?'))return;
+if(!t&&!confirm('¿Quitar el tema para todas las tiendas?'))return;
+(t?setDoc(doc(db,'platform','tema'),{tema:t,hasta:hasta(t,Date.now()),at:Date.now()}):deleteDoc(doc(db,'platform','tema'))).catch(fail)}
 function setTema(t){if(ROLE!='admin')return;
 var o=t?{tema:t,temaHasta:hasta(t,Date.now())}:{tema:deleteField(),temaHasta:deleteField()};
 setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(fail)}
@@ -375,7 +394,7 @@ else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){i
 var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>';
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
-var tmh=temaActivo(PUB,Date.now());
+var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#e05a8a','#ffd36b',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
@@ -849,7 +868,7 @@ if(p.enabled){h+='<div class="k" style="margin-top:12px;word-break:break-all">'+
 '<button class="go" data-cat="wa" style="background:#1fa855;color:#fff">Enviar por WhatsApp</button><div class="row" style="gap:8px"><button class="go alt" data-cat="msgcopy">Copiar mensaje</button><button class="go alt" data-cat="msgreset">Restablecer</button></div></div>'}
 return h+'</div>'}
 // Mensaje para compartir el catálogo: se arma con el nombre, el tipo de negocio, el tema de temporada y los datos del catálogo.
-function shareMsg(){var p=PUB||{},now=Date.now(),tm=temaActivo(p,now),L=[];
+function shareMsg(){var p=PUB||{},now=Date.now(),tm=temaEfectivo(p,GLOB,now),L=[];
 if(tm){var T=TEMAS[tm],f=proxima(tm,now),n=faltan(now,f);
 L.push(T.emoji+' *'+T.nombre+'* · '+fechaLarga(f)+(n>1?' (faltan '+n+' días)':n==1?' (¡es mañana!)':n==0?' (¡es hoy!)':''));L.push(T.sub);L.push('')}
 L.push('¡Hola! 👋 Te comparto el catálogo de *'+(SNAME||'mi tienda')+'*.');
@@ -951,7 +970,7 @@ if(!PL.list.length)h+='<div class="empty">No encontré tiendas.</div>';
 PL.list.forEach(function(x){h+='<div class="it"><div><b>'+esc(x.name)+'</b><small>'+esc((x.admins||[]).join(', '))+'</small><small>'+esc(x.sid)+' · '+(STATE_LABEL[x.state]||x.state)+(x.activeUntilMs?' hasta '+fdate(x.activeUntilMs):'')+'</small></div><button class="x" style="font-size:14px;text-decoration:underline" data-pd="'+esc(x.sid)+'">Abrir</button></div>'});
 h+='</div>'}
 if(PL.detail)h+=detailHtml();
-h+=cfgHtml()+'<div class="card"><b>Mantenimiento</b><div class="k" style="margin:4px 0 0">Prepara el plan de las tiendas creadas antes de que existieran los planes. Las tuyas quedan sin cobro y las demás empiezan una prueba desde hoy.</div><button class="go alt" data-pa="migrate">Inicializar tiendas anteriores</button></div>';
+h+=gTemaCard()+cfgHtml()+'<div class="card"><b>Mantenimiento</b><div class="k" style="margin:4px 0 0">Prepara el plan de las tiendas creadas antes de que existieran los planes. Las tuyas quedan sin cobro y las demás empiezan una prueba desde hoy.</div><button class="go alt" data-pa="migrate">Inicializar tiendas anteriores</button></div>';
 $('s-plat').innerHTML=h;togglePlat()}
 /* ---------- Panel del propietario sin servidor (plan Spark) ---------- */
 function loadLite(){
@@ -989,7 +1008,7 @@ h+='<div class="card"><div style="display:flex;justify-content:space-between;gap
 '<div class="row" style="margin-top:10px"><div><select id="lp_'+esc(x.sid)+'">'+PLAN_IDS.map(function(k){return '<option value="'+k+'"'+((a&&(a.chosenPlan==k))?' selected':'')+'>'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select></div><div><input id="lm_'+esc(x.sid)+'" type="number" min="1" max="24" value="1" inputmode="numeric" placeholder="Meses"></div></div>'+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+
 '<div class="row" style="gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'</div></div>'});
-$('s-plat').innerHTML=h;var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
+h+=gTemaCard();$('s-plat').innerHTML=h;var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 function litBuild(base){
 var c=computeAccess({nowMs:Date.now(),config:CFG,paidPlan:base.paidPlan||null,trialStartMs:base.trialStartMs==null?null:base.trialStartMs,paidUntilMs:base.paidUntilMs==null?null:base.paidUntilMs,ownerFree:false,grants:[]});
 var lim=c.graceUntilMs!=null?c.graceUntilMs:c.activeUntilMs;
@@ -1087,6 +1106,8 @@ if(d.cat){catAction(d.cat,d.i);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
+if(d.tmoff!==undefined){if(ROLE=='admin')setDoc(doc(db,'stores',SID,'public','info'),{temaOff:d.tmoff=='1'?true:deleteField()},{merge:true}).catch(fail);return}
+if(d.gtema!==undefined){gTema(d.gtema);return}
 if(d.tmall){TMALL=true;drawTeam();var tc=$('tmcard');if(tc)tc.scrollIntoView({block:'start'});return}
 if(d.bz){setDoc(doc(db,'stores',SID,'cfg','servicios'),{biz:$('bz').value},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
