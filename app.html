@@ -886,15 +886,15 @@ h+='</div>';$('xglist').innerHTML=h}
 
 /* ---------- Equipo (administrador) ---------- */
 function drawTeam(){
-var h=planCard()+'<div class="card"><b>Personas de '+esc(SNAME)+'</b>';
+var h='<div class="card"><b>Personas de '+esc(SNAME)+'</b>';
 MEM.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'')}).forEach(function(m){
 h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+esc(m.email)+' · '+(m.role=='admin'?'administrador':'empleado')+(m.id==U.uid?' · vos':'')+'</small></div>'+(m.id!=U.uid&&m.id!=OWNER?'<button class="x" data-rm="'+esc(m.id)+'" aria-label="Quitar">×</button>':'')+'</div>'});
 h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin:4px 0 0">Se genera un código. La persona crea su cuenta, toca el selector de tienda y elige "Unirme con un código".</div>'+
 '<button class="go" data-inv="empleado">Invitar empleado</button><button class="go alt" data-inv="admin">Invitar administrador</button></div>';
 if(INV.length){h+='<div class="card"><b>Códigos activos</b>';
-INV.forEach(function(v){var c=SID+v.id;h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
+INV.forEach(function(v){var c=SID+v.id;h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Anulá el código cuando la persona ya haya entrado.</div></div>'}
-h+=PRO.card()+temaCard()+bizCard()+catCard();
+h+=planCardCollapsible()+catLinkCard()+configCard()+PRO.card()+temaCard()+bizCard()+catCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
@@ -922,18 +922,13 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="cat_on" type="checkbox" style="width:auto"'+(p.enabled?' checked':'')+'> Catálogo activado</label>'+
 '<label>Logo de tu negocio</label><div class="row" style="gap:12px;align-items:center"><img id="cat_lgv" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--line);'+(logoNow(p)?'':'display:none')+'" src="'+esc(logoNow(p))+'"><input id="cat_logo" type="file" accept="image/*" style="flex:1"></div><button class="go alt" data-cat="nologo" style="margin-top:6px">Quitar logo</button>'+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: Zapatillas y ropa por mayor y menor" value="'+esc(p.tag||'')+'" autocomplete="off">'+
-'<label>Color de tu marca</label><input id="cat_col" type="color" value="'+esc(/^#[0-9a-f]{6}$/i.test(p.color||'')?p.color:'#111111')+'" style="height:46px;padding:4px">'+
-'<label>Horario de atención (opcional)</label><input id="cat_hrs" maxlength="60" placeholder="Ej: Lunes a sábado 9 a 18 hs" value="'+esc(p.hours||'')+'" autocomplete="off">'+
-'<label>Dirección o zona (opcional)</label><input id="cat_adr" maxlength="80" placeholder="Ej: Yerba Buena, Tucumán" value="'+esc(p.addr||'')+'" autocomplete="off">'+
-'<label>Instagram (opcional)</label><input id="cat_ig" maxlength="40" placeholder="Ej: @minegocio" value="'+esc(p.ig||'')+'" autocomplete="off">'+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
 '<div class="k" style="margin-top:6px">En el modo por producto, el mínimo de cada uno se pone en Stock → Editar.</div></div>'+(biz()=='almacen'?'<div class="k" style="margin-top:10px">Los precios y productos del catálogo se actualizan solos unos segundos después de cada cambio, mientras un administrador tenga la app abierta con internet.</div>':'')+
 '<button class="go" data-cat="save">Guardar catálogo</button>';
 h+='<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)"><b>Link de tu catálogo</b><div class="k" style="margin:4px 0 8px">Elegí cómo termina el link que compartís con tus clientes.</div><div style="display:flex;align-items:center;gap:4px;background:var(--line);border-radius:14px;padding-left:14px;font-weight:600"><span style="color:var(--mut);white-space:nowrap">'+esc(catBase().replace(/^https?:\/\//,''))+'</span><input id="cat_slug" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="40" placeholder="'+esc(slugify(SNAME)||'mitienda')+'" value="'+esc(p.slug||'')+'" style="padding-left:2px;background:transparent"></div><button class="go alt" data-cat="slug">'+(p.slug?'Cambiar link':'Guardar link')+'</button></div>';
-if(p.enabled){h+='<div class="k" style="margin-top:12px;word-break:break-all">'+esc(catLink())+'</div><div class="row" style="gap:8px"><button class="go alt" data-cat="copy">Copiar link</button><button class="go alt" data-cat="open">Abrir</button></div>'+
-'<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)"><b>Compartir por WhatsApp</b><div class="k" style="margin:4px 0 8px">Mensaje listo para mandar a tus clientes o subir a tu estado. Podés cambiarlo antes de enviarlo.</div>'+
+if(p.enabled){h+='<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)"><b>Compartir por WhatsApp</b><div class="k" style="margin:4px 0 8px">Mensaje listo para mandar a tus clientes o subir a tu estado. Podés cambiarlo antes de enviarlo.</div>'+
 '<textarea id="cat_msg" rows="8" style="width:100%;padding:14px 16px;border:0;border-radius:14px;background:var(--line);color:var(--ink);font:inherit;font-weight:500;line-height:1.4;resize:vertical">'+esc(shareMsg())+'</textarea>'+
 '<button class="go" data-cat="wa" style="background:#1fa855;color:#fff">Enviar por WhatsApp</button><div class="row" style="gap:8px"><button class="go alt" data-cat="msgcopy">Copiar mensaje</button><button class="go alt" data-cat="msgreset">Restablecer</button></div></div>'}
 return h+'</div>'}
@@ -963,13 +958,57 @@ if(a=='slug'){saveSlug();return}
 if(a=='copy'){var l=catLink();if(navigator.clipboard)navigator.clipboard.writeText(l).then(function(){alert('Link copiado.')},function(){prompt('Copiá el link:',l)});else prompt('Copiá el link:',l);return}
 if(a=='open'){window.open(catLink(),'_blank');return}
 if(a=='nologo'){CLOGO='';var v=$('cat_lgv');if(v)v.style.display='none';return}
+if(a=='save'){
+// Si viene desde configCard, solo guarda configuraciones; si viene desde catCard, guarda todo
+var hasCatOn=$('cat_on');
+if(!hasCatOn){
+// Solo configuraciones (desde configCard)
+setDoc(doc(db,'stores',SID,'public','info'),{color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+return}
+// Catálogo completo (desde catCard)
 var was=readWas().map(function(x){return {n:x.n,w:waNorm(x.w)}}).filter(function(x){return x.w}),wa=was.length?was[0].w:'';
 if(was.some(function(x){return x.w.length<12||x.w.length>13})){alert('Revisá los números de WhatsApp: tienen que tener el código de área. Ejemplo: 381 614 5326');return}
 if($('cat_on').checked&&!was.length){alert('Escribí al menos un WhatsApp para recibir los pedidos.');return}
 if(was.length>1&&was.some(function(x){return !x.n})){alert('Poné un nombre a cada número, así el cliente sabe a quién le escribe.');return}
 $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail)}
+setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+return}
+function planCardCollapsible(){
+var ACCX=ACC||{limits:{},effectivePlan:'inicial'};
+var d=dstate()||{state:'libre'},L=ACCX.limits||{},nA=0,nE=0;
+MEM.forEach(function(m){if(m.role=='admin')nA++;else nE++});
+var lim=function(v){return v==null?'sin límite':v};
+var pn=(CFG.plans[ACCX.effectivePlan]||{}).name||ACCX.effectivePlan;
+var warn=function(n,l,t){return l==null?'':n>=l?'<div class="bn warn" style="margin:10px 0 0">Llegaste al máximo de '+t+' de tu plan. Para sumar más hay que cambiar de plan.</div>':(l-n==1?'<div class="k" style="margin-top:8px">Te queda 1 lugar para '+t+'.</div>':'')};
+var h='<div class="card"><b style="display:flex;justify-content:space-between;align-items:center">Elegir plan<button class="x" id="plan-toggle" style="font-size:16px;text-decoration:none;color:var(--ink)">▼</button></b><div id="plan-details" style="display:none;margin-top:12px"><div class="rows" style="margin:6px 0 0">'+
+'<div class="r2"><span>Estado</span><b style="font-size:16px">'+(STATE_LABEL[d.state]||d.state)+(d.untilMs?'<small style="font-weight:400">hasta el '+fdate(d.untilMs)+'</small>':'')+'</b></div>'+
+((ACCX.ownerFree||!ACC)?'':'<div class="r2"><span>Plan vigente</span><b>'+esc(pn)+'</b></div>')+
+'<div class="r2"><span>Administradores</span><b>'+nA+' de '+lim(L.admins)+'</b></div>'+
+'<div class="r2"><span>Empleados</span><b>'+nE+' de '+lim(L.empleados)+'</b></div>'+
+'<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
+warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
+if(!ACCX.unlimited){h+='<div style="margin-top:14px"><b>Planes disponibles</b></div>';
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+money(p.priceARS)+'</b><small>por mes</small></div>'+(p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)">Contratar '+esc(p.name)+'</a>':'')+'</div>'});
+h+='<div class="k" style="margin-top:8px">Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.</div>'}
+h+='</div></div>';
+return h}
+function catLinkCard(){
+var link=catLink(),p=PUB||{};
+var h='<div class="card"><b style="display:flex;justify-content:space-between;align-items:center;gap:10px">📱 Catálogo<div style="display:flex;gap:6px"><button class="go alt" data-cat="copy" style="padding:8px 14px;font-size:14px">Copiar</button><button class="go alt" data-cat="open" style="padding:8px 14px;font-size:14px">Abrir</button></div></b>';
+h+='<div class="k" style="margin:8px 0 0">Compartí este link con tus clientes para que vean tu catálogo.</div>';
+h+='<div style="margin-top:10px;word-break:break-all;padding:10px;background:var(--line);border-radius:10px;font-family:monospace;font-size:14px">'+esc(link)+'</div>';
+h+='</div>';
+return h}
+function configCard(){
+var p=PUB||{};
+var h='<div class="card"><b style="display:flex;justify-content:space-between;align-items:center">⚙️ Configuraciones<button class="x" id="config-toggle" style="font-size:16px;text-decoration:none;color:var(--ink)">▼</button></b><div id="config-details" style="display:none;margin-top:12px">'+
+'<label>Color de tu marca</label><input id="cat_col" type="color" value="'+esc(/^#[0-9a-f]{6}$/i.test(p.color||'')?p.color:'#111111')+'" style="height:46px;padding:4px;width:100%">'+
+'<label style="margin-top:10px">Horario de atención (opcional)</label><input id="cat_hrs" maxlength="60" placeholder="Ej: Lunes a sábado 9 a 18 hs" value="'+esc(p.hours||'')+'" autocomplete="off">'+
+'<label>Dirección o zona (opcional)</label><input id="cat_adr" maxlength="80" placeholder="Ej: Yerba Buena, Tucumán" value="'+esc(p.addr||'')+'" autocomplete="off">'+
+'<label>Instagram (opcional)</label><input id="cat_ig" maxlength="40" placeholder="Ej: @minegocio" value="'+esc(p.ig||'')+'" autocomplete="off">'+
+'<button class="go" data-cat="save" style="margin-top:12px">Guardar configuraciones</button></div></div>';
+return h}
 function planCard(){
 var ACCX=ACC||{limits:{},effectivePlan:'inicial'};
 var d=dstate()||{state:'libre'},L=ACCX.limits||{},nA=0,nE=0;
@@ -989,17 +1028,20 @@ PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="fle
 h+='<div class="k" style="margin-top:8px">Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.</div>'}
 return h+'</div>'}
 function shareCode(c){
-var msg='Para unirte a '+SNAME+': abrí la app, tocá el selector de tienda, elegí "Unirme con un código" y pegá este código:\n\n'+c;
+var appLink=catBase()+'app.html?t='+SID;
+var msg='¡Hola! Te comparto el código para unirte a nuestro equipo en Pekeron App.\n\n🔐 *Código:* '+c+'\n\n📱 Descargá la app acá:\n'+appLink+'\n\n1️⃣ Abrí la app\n2️⃣ Tocá el selector de tienda\n3️⃣ Elegí "Unirme con un código"\n4️⃣ Pegá el código de arriba\n\nCualquier duda ¡te ayudo!';
 var o=document.createElement('div');o.id='cdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px';
-o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:22px;max-width:380px;width:100%"><b style="font-size:18px">Código de invitación</b><div class="code" style="font-size:22px;margin:16px 0;padding:14px;background:var(--bg);border-radius:14px;text-align:center;user-select:all">'+esc(c)+'</div><button class="go" id="cdc" style="margin-top:0">Copiar código</button><button class="go alt" id="cds">Enviar mensaje con instrucciones</button><button class="x" id="cdx" style="display:block;margin:14px auto 0;font-size:14px;text-decoration:underline">Cerrar</button></div>';
+o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:22px;max-width:420px;width:100%"><b style="font-size:18px">Código de invitación</b><div class="code" style="font-size:22px;margin:16px 0;padding:14px;background:var(--bg);border-radius:14px;text-align:center;user-select:all">'+esc(c)+'</div><button class="go" id="cdc" style="margin-top:0">Copiar código</button><button class="go" id="cdw" style="background:#1fa855;color:#fff;margin-top:8px">Enviar por WhatsApp</button><button class="go alt" id="cds" style="margin-top:8px">Enviar instrucciones</button><button class="x" id="cdx" style="display:block;margin:14px auto 0;font-size:14px;text-decoration:underline">Cerrar</button></div>';
 document.body.appendChild(o);
 function cl(){o.remove()}
 $('cdx').onclick=cl;o.onclick=function(e){if(e.target==o)cl()};
 $('cdc').onclick=function(){var b=this;
-function ok(){b.textContent='¡Copiado! Pegalo donde lo necesites'}
+function ok(){b.textContent='¡Copiado!'}
 if(navigator.clipboard)navigator.clipboard.writeText(c).then(ok,function(){prompt('Copiá este código:',c)});else prompt('Copiá este código:',c)};
-$('cds').onclick=function(){if(navigator.share)navigator.share({text:msg}).catch(function(){});
-else if(navigator.clipboard)navigator.clipboard.writeText(msg).then(function(){alert('Mensaje copiado. Pegalo en un chat.')},function(){prompt('Copiá este texto:',msg)});else prompt('Copiá este texto:',msg)}}
+$('cdw').onclick=function(){window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank')};
+$('cds').onclick=function(){var instructMsg='Para unirte a '+SNAME+': abrí la app, tocá el selector de tienda, elegí "Unirme con un código" y pegá este código:\n\n'+c;
+if(navigator.share)navigator.share({text:instructMsg}).catch(function(){});
+else if(navigator.clipboard)navigator.clipboard.writeText(instructMsg).then(function(){alert('Mensaje copiado. Pegalo en un chat.')},function(){prompt('Copiá este texto:',instructMsg)});else prompt('Copiá este texto:',instructMsg)}}
 function extractCode(t){var w=String(t||'').toLowerCase().split(/[^a-z0-9]+/).filter(function(x){return x.length==17&&'ae'.indexOf(x[10])>=0});return w.length?w[w.length-1]:String(t||'').toLowerCase().replace(/\s/g,'')}
 function fixStock(){
 if(!confirm('¿Recalcular el stock de empleados con todo el historial?'))return;
@@ -1157,7 +1199,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -1166,6 +1208,7 @@ if(!SERVER_MODE){var iid=(d.inv=='admin'?'a':'e')+rnd(6);
 setDoc(doc(db,'stores',SID,'invites',iid),{role:d.inv,created:Date.now()}).then(function(){shareCode(SID+iid)}).catch(fail);return}
 callFn('createInvite',{sid:SID,role:d.inv}).then(function(r){shareCode(r.code)}).catch(fail);return}
 if(d.cp){shareCode(d.cp);return}
+if(d.sendCode){shareCode(d.sendCode);return}
 if(d.an){if(confirm('¿Anular este código?'))deleteDoc(doc(db,'stores',SID,'invites',d.an)).catch(fail);return}
 if(d.rm){if(confirm('¿Quitar a esta persona de la tienda?'))deleteDoc(doc(db,'stores',SID,'members',d.rm)).catch(fail);return}
 if(d.em){editMov(d.em);return}
@@ -1211,6 +1254,11 @@ document.addEventListener('change',function(e){if(e.target.classList&&e.target.c
 if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}
 if(e.target.id=='eph'){var f=e.target.files&&e.target.files[0];if(f)readPhoto(f,function(o,hd){if(!o){alert('No pude leer esa foto. Probá con otra.');return}EPH=o;EPHD=hd||'';var v=$('epv');v.src=o;v.style.display=''})}
 if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}if(e.target.id=='gt')togglePlat()});
+
+document.addEventListener('click',function(e){
+if(e.target.id=='plan-toggle'){var d=$('plan-details');if(d){d.style.display=d.style.display=='none'?'block':'none';e.target.textContent=d.style.display=='none'?'▼':'▲'}}
+if(e.target.id=='config-toggle'){var c=$('config-details');if(c){c.style.display=c.style.display=='none'?'block':'none';e.target.textContent=c.style.display=='none'?'▼':'▲'}}
+});
 
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
 }
