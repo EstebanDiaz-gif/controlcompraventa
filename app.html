@@ -464,7 +464,7 @@ if(type=='v'&&!SZON&&p&&M.some(function(x){return pk(x)==p}))t+=(t?' · ':'')+'E
 $('tot').textContent=t}
 ['p','s','q','u'].forEach(function(i){$(i).oninput=upd});
 $('q').addEventListener('input',function(){if(SZON)sumSizes();else drawSizes()});
-$('p').addEventListener('input',function(){if($('s').value)return;var f=M.filter(function(x){return key(x.p)==key($('p').value)&&x.s}).pop();if(f){$('s').value=f.s;upd()}});
+$('p').addEventListener('input',function(){if($('s').value)return;var f=M.filter(function(x){return key(x.p)==key($('p').value)&&x.s}).pop();if(f){$('s').value=f.s;upd()};var isRopa=/pantalon|remera|buzo|campera|pollera|falda|zapato|zapatilla|bota|medias|calcetines|camiseta|t-?shirt|camisa|blusa|vestido|bermuda|short|jean|jogger|calzado|ropa|sweater|hoodie|chamarra|abrigo/.test(key($('p').value));if(isRopa&&!SZON){SZON=true;drawSizes()}});
 function autoU(){var b=ck();if(!b)return;
 if(type=='v'){var u=$('u');if(u.value&&u.dataset.auto!='1')return;var v=priceOf(b,$('k').value);if(v){u.value=v;u.dataset.auto='1';upd()}}
 else{['pm','pn'].forEach(function(id){var e=$(id);if(!e||(e.value&&e.dataset.auto!='1'))return;var v=priceOf(b,id=='pm'?'mayor':'menor');if(v){e.value=v;e.dataset.auto='1'}});
@@ -492,10 +492,10 @@ addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0,mm:Math.floor(
 function sumSizes(){var e=$('szsum');if(!e)return;var t=0;SZ.forEach(function(r){t+=+r.q||0});var q=+$('q').value||0;e.textContent='Repartidos '+t+' de '+q;e.style.color=t==q?'var(--sell)':'var(--buy)'}
 function drawSizes(){
 var b=$('szbox');if(!b)return;var q=+$('q').value||0,h='';
-if(!SZON){if(q>0)h='<button class="x" data-sz="open" style="font-size:15px;font-weight:700;text-decoration:underline;margin-top:12px;color:var(--ink)">Dividir por talles o colores</button>'}
-else{h='<label>Talles y colores (el color es opcional)</label>';
-SZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="sz-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="sz-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="sz-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-sz="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
-h+='<div class="tot" id="szsum"></div><button class="x" data-sz="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle o color</button> <button class="x" data-sz="off" style="font-size:14px;text-decoration:underline;margin-left:14px">Sin talles</button>'}
+if(!SZON){if(q>0)h='<div class="note" style="margin-top:12px">¿Compraste varios talles o colores? Especificalos acá.</div><button class="go alt" data-sz="open" style="margin-top:8px">Agregar talles y colores</button>'}
+else{h='<label style="margin-top:10px">Talles, colores y cantidades</label>';
+SZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:flex-start"><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Talle</label><input class="sz-z" data-i="'+i+'" placeholder="S, M, L, 38..." value="'+esc(r.z)+'" autocomplete="off"></div><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Color</label><input class="sz-c" data-i="'+i+'" placeholder="Azul, Negro..." value="'+esc(r.c||'')+'" autocomplete="off"></div><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Cuántos</label><input class="sz-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="1" value="'+esc(r.q)+'"></div><button class="x" data-sz="del" data-i="'+i+'" aria-label="Quitar" style="margin-top:26px">×</button></div>'});
+h+='<div class="tot" id="szsum" style="margin:10px 0;font-weight:700;color:var(--sell)"></div><button class="go alt" data-sz="add" style="margin:8px 0">+ Agregar otro talle/color</button> <button class="go alt" data-sz="off" style="margin:8px 0">Sin talles (usar todo como uno)</button>'}
 b.innerHTML=h;sumSizes()}
 function sizeAction(a,i){
 if(a=='open'){var q=+$('q').value||0;SZON=true;SZ=[];
