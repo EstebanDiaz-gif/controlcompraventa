@@ -525,8 +525,8 @@ box.innerHTML='<div class="card">'+(adm?'<div class="seg"><button class="c" data
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};
 function upd(){var q=+$('eq').value,u=+$('eu').value;$('etot').textContent=q&&u?'Total: '+money(q*u):''}
 $('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
-if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes()}
-function refreshCliClientes(){var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c,i){h+='<option value="'+i+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
+function refreshCliClientes(){if(!$('efiaCli'))return;var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c,i){h+='<option value="'+i+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
+if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes()}}
 if($('efiaCli')){$('efiaCli').onchange=function(){var v=this.value;if(v=='*nuevo*'){$('efiaNewBox').style.display='block';$('efiaCliN').focus()}else{$('efiaNewBox').style.display='none'}}}
 $('eok').onclick=function(){var d=null,id=$('es').value;ST.forEach(function(x){if(x.id==id)d=x});
 var q=+$('eq').value,u=$('eu').value;
