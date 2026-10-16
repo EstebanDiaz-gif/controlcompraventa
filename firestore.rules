@@ -72,6 +72,7 @@ service cloud.firestore {
       allow read: if isMember(sid) || isPlatformOwner();
       allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
       allow update: if isAdmin(sid) && request.resource.data.owner == resource.data.owner;
+      allow delete: if isPlatformOwner();
 
       match /members/{uid} {
         allow read: if signedIn() && (request.auth.uid == uid || isAdmin(sid) || isPlatformOwner());

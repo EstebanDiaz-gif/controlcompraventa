@@ -1007,7 +1007,7 @@ h+='<div class="card"><div style="display:flex;justify-content:space-between;gap
 '<div class="rows" style="margin:8px 0 0">'+(st.untilMs?'<div class="r2"><span>'+(st.state=='trial'?'La prueba termina':'Activa hasta')+'</span><b style="font-size:16px">'+fdate(st.untilMs)+'</b></div>':'')+(ch?'<div class="r2"><span>Plan que eligió</span><b>'+esc(ch)+'</b></div>':'')+(pl?'<div class="r2"><span>Plan pagado</span><b>'+esc(pl)+'</b></div>':'')+'</div>'+
 '<div class="row" style="margin-top:10px"><div><select id="lp_'+esc(x.sid)+'">'+PLAN_IDS.map(function(k){return '<option value="'+k+'"'+((a&&(a.chosenPlan==k))?' selected':'')+'>'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select></div><div><input id="lm_'+esc(x.sid)+'" type="number" min="1" max="24" value="1" inputmode="numeric" placeholder="Meses"></div></div>'+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+
-'<div class="row" style="gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'</div></div>'});
+'<div class="row" style="gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:var(--buy)" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></div>'});
 h+=gTemaCard();$('s-plat').innerHTML=h;var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 function litBuild(base){
 var c=computeAccess({nowMs:Date.now(),config:CFG,paidPlan:base.paidPlan||null,trialStartMs:base.trialStartMs==null?null:base.trialStartMs,paidUntilMs:base.paidUntilMs==null?null:base.paidUntilMs,ownerFree:false,grants:[]});
@@ -1026,7 +1026,9 @@ setDoc(ref,litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chos
 if(a=='pay'){var pp=$('lp_'+sid).value,m=parseInt($('lm_'+sid).value,10);if(!(m>=1&&m<=24)){alert('Indicá los meses pagados (1 a 24).');return}
 if(!confirm('¿Registrar '+m+' mes(es) del plan '+CFG.plans[pp].name+' para "'+x.name+'"?'))return;
 var from=Math.max(old.paidUntilMs||0,Date.now());
-setDoc(ref,litBuild({paidPlan:pp,paidUntilMs:addPeriod(from,{months:m}),trialStartMs:old.trialStartMs==null?null:old.trialStartMs,chosenPlan:cp})).then(done).catch(fail)}}
+setDoc(ref,litBuild({paidPlan:pp,paidUntilMs:addPeriod(from,{months:m}),trialStartMs:old.trialStartMs==null?null:old.trialStartMs,chosenPlan:cp})).then(done).catch(fail);return}
+if(a=='delete'){if(!confirm('¿Eliminar definitivamente la tienda "'+x.name+'" y todos sus datos? No se puede deshacer.'))return;
+deleteDoc(doc(db,'stores',sid)).then(done).catch(fail)}}
 function detailHtml(){
 var d=PL.detail,a=d.access||{},st=a.phases?deriveState(a,Date.now()):{state:'sin_inicializar'},L=a.limits||{};
 var lim=function(v){return v==null?'sin límite':v};
