@@ -173,6 +173,7 @@ function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
 function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return r.data})}
+var CLIENTES_FIADOS=[]; // clientes frecuentes de fiado: [{n: nombre, t: teléfono}]
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
@@ -519,33 +520,47 @@ box.innerHTML='<div class="card">'+(adm?'<div class="seg"><button class="c" data
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="efia" type="checkbox" style="width:auto"> Venta de fiado</label>'+
-'<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><input id="efiaCli" placeholder="Nombre del cliente" autocomplete="off"><label>Fecha de vencimiento (opcional)</label><input id="efiaVto" type="date"><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
+'<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><select id="efiaCli" style="margin-bottom:8px"><option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option></select><div id="efiaNewBox" style="display:none"><label>Nombre del cliente</label><input id="efiaCliN" placeholder="Nombre" autocomplete="off"><label>Teléfono WhatsApp (opcional)</label><input id="efiaCliT" inputmode="tel" placeholder="381 614 5326" autocomplete="off"></div><label>Fecha de vencimiento (opcional)</label><input id="efiaVto" type="date"><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
 '<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>';
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};
 function upd(){var q=+$('eq').value,u=+$('eu').value;$('etot').textContent=q&&u?'Total: '+money(q*u):''}
 $('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
-if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none'}}
+if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes()}
+function refreshCliClientes(){var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c,i){h+='<option value="'+i+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
+if($('efiaCli')){$('efiaCli').onchange=function(){var v=this.value;if(v=='*nuevo*'){$('efiaNewBox').style.display='block';$('efiaCliN').focus()}else{$('efiaNewBox').style.display='none'}}}
 $('eok').onclick=function(){var d=null,id=$('es').value;ST.forEach(function(x){if(x.id==id)d=x});
 var q=+$('eq').value,u=$('eu').value;
 if(!d){alert('Elegí un producto.');return}
 if(!q||q<=0||u===''||isNaN(+u)){alert('Completá cantidad y precio.');return}
 if(q>d.q&&!confirm('Hay '+d.q+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
 var mov={id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,z:d.z||'',q:q,u:+u,k:$('ek').value,by:U.uid,bn:nm()};
-if($('efia')&&$('efia').checked){var cli=($('efiaCli')||{value:''}).value.trim();if(!cli){alert('Escribí el nombre del cliente.');return}
-mov.fia={cli:cli};if(($('efiaVto')||{value:''}).value)mov.fia.vto=$('efiaVto').value;if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
+if($('efia')&&$('efia').checked){var cliIdx=$('efiaCli').value,cli,tel='';
+if(cliIdx=='*nuevo*'){cli=($('efiaCliN')||{value:''}).value.trim();tel=($('efiaCliT')||{value:''}).value.trim();if(!cli){alert('Escribí el nombre del cliente.');return}
+CLIENTES_FIADOS.push({n:cli,t:tel||undefined})}
+else if(cliIdx){cli=CLIENTES_FIADOS[cliIdx].n;tel=CLIENTES_FIADOS[cliIdx].t||''}
+else{alert('Selecciona un cliente o agrega uno nuevo.');return}
+mov.fia={cli:cli};if(tel)mov.fia.tel=tel;if(($('efiaVto')||{value:''}).value)mov.fia.vto=$('efiaVto').value;if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
 sellMov(mov,d.id);
 if(adm)month=$('ed').value.slice(0,7)||month;drawSell();$('etot').textContent='Venta guardada ✓'}}
 
 /* ---------- Fiados / Deudas ---------- */
+function loadClientesFiados(){
+var clientes={};
+M.filter(function(x){return x.t=='v'&&x.fia}).forEach(function(x){var cli=x.fia.cli;
+if(!clientes[cli])clientes[cli]={n:cli,t:x.fia.tel||undefined};
+else if(x.fia.tel&&!clientes[cli].t)clientes[cli].t=x.fia.tel});
+CLIENTES_FIADOS=Object.keys(clientes).map(function(k){return clientes[k]}).sort(function(a,b){return a.n.localeCompare(b.n)})}
 function drawFia(){
+loadClientesFiados();
 var fiados=M.filter(function(x){return x.t=='v'&&x.fia});
 var byClient={};
 fiados.forEach(function(x){var cli=x.fia.cli,tot=x.q*x.u;
-if(!byClient[cli])byClient[cli]={total:0,items:[],vto:null,int:0};
+if(!byClient[cli])byClient[cli]={total:0,items:[],vto:null,int:0,tel:x.fia.tel||''};
 byClient[cli].total+=tot;
 byClient[cli].items.push(x);
 if(x.fia.vto&&(!byClient[cli].vto||x.fia.vto>byClient[cli].vto))byClient[cli].vto=x.fia.vto;
-if(x.fia.int)byClient[cli].int=Math.max(byClient[cli].int,x.fia.int)});
+if(x.fia.int)byClient[cli].int=Math.max(byClient[cli].int,x.fia.int);
+if(!byClient[cli].tel&&x.fia.tel)byClient[cli].tel=x.fia.tel});
 var now=new Date(),clients=Object.keys(byClient).sort();
 var h='<div class="card"><b>Control de fiados</b><div class="k" style="margin:4px 0 0">Ventas pendientes de cobro por cliente.</div></div>';
 if(!clients.length){h+='<div class="card"><div class="empty">No hay ventas de fiado registradas.</div></div>'}
@@ -564,15 +579,16 @@ if(mvs.some(function(x){return x.fia.int})){html+='<h2>Mora por atraso</h2>';mvs
 html+='<footer><p>Este documento fue generado automáticamente. Para consultas, escribinos a través de WhatsApp.</p></footer></body></html>';
 var blob=new Blob([html],{type:'text/html'}),url=window.URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Deuda_'+esc(cli)+'_'+today()+'.html';a.click();window.URL.revokeObjectURL(url)}
 function fiaEnviarWA(cli,mvs){
-var wa=PUB&&(PUB.wa||((PUB.was||[])[0]||{}).w);if(!wa){alert('Configurá el número de WhatsApp en Catálogo primero.');return}
 var total=0;mvs.forEach(function(x){total+=x.q*x.u});
 var vto=mvs.filter(function(x){return x.fia.vto}).map(function(x){return x.fia.vto}).sort().pop(),mora=mvs.filter(function(x){return x.fia.int}).map(function(x){return x.fia.int}).pop();
-var msg='Hola '+cli+'! 👋\n\nDetalle de tu deuda en '+esc(SNAME)+':\n\n💰 Total adeudado: '+money(total);
+var msg='Hola '+cli+'! 👋\n\nDetalle de tu deuda en '+SNAME+':\n\n💰 Total adeudado: '+money(total);
 if(vto)msg+='\n📅 Vencimiento: '+vto;
 if(mora)msg+='\n⚠️ Mora: '+mora+'% si no pagas a tiempo';
 msg+='\n\n📋 Para ver el detalle completo, descargá el PDF desde la app.\n\nPuede pagar cuando quieras. ¡Gracias!';
 var waNorm2=function(w){w=String(w||'').replace(/\D/g,'').replace(/^0+/,'');if(w.length==10)w='549'+w;else if(/^54[1-8]\d{9}$/.test(w))w='549'+w.slice(2);return w};
-window.open('https://wa.me/'+waNorm2(wa)+'?text='+encodeURIComponent(msg),'_blank')}
+var clientTel=mvs[0]&&mvs[0].fia.tel,teléfono=clientTel||((PUB&&(PUB.wa||((PUB.was||[])[0]||{}).w))||'');
+if(!teléfono){alert('No hay número de WhatsApp. Configuralo en Catálogo o agrega el cliente con su teléfono.');return}
+window.open('https://wa.me/'+waNorm2(teléfono)+'?text='+encodeURIComponent(msg),'_blank')}
 
 /* ---------- Resumen / Historial / Stock ---------- */
 function months(){var o={};o[today().slice(0,7)]=1;M.forEach(function(x){o[x.d.slice(0,7)]=1});GA.forEach(function(g){o[g.d.slice(0,7)]=1});AT.forEach(function(a){o[a.d.slice(0,7)]=1});return Object.keys(o).sort().reverse()}
