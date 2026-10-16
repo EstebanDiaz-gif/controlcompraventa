@@ -520,11 +520,11 @@ box.innerHTML='<div class="card">'+(adm?'<div class="seg"><button class="c" data
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="efia" type="checkbox" style="width:auto"> Venta de fiado</label>'+
-'<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><select id="efiaCli" style="margin-bottom:8px"><option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option></select><div id="efiaNewBox" style="display:none"><label>Nombre del cliente</label><input id="efiaCliN" placeholder="Nombre" autocomplete="off"><label>Teléfono WhatsApp (opcional)</label><input id="efiaCliT" inputmode="tel" placeholder="381 614 5326" autocomplete="off"></div><label>Fecha de vencimiento (opcional)</label><input id="efiaVto" type="date"><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
+'<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><select id="efiaCli" style="margin-bottom:8px"><option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option></select><div id="efiaNewBox" style="display:none"><label>Nombre del cliente</label><input id="efiaCliN" placeholder="Nombre" autocomplete="off"><label>Teléfono WhatsApp (opcional)</label><input id="efiaCliT" inputmode="tel" placeholder="381 614 5326" autocomplete="off"></div><label>Monto que paga ahora (opcional)</label><input id="efiaPagaHoy" type="number" inputmode="decimal" min="0" placeholder="Deja en blanco si fia todo"><div class="k" id="efiaPagaMsg" style="margin:4px 0 0;display:none"></div><label>Fecha de vencimiento (opcional)</label><input id="efiaVto" type="date"><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
 '<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>';
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};
-function upd(){var q=+$('eq').value,u=+$('eu').value;$('etot').textContent=q&&u?'Total: '+money(q*u):''}
-$('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
+function upd(){var q=+$('eq').value,u=+$('eu').value,tot=q*u;$('etot').textContent=q&&u?'Total: '+money(tot):'';if($('efiaPagaHoy')){var paga=+($('efiaPagaHoy').value||0),fia=Math.max(0,tot-paga),msg=$('efiaPagaMsg');if(paga||$('efiaPagaHoy').value){msg.style.display='block';msg.textContent=paga?'Paga hoy: '+money(paga)+' → Queda fiado: '+money(fia):'Sin pagar ahora → Todo queda fiado: '+money(tot)}else{msg.style.display='none'}}}
+$('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};if($('efiaPagaHoy')){$('efiaPagaHoy').oninput=upd}$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
 function refreshCliClientes(){if(!$('efiaCli'))return;var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c,i){h+='<option value="'+i+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
 if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes()}}
 if($('efiaCli')){$('efiaCli').onchange=function(){var v=this.value;if(v=='*nuevo*'){$('efiaNewBox').style.display='block';$('efiaCliN').focus()}else{$('efiaNewBox').style.display='none'}}}
@@ -534,12 +534,13 @@ if(!d){alert('Elegí un producto.');return}
 if(!q||q<=0||u===''||isNaN(+u)){alert('Completá cantidad y precio.');return}
 if(q>d.q&&!confirm('Hay '+d.q+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
 var mov={id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,z:d.z||'',q:q,u:+u,k:$('ek').value,by:U.uid,bn:nm()};
-if($('efia')&&$('efia').checked){var cliIdx=$('efiaCli').value,cli,tel='';
+if($('efia')&&$('efia').checked){var cliIdx=$('efiaCli').value,cli,tel='',pagaHoy=+($('efiaPagaHoy').value||0),totalVta=q*u,mtoFiado=Math.max(0,totalVta-pagaHoy);
 if(cliIdx=='*nuevo*'){cli=($('efiaCliN')||{value:''}).value.trim();tel=($('efiaCliT')||{value:''}).value.trim();if(!cli){alert('Escribí el nombre del cliente.');return}
 CLIENTES_FIADOS.push({n:cli,t:tel||undefined})}
 else if(cliIdx){cli=CLIENTES_FIADOS[cliIdx].n;tel=CLIENTES_FIADOS[cliIdx].t||''}
 else{alert('Selecciona un cliente o agrega uno nuevo.');return}
-mov.fia={cli:cli};if(tel)mov.fia.tel=tel;if(($('efiaVto')||{value:''}).value)mov.fia.vto=$('efiaVto').value;if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
+if(mtoFiado<=0){alert('El monto a fiar debe ser mayor a 0.');return}
+mov.fia={cli:cli,mtoFiado:mtoFiado};if(pagaHoy)mov.fia.mtoPagado=pagaHoy;if(tel)mov.fia.tel=tel;if(($('efiaVto')||{value:''}).value)mov.fia.vto=$('efiaVto').value;if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
 sellMov(mov,d.id);
 if(adm)month=$('ed').value.slice(0,7)||month;drawSell();$('etot').textContent='Venta guardada ✓'}}
 
@@ -554,19 +555,27 @@ function drawFia(){
 loadClientesFiados();
 var fiados=M.filter(function(x){return x.t=='v'&&x.fia});
 var byClient={};
-fiados.forEach(function(x){var cli=x.fia.cli,tot=x.q*x.u;
-if(!byClient[cli])byClient[cli]={total:0,items:[],vto:null,int:0,tel:x.fia.tel||''};
-byClient[cli].total+=tot;
-byClient[cli].items.push(x);
+fiados.forEach(function(x){var cli=x.fia.cli,mtoFiado=x.fia.mtoFiado||x.q*x.u,mtoPago=x.fia.mtoPagado||0;
+if(!byClient[cli])byClient[cli]={fiado:0,pagado:0,items:[],vto:null,int:0,tel:x.fia.tel||''};
+byClient[cli].fiado+=mtoFiado;
+byClient[cli].pagado+=mtoPago;
+byClient[cli].items.push({d:x.d,p:x.p,z:x.z,q:x.q,u:x.u,mtoFiado:mtoFiado,mtoPago:mtoPago});
 if(x.fia.vto&&(!byClient[cli].vto||x.fia.vto>byClient[cli].vto))byClient[cli].vto=x.fia.vto;
 if(x.fia.int)byClient[cli].int=Math.max(byClient[cli].int,x.fia.int);
 if(!byClient[cli].tel&&x.fia.tel)byClient[cli].tel=x.fia.tel});
 var now=new Date(),clients=Object.keys(byClient).sort();
 var h='<div class="card"><b>Control de fiados</b><div class="k" style="margin:4px 0 0">Ventas pendientes de cobro por cliente.</div></div>';
 if(!clients.length){h+='<div class="card"><div class="empty">No hay ventas de fiado registradas.</div></div>'}
-else{clients.forEach(function(cli){var c=byClient[cli],vencida=c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null;
-h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b>'+esc(cli)+'</b><small style="display:block;margin-top:2px">'+c.items.length+' venta(s)</small></div><b style="font-size:19px" class="'+(vencida?'neg':'pos')+'">'+money(c.total)+'</b></div>'+
-(c.vto?'<div class="r2" style="border:0;padding:8px 0"><span>Vencimiento</span><b style="'+(vencida?'color:var(--buy)':'')+'">'+c.vto+(vencida?' ('+dias+' días atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+'<div style="margin-top:10px;max-height:200px;overflow-y:auto">'+c.items.map(function(x){return '<div class="it" style="padding:6px 0"><div><small>'+esc(x.p)+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div></div>'}).join('')+'</div><div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-fia="pay" data-cli="'+esc(cli)+'">Marcar pagado</button><button class="go alt" data-fia="pdf" data-cli="'+esc(cli)+'" style="background:#0f7a55;color:#fff">PDF</button><button class="go alt" data-fia="wa" data-cli="'+esc(cli)+'" style="background:#1fa855;color:#fff">WhatsApp</button></div></div>'})};
+else{clients.forEach(function(cli){var c=byClient[cli],saldo=c.fiado-c.pagado,vencida=c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null;
+h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b>'+esc(cli)+'</b><small style="display:block;margin-top:2px">'+c.items.length+' transacción(es)</small></div><b style="font-size:19px" class="'+(saldo<=0?'pos':'neg')+'">'+money(Math.max(0,saldo))+'</b></div>'+
+'<div class="rows" style="margin:10px 0 0">'+
+'<div class="r2" style="border:0;padding:6px 0"><span>Fiado total</span><b style="font-size:16px">'+money(c.fiado)+'</b></div>'+
+'<div class="r2" style="border:0;padding:6px 0"><span>Pagado</span><b style="font-size:16px;color:var(--sell)">'+money(c.pagado)+'</b></div>'+
+'<div class="r2" style="border:0;padding:6px 0"><span>Saldo actual</span><b style="font-size:16px" class="'+(saldo<=0?'pos':'neg')+'">'+money(Math.max(0,saldo))+'</b></div>'+
+'</div>'+
+(c.vto?'<div class="r2" style="border:0;padding:8px 0;margin-top:8px"><span>Vencimiento</span><b style="'+(vencida?'color:var(--buy)':'')+'">'+c.vto+(vencida?' ('+dias+' días atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+
+'<div style="margin-top:10px;max-height:180px;overflow-y:auto"><b style="font-size:13px;color:var(--mut)">Historial</b>'+c.items.map(function(x){return '<div class="it" style="padding:4px 0;font-size:13px"><div><small>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div><small style="text-align:right"><span style="color:var(--buy)">Fiado: '+money(x.mtoFiado)+'</span>'+(x.mtoPago?' <span style="color:var(--sell)">Pago: '+money(x.mtoPago)+'</span>':'')+'</small></div>'}).join('')+'</div>'+
+'<div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-fia="regpago" data-cli="'+esc(cli)+'">Registrar pago</button><button class="go alt" data-fia="pdf" data-cli="'+esc(cli)+'" style="background:#0f7a55;color:#fff">PDF</button><button class="go alt" data-fia="wa" data-cli="'+esc(cli)+'" style="background:#1fa855;color:#fff">WhatsApp</button></div></div>'})};
 $('s-fia').innerHTML=h}
 function fiaGenerarPDF(cli,mvs){
 var total=0,html='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px;font-size:14px}h1{font-size:24px;margin:0 0 5px}h2{font-size:16px;margin:20px 0 10px;border-bottom:2px solid #333;padding-bottom:5px}.due{color:red;font-weight:bold}.amount{text-align:right}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #ddd}th{background:#f0f0f0;font-weight:bold}.total-row{font-weight:bold;background:#f9f9f9}.total-amount{font-size:18px;color:red}footer{margin-top:30px;padding-top:20px;border-top:2px solid #333;color:#666;font-size:12px}</style></head><body>';
@@ -1170,7 +1179,10 @@ if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
 if(d.fia){var cli=d.cli,mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});
-if(d.fia=='pay'){if(!confirm('¿Marcar todas las deudas de '+cli+' como pagadas?'))return;mvs.forEach(function(x){var upd=JSON.parse(JSON.stringify(x));delete upd.fia;setDoc(mref(x.id),upd,{merge:true}).catch(fail)});drawFia();return}
+if(d.fia=='regpago'){var saldo=0;mvs.forEach(function(x){saldo+=Math.max(0,(x.fia.mtoFiado||x.q*x.u)-(x.fia.mtoPagado||0))});
+var mto=prompt('¿Cuánto pagó '+cli+'? (Saldo: '+money(saldo)+')');if(!mto)return;mto=+mto;if(isNaN(mto)||mto<=0){alert('Monto inválido');return}
+var pago=mto,idx=0;for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=(x.fia.mtoFiado||x.q*x.u)-(x.fia.mtoPagado||0);if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
+drawFia();return}
 if(d.fia=='pdf'){fiaGenerarPDF(cli,mvs);return}
 if(d.fia=='wa'){fiaEnviarWA(cli,mvs);return}
 return}
