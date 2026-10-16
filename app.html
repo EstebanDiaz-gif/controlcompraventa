@@ -974,6 +974,7 @@ $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
 setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
 return}
+}
 function planCardCollapsible(){
 var ACCX=ACC||{limits:{},effectivePlan:'inicial'};
 var d=dstate()||{state:'libre'},L=ACCX.limits||{},nA=0,nE=0;
