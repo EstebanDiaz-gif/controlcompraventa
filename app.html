@@ -551,8 +551,28 @@ var h='<div class="card"><b>Control de fiados</b><div class="k" style="margin:4p
 if(!clients.length){h+='<div class="card"><div class="empty">No hay ventas de fiado registradas.</div></div>'}
 else{clients.forEach(function(cli){var c=byClient[cli],vencida=c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null;
 h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b>'+esc(cli)+'</b><small style="display:block;margin-top:2px">'+c.items.length+' venta(s)</small></div><b style="font-size:19px" class="'+(vencida?'neg':'pos')+'">'+money(c.total)+'</b></div>'+
-(c.vto?'<div class="r2" style="border:0;padding:8px 0"><span>Vencimiento</span><b style="'+(vencida?'color:var(--buy)':'')+'">'+c.vto+(vencida?' ('+dias+' días atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+'<div style="margin-top:10px;max-height:200px;overflow-y:auto">'+c.items.map(function(x){return '<div class="it" style="padding:6px 0"><div><small>'+esc(x.p)+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div></div>'}).join('')+'</div><button class="go alt" data-fia="pay" data-cli="'+esc(cli)+'" style="margin-top:10px">Marcar como pagado</button></div>'})};
+(c.vto?'<div class="r2" style="border:0;padding:8px 0"><span>Vencimiento</span><b style="'+(vencida?'color:var(--buy)':'')+'">'+c.vto+(vencida?' ('+dias+' días atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+'<div style="margin-top:10px;max-height:200px;overflow-y:auto">'+c.items.map(function(x){return '<div class="it" style="padding:6px 0"><div><small>'+esc(x.p)+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div></div>'}).join('')+'</div><div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-fia="pay" data-cli="'+esc(cli)+'">Marcar pagado</button><button class="go alt" data-fia="pdf" data-cli="'+esc(cli)+'" style="background:#0f7a55;color:#fff">PDF</button><button class="go alt" data-fia="wa" data-cli="'+esc(cli)+'" style="background:#1fa855;color:#fff">WhatsApp</button></div></div>'})};
 $('s-fia').innerHTML=h}
+function fiaGenerarPDF(cli,mvs){
+var total=0,html='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px;font-size:14px}h1{font-size:24px;margin:0 0 5px}h2{font-size:16px;margin:20px 0 10px;border-bottom:2px solid #333;padding-bottom:5px}.due{color:red;font-weight:bold}.amount{text-align:right}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #ddd}th{background:#f0f0f0;font-weight:bold}.total-row{font-weight:bold;background:#f9f9f9}.total-amount{font-size:18px;color:red}footer{margin-top:30px;padding-top:20px;border-top:2px solid #333;color:#666;font-size:12px}</style></head><body>';
+html+='<h1>Detalle de Deuda</h1><p><strong>Cliente:</strong> '+esc(cli)+'</p><p><strong>Fecha:</strong> '+today()+'</p><p><strong>Negocio:</strong> '+esc(SNAME)+'</p>';
+html+='<h2>Compras registradas de fiado</h2><table><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Precio Unitario</th><th class="amount">Subtotal</th></tr>';
+mvs.forEach(function(x){var sub=x.q*x.u;total+=sub;html+='<tr><td>'+x.d+'</td><td>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+'</td><td>'+x.q+'</td><td>'+money(x.u)+'</td><td class="amount">'+money(sub)+'</td></tr>'});
+html+='<tr class="total-row"><td colspan="4">TOTAL ADEUDADO</td><td class="amount total-amount">'+money(total)+'</td></tr></table>';
+if(mvs.some(function(x){return x.fia.vto})){html+='<h2>Fechas de vencimiento</h2>';mvs.forEach(function(x){if(x.fia.vto){var now=new Date(),vto=new Date(x.fia.vto),dias=Math.ceil((vto-now)/86400000);html+='<p>'+x.d+': <strong>'+x.fia.vto+'</strong> '+((dias<0&&!x.fia.int)?'<span class="due">('+Math.abs(dias)+' días de atraso)</span>':'')+' → '+money(x.q*x.u)+'</p>'}})}
+if(mvs.some(function(x){return x.fia.int})){html+='<h2>Mora por atraso</h2>';mvs.forEach(function(x){if(x.fia.int)html+='<p>'+x.fia.int+'% de interés si no paga a tiempo</p>'})}
+html+='<footer><p>Este documento fue generado automáticamente. Para consultas, escribinos a través de WhatsApp.</p></footer></body></html>';
+var blob=new Blob([html],{type:'text/html'}),url=window.URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Deuda_'+esc(cli)+'_'+today()+'.html';a.click();window.URL.revokeObjectURL(url)}
+function fiaEnviarWA(cli,mvs){
+var wa=PUB&&(PUB.wa||((PUB.was||[])[0]||{}).w);if(!wa){alert('Configurá el número de WhatsApp en Catálogo primero.');return}
+var total=0;mvs.forEach(function(x){total+=x.q*x.u});
+var vto=mvs.filter(function(x){return x.fia.vto}).map(function(x){return x.fia.vto}).sort().pop(),mora=mvs.filter(function(x){return x.fia.int}).map(function(x){return x.fia.int}).pop();
+var msg='Hola '+cli+'! 👋\n\nDetalle de tu deuda en '+esc(SNAME)+':\n\n💰 Total adeudado: '+money(total);
+if(vto)msg+='\n📅 Vencimiento: '+vto;
+if(mora)msg+='\n⚠️ Mora: '+mora+'% si no pagas a tiempo';
+msg+='\n\n📋 Para ver el detalle completo, descargá el PDF desde la app.\n\nPuede pagar cuando quieras. ¡Gracias!';
+var waNorm2=function(w){w=String(w||'').replace(/\D/g,'').replace(/^0+/,'');if(w.length==10)w='549'+w;else if(/^54[1-8]\d{9}$/.test(w))w='549'+w.slice(2);return w};
+window.open('https://wa.me/'+waNorm2(wa)+'?text='+encodeURIComponent(msg),'_blank')}
 
 /* ---------- Resumen / Historial / Stock ---------- */
 function months(){var o={};o[today().slice(0,7)]=1;M.forEach(function(x){o[x.d.slice(0,7)]=1});GA.forEach(function(g){o[g.d.slice(0,7)]=1});AT.forEach(function(a){o[a.d.slice(0,7)]=1});return Object.keys(o).sort().reverse()}
@@ -1133,7 +1153,11 @@ if(d.cat){catAction(d.cat,d.i);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
-if(d.fia){if(d.fia=='pay'){var cli=d.cli;if(!confirm('¿Marcar todas las deudas de '+cli+' como pagadas?'))return;var mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});mvs.forEach(function(x){var upd=JSON.parse(JSON.stringify(x));delete upd.fia;setDoc(mref(x.id),upd,{merge:true}).catch(fail)});drawFia()}return}
+if(d.fia){var cli=d.cli,mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});
+if(d.fia=='pay'){if(!confirm('¿Marcar todas las deudas de '+cli+' como pagadas?'))return;mvs.forEach(function(x){var upd=JSON.parse(JSON.stringify(x));delete upd.fia;setDoc(mref(x.id),upd,{merge:true}).catch(fail)});drawFia();return}
+if(d.fia=='pdf'){fiaGenerarPDF(cli,mvs);return}
+if(d.fia=='wa'){fiaEnviarWA(cli,mvs);return}
+return}
 if(d.tmoff!==undefined){if(ROLE=='admin')setDoc(doc(db,'stores',SID,'public','info'),{temaOff:d.tmoff=='1'?true:deleteField()},{merge:true}).catch(fail);return}
 if(d.gtema!==undefined){gTema(d.gtema);return}
 if(d.tmall){TMALL=true;drawTeam();var tc=$('tmcard');if(tc)tc.scrollIntoView({block:'start'});return}
