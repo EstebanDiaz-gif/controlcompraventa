@@ -339,19 +339,25 @@ if(tm&&ROLE)introTema(tm,'app')}
 var TMALL=false;
 function autoActivateTema(){
 if(ROLE!='admin'||!PUB)return;
-var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now);
+var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now),nowDate=new Date(now),month=nowDate.getMonth(),day=nowDate.getDate();
 // Si hay tema activo pero ya venció, desactivar
 if(tm&&PUB.temaHasta&&PUB.temaHasta<now){setTema('');return}
-// Si no hay tema activo pero hay uno vigente, activarlo automáticamente
-// Se activa 14 días ANTES de la fecha del tema (para promocionar con tiempo)
+// Navidad es prioritario: si estamos en dic/ene (fin de año), activarlo automáticamente
+if(!tm&&(month==11||month==0)){var navidad=L.find(function(x){return x.id=='navidad'});if(navidad){var daysBeforeTheme=14,temaStartMs=navidad.fecha.getTime()-(daysBeforeTheme*24*60*60*1000);if(now>=temaStartMs){setTema('navidad');return}}}
+// Para otros temas: se activan 14 días antes de su fecha
 if(!tm&&L.length>0){var x=L[0],daysBeforeTheme=14,temaStartMs=x.fecha.getTime()-(daysBeforeTheme*24*60*60*1000);if(now>=temaStartMs){setTema(x.id);return}}
 }
 function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),g0=tm||(PUB&&PUB.temaOff)?'':temaGeneral(GLOB,now),L=porFecha(now).filter(function(x){return x.id!=tm&&x.id!=g0}),next=L.length>0?L[0]:null;
 var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Se activa automáticamente en las fechas especiales. Podés desactivar o cambiar manualmente.</div>';
 var gen=temaGeneral(GLOB,now);
+// Temas de fin de año/inicio de año: navidad, año nuevo, reyes (opciones para cambiar entre ellos)
+var endYearTemas=['navidad','año_nuevo','reyes'],isEndYear=tm&&endYearTemas.indexOf(tm)>=0;
 if(!tm&&gen){var TG=TEMAS[gen];h+=(PUB&&PUB.temaOff?'<div class="k" style="margin:12px 0 0">Pekeron App activó el tema <b>'+TG.emoji+' '+esc(TG.nombre)+'</b> para todas las tiendas, pero en la tuya lo desactivaste.</div><button class="go alt" data-tmoff="0">Usar el tema '+esc(TG.nombre)+'</button>'
 :'<div class="tmb" style="margin:12px 0 0;background:'+TG.ban.g+';color:'+TG.ban.ink+'">'+adornos(gen,.55,1)+'<div><b>'+TG.emoji+' '+esc(TG.nombre)+'</b>Lo activó Pekeron App para todas las tiendas, hasta el '+esc(fechaLarga(new Date(GLOB.hasta)))+'.</div></div><button class="go alt" data-tmoff="1">No usarlo en mi tienda</button>')}
-if(tm){var T=TEMAS[tm];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' (activado automáticamente)</b>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'</div></div><button class="go alt" data-stema="">Desactivar</button>'}
+if(tm){var T=TEMAS[tm];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' (activado automáticamente)</b>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'</div></div><button class="go alt" data-stema="">Desactivar</button>';
+// Si es un tema de fin de año, mostrar opciones para cambiar a los otros
+if(isEndYear){h+='<div class="k" style="margin:14px 0 0">O cambiá a:</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">';
+endYearTemas.forEach(function(tid){if(tid!=tm){var TC=TEMAS[tid];h+='<button class="go alt" data-stema="'+tid+'" style="flex:1;min-width:100px;font-size:13px">'+TC.emoji+' '+TC.nombre+'</button>'}});h+='</div>'}}
 else if(next){var TN=TEMAS[next.id],nn=faltan(now,next.fecha);h+='<div class="k" style="margin:12px 0 0">Próximo tema: <b>'+TN.emoji+' '+esc(TN.nombre)+'</b> el '+esc(fechaLarga(next.fecha))+' · '+(nn==1?'mañana':'en '+nn+' días')+'</div><button class="go alt" data-stema="'+next.id+'">Activar ahora (opcional)</button>'}
 else{h+='<div class="k" style="margin:12px 0 0">Los temas se activan automáticamente en las fechas especiales.</div>'}
 return h+'</div>'}
