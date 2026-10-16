@@ -308,7 +308,7 @@ un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(){ACC=null;drawBanner()});
 un.prm=onSnapshot(doc(db,'stores',SID,'public','promos'),function(sn){PRM=(sn.exists()&&sn.data().list)||[];if(TAB=='promo'&&!PRO.editing())PRO.draw();else if(TAB=='team')drawTeam();else redrawData()},function(){PRM=[]});
-un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
+un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();autoActivateTema();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
 if(ROLE=='admin'){
 un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=false;sn.forEach(function(d){GA.push(d.data())});redrawData()},function(){GAERR=true;redrawData()});
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},function(){});
@@ -337,15 +337,22 @@ var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm?TEMA
 if(ROLE){drawBanner();drawHdr()}
 if(tm&&ROLE)introTema(tm,'app')}
 var TMALL=false;
-function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),g0=tm||(PUB&&PUB.temaOff)?'':temaGeneral(GLOB,now),L=porFecha(now).filter(function(x){return x.id!=tm&&x.id!=g0}),sh=TMALL?L:L.slice(0,4);
-var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Decorá la app de tu equipo y tu catálogo para una fecha especial. Se quita solo cuando termina la fecha.</div>';
+function autoActivateTema(){
+if(ROLE!='admin'||!PUB)return;
+var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now);
+// Si hay tema activo pero ya venció, desactivar
+if(tm&&PUB.temaHasta&&PUB.temaHasta<now){setTema('');return}
+// Si no hay tema activo pero hay uno vigente para hoy, activarlo automáticamente
+if(!tm&&L.length>0){var x=L[0];if(faltan(now,x.fecha)<=0){setTema(x.id);return}}
+}
+function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),g0=tm||(PUB&&PUB.temaOff)?'':temaGeneral(GLOB,now),L=porFecha(now).filter(function(x){return x.id!=tm&&x.id!=g0}),next=L.length>0?L[0]:null;
+var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Se activa automáticamente en las fechas especiales. Podés desactivar o cambiar manualmente.</div>';
 var gen=temaGeneral(GLOB,now);
 if(!tm&&gen){var TG=TEMAS[gen];h+=(PUB&&PUB.temaOff?'<div class="k" style="margin:12px 0 0">Pekeron App activó el tema <b>'+TG.emoji+' '+esc(TG.nombre)+'</b> para todas las tiendas, pero en la tuya lo desactivaste.</div><button class="go alt" data-tmoff="0">Usar el tema '+esc(TG.nombre)+'</button>'
-:'<div class="tmb" style="margin:12px 0 0;background:'+TG.ban.g+';color:'+TG.ban.ink+'">'+adornos(gen,.55,1)+'<div><b>'+TG.emoji+' '+esc(TG.nombre)+'</b>Lo activó Pekeron App para todas las tiendas, hasta el '+esc(fechaLarga(new Date(GLOB.hasta)))+'.</div></div><button class="go alt" data-tmoff="1">No usarlo en mi tienda</button>')+'<div class="k" style="margin:14px 0 0">O elegí otra fecha para tu tienda:</div>'}
-if(tm){var T=TEMAS[tm];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' activado</b>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'</div></div><button class="go alt" data-stema="">Quitar el tema</button><div class="k" style="margin:14px 0 0">Para cambiarlo, activá otra fecha:</div>'}
-h+='<div style="margin-top:8px">'+sh.map(function(x){var T=TEMAS[x.id],n=faltan(now,x.fecha);
-return '<div class="tml"><span class="e">'+T.emoji+'</span><div><b>'+esc(T.nombre)+'</b><div class="k">'+esc(fechaLarga(x.fecha))+' · '+(n<=0?'¡ahora!':n==1?'mañana':'en '+n+' días')+'</div></div><button class="go'+(n<=30?'':' alt')+'" data-stema="'+x.id+'">Activar</button></div>'}).join('')+'</div>';
-if(!TMALL&&L.length>4)h+='<button class="x" data-tmall="1" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Ver todas las fechas ('+L.length+')</button>';
+:'<div class="tmb" style="margin:12px 0 0;background:'+TG.ban.g+';color:'+TG.ban.ink+'">'+adornos(gen,.55,1)+'<div><b>'+TG.emoji+' '+esc(TG.nombre)+'</b>Lo activó Pekeron App para todas las tiendas, hasta el '+esc(fechaLarga(new Date(GLOB.hasta)))+'.</div></div><button class="go alt" data-tmoff="1">No usarlo en mi tienda</button>')}
+if(tm){var T=TEMAS[tm];h+='<div class="tmb" style="margin:12px 0 0;background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(tm,.55,1)+'<div><b>'+T.emoji+' '+esc(T.nombre)+' (activado automáticamente)</b>Hasta el '+esc(fechaLarga(new Date(PUB.temaHasta)))+'</div></div><button class="go alt" data-stema="">Desactivar</button>'}
+else if(next){var TN=TEMAS[next.id],nn=faltan(now,next.fecha);h+='<div class="k" style="margin:12px 0 0">Próximo tema: <b>'+TN.emoji+' '+esc(TN.nombre)+'</b> el '+esc(fechaLarga(next.fecha))+' · '+(nn==1?'mañana':'en '+nn+' días')+'</div><button class="go alt" data-stema="'+next.id+'">Activar ahora (opcional)</button>'}
+else{h+='<div class="k" style="margin:12px 0 0">Los temas se activan automáticamente en las fechas especiales.</div>'}
 return h+'</div>'}
 // Tema general: el propietario de la plataforma lo activa para todas las tiendas a la vez.
 var GTALL=false;
