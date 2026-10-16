@@ -342,8 +342,9 @@ if(ROLE!='admin'||!PUB)return;
 var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now);
 // Si hay tema activo pero ya venció, desactivar
 if(tm&&PUB.temaHasta&&PUB.temaHasta<now){setTema('');return}
-// Si no hay tema activo pero hay uno vigente para hoy, activarlo automáticamente
-if(!tm&&L.length>0){var x=L[0];if(faltan(now,x.fecha)<=0){setTema(x.id);return}}
+// Si no hay tema activo pero hay uno vigente, activarlo automáticamente
+// Se activa 14 días ANTES de la fecha del tema (para promocionar con tiempo)
+if(!tm&&L.length>0){var x=L[0],daysBeforeTheme=14,temaStartMs=x.fecha.getTime()-(daysBeforeTheme*24*60*60*1000);if(now>=temaStartMs){setTema(x.id);return}}
 }
 function temaCard(){var now=Date.now(),tm=temaActivo(PUB,now),g0=tm||(PUB&&PUB.temaOff)?'':temaGeneral(GLOB,now),L=porFecha(now).filter(function(x){return x.id!=tm&&x.id!=g0}),next=L.length>0?L[0]:null;
 var h='<div class="card" id="tmcard"><b>Tema de temporada</b><div class="k" style="margin:4px 0 0">Se activa automáticamente en las fechas especiales. Podés desactivar o cambiar manualmente.</div>';
