@@ -2,13 +2,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control de compras y ventas</title>
 <link rel="manifest" href="./manifest.webmanifest">
-<meta name="theme-color" content="#0f7a55">
+<meta name="theme-color" content="#1D3FAF">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#e9e8e4;--card:#f4f3f0;--ink:#000;--mut:#63645e;--line:rgba(0,0,0,.1);--buy:#c8461b;--sell:#0a7d4f;--onc:#fff;--hero:#bdbdb8;--nav:#bdbdb8;--btn:#000;--btnink:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#ff8a5c;--sell:#5fe0a6;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#efefea;--btnink:#0a0a0a}}
-:root[data-theme="dark"]{--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#ff8a5c;--sell:#5fe0a6;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#efefea;--btnink:#0a0a0a}
+:root{--bg:#FFF6E9;--card:#f4f3f0;--ink:#102468;--mut:#63645e;--line:rgba(0,0,0,.1);--buy:#FFD6AA;--sell:#0a7d4f;--onc:#fff;--hero:#bdbdb8;--nav:#bdbdb8;--btn:#1D3FAF;--btnink:#FFF6E9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#FFD6AA;--sell:#5fe0a6;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#1D3FAF;--btnink:#FFF6E9}}
+:root[data-theme="dark"]{--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#FFD6AA;--sell:#5fe0a6;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#1D3FAF;--btnink:#FFF6E9}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -411,7 +411,7 @@ var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
 var tmh=temaEfectivo(PUB,GLOB,Date.now());
-$('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#e05a8a','#ffd36b',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
+$('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#e05a8a','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
 a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
