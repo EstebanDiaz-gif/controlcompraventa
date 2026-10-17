@@ -407,7 +407,7 @@ if(biz()=='almacen'&&['caja','fia','stk','res'].indexOf(TAB)>=0){ALM.redraw();re
 if(ROLE=='admin'){if(TAB=='att')drawAtt();else if(TAB=='svc'){var fa=document.activeElement;if(!(fa&&fa.closest&&fa.closest('#s-svc')&&/INPUT|SELECT/.test(fa.tagName)))drawSvc()}else if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='gas')drawGas();else if(TAB=='add'){if($('es'))refreshSell();else if($('prods'))fillList()}}
 else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
 
-var BRAND='<div class="brand"><b>PEKERON</b><span><i></i>APP<i></i></span></div>';
+var BRAND='<div class="brand"><img src="./icon-192.png" alt="Pekeron" style="width:28px;height:28px;border-radius:6px;margin-right:8px"><b>pekeron</b></div>';
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
 var tmh=temaEfectivo(PUB,GLOB,Date.now());
