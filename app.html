@@ -500,7 +500,7 @@ rows=Object.keys(mg).map(function(x){return mg[x]});
 if(!rows.length){alert('Escribí el talle y la cantidad de cada uno, o tocá "Sin talles".');return}
 var tot=rows.reduce(function(a,r){return a+r.q},0);
 if(tot!=q){alert('Los talles suman '+tot+' y la cantidad es '+q+'. Revisalos.');return}
-if(rows.some(function(r){return r.z.length>20})){alert('El talle y el color juntos son demasiado largos (máximo 20 letras). Abreviá el color.');return}}
+if(rows.some(function(r){return r.z.length>50})){alert('El talle y el color juntos son demasiado largos (máximo 50 letras). Abreviá el color.');return}}
 var base=Date.now(),list=rows.map(function(r,i){return {id:base+i,t:type,d:d,p:p,s:sku,z:r.z,q:r.q,u:u,k:k,by:U.uid,bn:nm()}});
 if(type=='v'){var low=list.filter(function(m){return m.q>stock(pk(m))});
 if(low.length&&!confirm('Hay menos stock del que querés vender ('+low.map(function(m){return (m.z?'talle '+m.z:'total')+': '+stock(pk(m))}).join(', ')+'). ¿Guardar igual?'))return}
@@ -751,7 +751,7 @@ if(pm<0||pn<0){alert('Los precios no pueden ser negativos.');return}
 var st0=stock(b),mg={};
 if(st0>0)ESZ.forEach(function(r){var z=vz(r),n=Math.floor(+r.q);if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
 var needs=Object.keys(mg).map(function(k){return mg[k]}),tot=needs.reduce(function(a,r){return a+r.q},0);
-if(needs.some(function(n){return n.z.length>20})){alert('El talle y el color juntos son demasiado largos (máximo 20 letras). Abreviá el color.');return}
+if(needs.some(function(n){return n.z.length>50})){alert('El talle y el color juntos son demasiado largos (máximo 50 letras). Abreviá el color.');return}
 if(tot>st0){alert('Repartiste '+tot+' unidades y solo hay '+st0+' sin talle. Revisalo.');return}
 var bt=writeBatch(db),name='',sku='';
 baseDocs(b).forEach(function(d){name=d.n;sku=d.s;bt.set(doc(db,'stores',SID,'stock',d.id),{pm:pm,pn:pn,mm:mm,oh:oh,cat:cat},{merge:true})});
