@@ -1,0 +1,7 @@
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo azul -->
+  <rect width="256" height="256" fill="#1D3FAF" rx="0"/>
+
+  <!-- P en blanco -->
+  <text x="128" y="180" font-family="Arial, sans-serif" font-size="160" font-weight="900" fill="#FFF6E9" text-anchor="middle" dominant-baseline="middle">p</text>
+</svg>
