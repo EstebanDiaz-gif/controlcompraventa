@@ -377,7 +377,7 @@ if(t=='*'){GTALL=true;drawPlat();return}
 var T=t&&TEMAS[t];
 if(T&&!confirm('¿Activar el tema '+T.nombre+' en todas las tiendas?'))return;
 if(!t&&!confirm('¿Quitar el tema para todas las tiendas?'))return;
-(t?setDoc(doc(db,'platform','tema'),{tema:t,hasta:hasta(t,Date.now()),at:Date.now()}):deleteDoc(doc(db,'platform','tema'))).catch(fail)}
+(t?setDoc(doc(db,'platform','tema'),{tema:t,hasta:hasta(t,Date.now()),at:Date.now(),off:deleteField()}):setDoc(doc(db,'platform','tema'),{tema:deleteField(),hasta:deleteField(),off:true},{merge:true})).catch(fail)}
 function setTema(t){if(ROLE!='admin')return;
 var o=t?{tema:t,temaHasta:hasta(t,Date.now()),temaOff:deleteField()}:{tema:deleteField(),temaHasta:deleteField(),temaOff:true};
 setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(fail)}

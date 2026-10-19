@@ -204,7 +204,8 @@ export function temaActivo(info, now) {
 }
 // Tema general que activa el propietario de Pekeron App para todas las tiendas (platform/tema = {tema, hasta}).
 export function temaGeneral(g, now) {
-  if (!g || !g.tema || !TEMAS[g.tema]) return '';
+  if (!g || g.off) return '';
+  if (!g.tema || !TEMAS[g.tema]) return '';
   if (g.hasta && now > g.hasta) return '';
   return g.tema;
 }
