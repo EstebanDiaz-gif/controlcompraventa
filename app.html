@@ -1214,6 +1214,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
+if(e.target.dataset.stema!==undefined)console.log('🔵 Botón stema clickeado:',e.target.dataset.stema);
 var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
