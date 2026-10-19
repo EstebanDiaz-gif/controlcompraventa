@@ -331,6 +331,7 @@ h='<div class="tmb" style="background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos
 b.innerHTML=h}
 // Tema de temporada: colores de la app para todo el equipo (lo elige un administrador en Equipo).
 function applyTema(){var tm=SID?temaEfectivo(PUB,GLOB,Date.now()):'',r=document.documentElement;
+console.log('🎨 applyTema ejecutado. Tema activo:',tm||'(ninguno)','PUB.temaOff:',PUB?.temaOff);
 if(tm)r.setAttribute('data-tema',tm);else r.removeAttribute('data-tema');
 var st=$('tmcss');if(!st){st=document.createElement('style');st.id='tmcss';document.head.appendChild(st)}st.textContent=tm?cssApp(tm):'';
 var mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=tm?TEMAS[tm].app.btn:'#1D3FAF';
