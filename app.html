@@ -343,6 +343,8 @@ if(ROLE!='admin'||!PUB)return;
 var now=Date.now(),tm=temaActivo(PUB,now),L=porFecha(now),nowDate=new Date(now),month=nowDate.getMonth(),day=nowDate.getDate();
 // Si hay tema activo pero ya venció, desactivar
 if(tm&&PUB.temaHasta&&PUB.temaHasta<now){setTema('');return}
+// Si el usuario desactivó manualmente (temaOff: true), no reactivar automáticamente
+if(PUB.temaOff)return;
 // Navidad es prioritario: si estamos en dic/ene (fin de año), activarlo automáticamente
 if(!tm&&(month==11||month==0)){var navidad=L.find(function(x){return x.id=='navidad'});if(navidad){var daysBeforeTheme=14,temaStartMs=navidad.fecha.getTime()-(daysBeforeTheme*24*60*60*1000);if(now>=temaStartMs){setTema('navidad');return}}}
 // Para otros temas: se activan 14 días antes de su fecha
