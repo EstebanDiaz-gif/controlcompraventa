@@ -135,7 +135,7 @@ footer{text-align:center;color:var(--mut);font-size:12px;padding:0 16px 20px}
 <div class="sheet" id="sh" hidden><div id="shc"></div></div>
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {getFirestore,collection,doc,getDoc,getDocs} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {firebaseConfig} from './firebase-config.js';
 import {fotoId} from './fotos.js';
 import {combos,cantidades,descuento,tituloCant,ahorro} from './promos.js';
@@ -180,6 +180,7 @@ else{db=getFirestore(initializeApp(firebaseConfig));
 (sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
 INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);
+onSnapshot(doc(db,'platform','tema'),function(sn){var GL2=sn.exists()?sn.data():null;tema(GL2)});
 // mostrar siempre el link lindo en la barra de direcciones
 if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
 if(ALM){$('sq').placeholder='Buscar producto'}
