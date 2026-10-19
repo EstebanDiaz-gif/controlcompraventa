@@ -52,7 +52,7 @@ service cloud.firestore {
     // Solo el propietario de la plataforma lo activa o lo quita.
     match /platform/tema {
       allow get: if true;
-      allow create, update: if isPlatformOwner() && request.resource.data.keys().hasOnly(['tema', 'hasta', 'at']);
+      allow create, update: if isPlatformOwner() && request.resource.data.keys().hasOnly(['tema', 'hasta', 'at', 'off']);
       allow delete: if isPlatformOwner();
     }
 
