@@ -13,6 +13,7 @@ import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, in
 import { fotoId } from './fotos.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, PAY, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista } from './almacen-calc.js';
+import { openScanner, scanButton, findByCode } from './scanner.js';
 export { CATS, PAY };
 
 // ---------- módulo de pantalla ----------
@@ -114,7 +115,7 @@ export function createAlmacen(X) {
       return;
     }
     if (!$('cjq')) {
-      box.innerHTML = '<div class="card"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar producto o código" autocomplete="off" value="' + esc(S.q) + '">' +
+      box.innerHTML = '<div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
         '<div id="cjcats" class="chips"></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
       const qi = $('cjq');
       qi.oninput = () => { S.q = qi.value; if (S.cat && S.q.trim()) { S.cat = ''; renderCats(); } renderRes(); };
@@ -140,7 +141,7 @@ export function createAlmacen(X) {
     if (!r) {
       const ps = combos(X.promos(), Date.now());
       e.innerHTML = (ps.length ? '<div class="k" style="margin:12px 0 2px"><b>🔥 Promos</b></div>' + ps.map((p) => '<button class="pl" data-al="addpromo" data-id="' + esc(p.id) + '"><span><b>' + esc(p.titulo) + '</b>' + (p.items && p.items.length ? '<small>' + p.items.map((i) => (i.q > 1 ? i.q + '× ' : '') + esc(i.n)).join(' + ') + '</small>' : '') + '</span><b>' + money(p.precio) + '</b></button>').join('') : '') +
-        '<div class="k" style="margin-top:10px">Escribí el nombre o el código, o elegí una categoría. Con lector de códigos: escaneá y se agrega solo.</div>';
+        '<div class="k" style="margin-top:10px">Escribí el nombre o el código, o elegí una categoría. Para escanear, tocá el botón de la cámara o usá un lector de códigos: el producto se agrega solo.</div>';
       return;
     }
     if (!r.length) { e.innerHTML = '<div class="empty">No encontré productos.</div>'; return; }
@@ -148,17 +149,17 @@ export function createAlmacen(X) {
   }
   function enterAdd() {
     const q = S.q.trim().toLowerCase(); if (!q) return;
-    let p = P().find((x) => x.s && x.s.toLowerCase() === q);
+    let p = findByCode(P(), q);
     if (!p) { const r = results() || []; if (r.length === 1) p = r[0]; }
     if (p) addProd(p);
   }
-  function clearSearch() { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); qi.focus(); } }
-  function addProd(p) {
+  function clearSearch(noFocus) { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); if (!noFocus) qi.focus(); } }
+  function addProd(p, noFocus) {
     if (!p.pn) { alert('"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.'); return; }
     if (p.w) { weightDlg(p); return; }
     const l = S.cart.find((x) => x.id === p.id && !x.w);
     if (l) l.q += 1; else S.cart.push({ id: p.id, n: p.n, q: 1, u: p.pn, c: p.c || 0, w: false });
-    S.last = ''; clearSearch(); renderCart();
+    S.last = ''; clearSearch(noFocus); renderCart();
   }
   function weightDlg(p, idx) {
     const cur = idx != null ? S.cart[idx] : null;
@@ -403,7 +404,7 @@ export function createAlmacen(X) {
     if (S.edit || S.repo) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
       box.innerHTML = (adm() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go alt" data-al="precios" style="margin:4px 0 14px">Actualizar precios por %</button>' : '') +
-        '<input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" value="' + esc(S.stQ) + '"><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
+        '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
       $('aq').oninput = function () { S.stQ = this.value; renderStock(); };
     }
     renderStock();
@@ -431,15 +432,15 @@ export function createAlmacen(X) {
   }
   function closeForms() { S.edit = null; S.repo = null; $('s-stk').innerHTML = ''; drawStock(); }
 
-  function prodForm(id) {
+  function prodForm(id, code) {
     const p = id ? prod(id) : null;
     if (id && !p) return;
     S.edit = { id: id || null, img: undefined };
-    const c = p || { n: '', s: '', cat: S.stCat || '', w: false, pn: '', c: '', q: '', min: '' };
+    const c = p || { n: '', s: code || '', cat: S.stCat || '', w: false, pn: '', c: '', q: '', min: '' };
     const catOpts = Array.from(new Set(CATS.concat(usedCats()))).map((x) => '<option value="' + esc(x) + '"' + (c.cat === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
     let h = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver al stock</button><div class="card"><b style="font-size:19px">' + (p ? 'Editar producto' : 'Producto nuevo') + '</b>' +
       '<label>Nombre</label><input id="fn" autocomplete="off" maxlength="80" placeholder="Ej: Coca-Cola 2,25 L" value="' + esc(c.n) + '">' +
-      '<label>Código de barras o código propio (opcional)</label><input id="fs" autocomplete="off" maxlength="40" placeholder="Ej: 7790895000997" value="' + esc(c.s) + '">' +
+      '<label>Código de barras o código propio (opcional)</label><div style="display:flex;gap:8px;align-items:center"><input id="fs" autocomplete="off" maxlength="40" placeholder="Ej: 7790895000997" style="flex:1;min-width:0" value="' + esc(c.s) + '">' + scanButton('scanfs') + '</div>' +
       '<label>Categoría</label><select id="fc"><option value="">Sin categoría</option>' + catOpts + '</select>' +
       '<label>¿Cómo se vende?</label><div class="seg"><button class="pay' + (!c.w ? ' on' : '') + '" data-al="fw" data-v="0">Por unidad</button><button class="pay' + (c.w ? ' on' : '') + '" data-al="fw" data-v="1">Por peso (kg)</button></div>' +
       '<div class="row"><div><label id="lpn">Precio de venta</label><input id="fpn" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.pn || '') + '"></div><div><label id="lco">Costo</label><input id="fco" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.c || '') + '"></div></div><div class="tot" id="fmg"></div>' +
@@ -501,7 +502,7 @@ export function createAlmacen(X) {
     const R = S.repo, p = R.id ? prod(R.id) : null;
     let h = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver al stock</button><div class="card"><b style="font-size:19px">Reponer mercadería</b><div class="k" style="margin-top:4px">Cargá lo que compraste al proveedor. Suma al stock y actualiza el costo promedio.</div>';
     if (!p) {
-      h += '<label>¿Qué compraste?</label><input id="rq" type="search" placeholder="Buscar producto o código" autocomplete="off" value="' + esc(S.rq) + '"><div id="rres"></div>' +
+      h += '<label>¿Qué compraste?</label><div style="display:flex;gap:8px;align-items:center"><input id="rq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.rq) + '">' + scanButton('scanrepo') + '</div><div id="rres"></div>' +
         '<button class="x" data-al="newp" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:10px">+ Es un producto nuevo</button></div>';
       const cl = S.rcomp && S.rcomp.list;
       h += '<div class="card"><b>Compras de este mes</b>';
@@ -513,7 +514,7 @@ export function createAlmacen(X) {
       const rq = $('rq');
       const rres = () => { const l = S.rq.trim() ? P().filter((x) => match(x.n + ' ' + x.s + ' ' + x.cat, S.rq)).sort((a, b) => a.n.localeCompare(b.n)).slice(0, 20) : []; $('rres').innerHTML = l.map((x) => '<button class="pl" data-al="rpick" data-id="' + esc(x.id) + '"><span><b>' + esc(x.n) + '</b><small>stock ' + fq(x.q, x.w) + (x.c ? ' · costo ' + money(x.c) : '') + '</small></span></button>').join(''); };
       rq.oninput = () => { S.rq = rq.value; rres(); };
-      rq.onkeydown = (e) => { if (e.key === 'Enter') { const v = S.rq.trim().toLowerCase(), f = P().find((x) => x.s && x.s.toLowerCase() === v); if (f) { e.preventDefault(); S.repo.id = f.id; renderRepo(); } } };
+      rq.onkeydown = (e) => { if (e.key === 'Enter') { const f = findByCode(P(), S.rq); if (f) { e.preventDefault(); S.repo.id = f.id; renderRepo(); } } };
       rres(); setTimeout(() => rq.focus(), 50);
       return;
     }
@@ -626,6 +627,60 @@ export function createAlmacen(X) {
       .catch(() => { S.dayV = []; if (X.tab() === 'res') drawRes(); });
   }
 
+  // ---------- escáner con la cámara (scanner.js) ----------
+  const later = (f) => setTimeout(f, 320); // después de que se cierra el escáner
+  const offerNew = (code) => {
+    if (!adm()) { alert('No hay ningún producto con el código ' + code + '.'); return; }
+    if (confirm('No hay ningún producto con el código ' + code + '.\n¿Lo cargás como producto nuevo?')) { S.repo = null; prodForm(null, code); }
+  };
+  function scanCaja() {
+    openScanner({
+      title: 'Escaneá los productos', multi: true,
+      onCode(code) {
+        const p = findByCode(P(), code);
+        if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + (adm() ? '. Cargalo en Stock.' : '.') };
+        if (!p.pn) return { ok: false, msg: '"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.' };
+        if (p.w) { later(() => weightDlg(p)); return { ok: true, close: true, msg: p.n }; }
+        addProd(p, true);
+        let u = 0; S.cart.forEach((l) => { u += l.w ? 1 : l.q; });
+        return { ok: true, msg: '✓ ' + p.n + ' · ' + money(p.pn) + '  (' + u + ' en la venta)' };
+      }
+    });
+  }
+  function scanStock() {
+    openScanner({
+      title: 'Escaneá el producto',
+      onCode(code) {
+        const p = findByCode(P(), code);
+        if (p) { later(() => { S.stQ = p.s; S.stCat = ''; S.stLow = false; const q = $('aq'); if (q) q.value = p.s; renderStock(); }); return { ok: true, close: true, msg: p.n }; }
+        later(() => offerNew(code)); return { ok: true, close: true, msg: code };
+      }
+    });
+  }
+  function scanRepo() {
+    openScanner({
+      title: 'Escaneá lo que compraste',
+      onCode(code) {
+        const p = findByCode(P(), code);
+        if (p) { later(() => { if (S.repo) { S.repo.id = p.id; renderRepo(); } }); return { ok: true, close: true, msg: p.n }; }
+        later(() => offerNew(code)); return { ok: true, close: true, msg: code };
+      }
+    });
+  }
+  function scanField() {
+    openScanner({
+      title: 'Escaneá el código del producto',
+      onCode(code) {
+        const dup = findByCode(P(), code);
+        later(() => {
+          const f = $('fs'); if (f) f.value = code;
+          if (dup && (!S.edit || dup.id !== S.edit.id)) alert('Ojo: ese código ya lo tiene "' + dup.n + '".');
+        });
+        return { ok: true, close: true, msg: code };
+      }
+    });
+  }
+
   // ---------- clics y cambios ----------
   document.addEventListener('click', (e) => {
     if (!X.isAlm()) return;
@@ -665,6 +720,10 @@ export function createAlmacen(X) {
     else if (a === 'saver') saveRepo();
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
+    else if (a === 'scancaja') scanCaja();
+    else if (a === 'scanstk') scanStock();
+    else if (a === 'scanrepo') scanRepo();
+    else if (a === 'scanfs') scanField();
   });
   document.addEventListener('change', (e) => {
     if (!X.isAlm() || !e.target.dataset || !e.target.dataset.alm) return;
