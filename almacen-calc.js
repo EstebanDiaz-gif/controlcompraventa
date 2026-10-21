@@ -55,7 +55,14 @@ function chunk(items, max) {
 }
 export function buildLista(products, max = 700000) {
   const vis = products.filter((p) => !p.oh && p.pn > 0 && pubQty(p.q, p.w) > 0).sort((a, b) => a.n.localeCompare(b.n));
-  const data = vis.map((p) => { const o = { i: p.id, n: p.n, p: p.pn, q: pubQty(p.q, p.w) }; if (p.cat) o.c = p.cat; if (p.w) o.w = 1; if (p.img) o.f = p.hd ? 2 : 1; return o; });
+  const data = vis.map((p) => {
+    const o = { i: p.id, n: p.n, p: p.pn, q: pubQty(p.q, p.w) };
+    if (p.cat) o.c = p.cat; if (p.w) o.w = 1; if (p.img) o.f = p.hd ? 2 : 1;
+    if (p.d) o.d = p.d;                 // descripción
+    if (p.pa > p.pn) o.a = p.pa;        // precio anterior (tachado)
+    if (p.dt) o.t = 1;                  // destacado
+    return o;
+  });
   const imgs = vis.filter((p) => p.img).map((p) => ({ i: p.id, f: p.img }));
   const dj = JSON.stringify(data), ij = imgs.map((x) => x.i + ':' + hashStr(x.f)).join(',');
   return { data: chunk(data, max), imgs: chunk(imgs, max), h: hashStr(dj), hi: hashStr(ij), count: data.length };

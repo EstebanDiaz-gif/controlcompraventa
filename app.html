@@ -302,7 +302,7 @@ ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:!!x.dt})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(biz()!=ob)buildTabs();else redrawData()},function(){syncBiz()});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},function(){});
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
@@ -693,6 +693,9 @@ var h='<div class="card"><b>'+esc(g.n)+'</b>'+(g.s?'<small style="display:block"
 '<div class="k" style="margin-top:6px">Con estos precios, quien carga una venta no tiene que escribirlos.</div>'+
 '<label style="margin-top:14px">Categoría</label><input id="ecat" list="rcats" placeholder="Ej: Zapatillas" autocomplete="off" maxlength="30" value="'+esc(fieldOf(b,'cat')||'')+'"><datalist id="rcats">'+catOpts()+'</datalist>'+
 '<label style="margin-top:14px">Mínimo de unidades para precio mayorista</label><input id="emm" type="number" inputmode="numeric" min="0" placeholder="Ej: 4 (vacío = sin mínimo)" value="'+(fieldOf(b,'mm')||'')+'">'+
+'<label style="margin-top:14px">Descripción para el catálogo (opcional)</label><textarea id="edsc" maxlength="160" rows="2" placeholder="Ej: Zapatillas de running con amortiguación, muy livianas." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">'+esc(fieldOf(b,'d')||'')+'</textarea>'+
+'<label style="margin-top:14px">Precio anterior (opcional)</label><input id="epa" type="number" inputmode="decimal" min="0" placeholder="Ej: 55000" value="'+(fieldOf(b,'pa')||'')+'"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>'+
+'<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="edt" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.dt})?' checked':'')+'> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="eoh" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.oh})?' checked':'')+'> No mostrar en el catálogo</label>'+
 (photoOf(b)&&!baseDocs(b).some(function(d){return d.hd})?'<div class="bn warn" style="margin:18px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla abajo para que se vea nítida en el catálogo.</div>':'')+'<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*"><button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>';
 if(st0>0){h+='<label style="margin-top:18px">Agregar talles y colores ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
@@ -749,21 +752,23 @@ else if(a=='delprod')delProduct();
 else if(a=='save')saveEdit()}
 function saveEdit(){
 var b=EDK,pm=+$('epm').value||0,pn=+$('epn').value||0,mm=Math.max(0,Math.floor(+$('emm').value)||0),oh=$('eoh').checked,cat=$('ecat').value.trim().slice(0,30);
-if(pm<0||pn<0){alert('Los precios no pueden ser negativos.');return}
+var dsc=$('edsc').value.trim().replace(/\s+/g,' ').slice(0,160),pa=+$('epa').value||0,dt=$('edt').checked;
+if(pm<0||pn<0||pa<0){alert('Los precios no pueden ser negativos.');return}
+if(pa>0&&pa<=(pn||pm)){alert('El precio anterior tiene que ser mayor que el precio de venta ('+money(pn||pm)+'). Si no hay descuento, dejalo vacío.');return}
 var st0=stock(b),mg={};
 if(st0>0)ESZ.forEach(function(r){var z=vz(r),n=Math.floor(+r.q);if(z&&n>0){var kz=key(z);if(!mg[kz])mg[kz]={z:z,q:0};mg[kz].q+=n}});
 var needs=Object.keys(mg).map(function(k){return mg[k]}),tot=needs.reduce(function(a,r){return a+r.q},0);
 if(needs.some(function(n){return n.z.length>50})){alert('El talle y el color juntos son demasiado largos (máximo 50 letras). Abreviá el color.');return}
 if(tot>st0){alert('Repartiste '+tot+' unidades y solo hay '+st0+' sin talle. Revisalo.');return}
 var bt=writeBatch(db),name='',sku='';
-baseDocs(b).forEach(function(d){name=d.n;sku=d.s;bt.set(doc(db,'stores',SID,'stock',d.id),{pm:pm,pn:pn,mm:mm,oh:oh,cat:cat},{merge:true})});
+baseDocs(b).forEach(function(d){name=d.n;sku=d.s;bt.set(doc(db,'stores',SID,'stock',d.id),{pm:pm,pn:pn,mm:mm,oh:oh,cat:cat,d:dsc,pa:pa,dt:dt},{merge:true})});
 if(tot>0){
 var pur=M.filter(function(x){return x.t=='c'&&pk(x)==b}).sort(function(a,c){return a.d.localeCompare(c.d)||a.id-c.id});
 var pl=splitPlan(pur,needs,Date.now());
 if(pl.left>0){alert('No pude repartir esas unidades. Probá recalcular el stock en Equipo y reintentá.');return}
 pl.ops.forEach(function(o){if(o.op=='set')bt.set(mref(o.mov.id),o.mov);else bt.delete(mref(o.id))});
 bt.set(sref(b),{q:increment(-tot)},{merge:true});
-needs.forEach(function(n){bt.set(sref(b+'|'+key(n.z)),{n:name,s:sku,z:n.z,q:increment(n.q),pm:pm,pn:pn,mm:mm,oh:oh,cat:cat},{merge:true})})}
+needs.forEach(function(n){bt.set(sref(b+'|'+key(n.z)),{n:name,s:sku,z:n.z,q:increment(n.q),pm:pm,pn:pn,mm:mm,oh:oh,cat:cat,d:dsc,pa:pa,dt:dt},{merge:true})})}
 if(EPH!==undefined){var ds=baseDocs(b),tg=ds.filter(function(d){return d.img})[0]||ds[0];
 ds.forEach(function(d){if(d.img&&(EPH===''||d!==tg))bt.set(doc(db,'stores',SID,'stock',d.id),{img:deleteField(),hd:deleteField()},{merge:true})});
 if(EPH&&tg)bt.set(doc(db,'stores',SID,'stock',tg.id),{img:EPH,hd:EPHD?1:deleteField()},{merge:true});
@@ -932,11 +937,23 @@ return b.commit().then(function(){alert('Listo. Tu catálogo ahora está en:\n'+
 if(/permission/.test(String(e&&(e.code||e.message))))alert('No se pudo guardar el link: falta actualizar las reglas de Firebase (sección "slugs").');else fail(e)})}
 function logoNow(p){return CLOGO===null?(p.logo||''):CLOGO}
 function readLogo(file,cb){var fr=new FileReader();fr.onerror=function(){cb('')};fr.onload=function(){var im=new Image();im.onerror=function(){cb('')};im.onload=function(){var m=256,k=Math.min(1,m/Math.max(im.width,im.height)),w=Math.round(im.width*k),h=Math.round(im.height*k),c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);var q=.85,o=c.toDataURL('image/jpeg',q);while(o.length>60000&&q>.3){q-=.1;o=c.toDataURL('image/jpeg',q)}cb(o.length>90000?'':o)};im.src=fr.result};fr.readAsDataURL(file)}
+// Portada del catálogo: documento aparte (public/portada) para no agrandar public/info; info.pt avisa que existe.
+var PTIMG={at:0,f:''},PTL=0;
+function loadPt(){var p=PUB||{};if(!p.pt||PTIMG.at==p.pt||PTL==p.pt)return;PTL=p.pt;
+getDoc(doc(db,'stores',SID,'public','portada')).then(function(s){var f=s.exists()&&s.data().f;if(!f)return;PTIMG={at:p.pt,f:f};var v=$('cat_ptv');if(v){v.src=f;v.style.display=''}}).catch(function(){PTL=0})}
+function savePt(file){var st=$('cat_pts');if(st)st.textContent='Preparando la foto…';
+makePhotos(file).then(function(r){var f=r.hd||r.thumb;if(!f){alert('No pude leer esa foto. Probá con otra.');if(st)st.textContent='';return}
+var at=Date.now(),v=$('cat_ptv');if(v){v.src=f;v.style.display=''}if(st)st.textContent='Subiendo…';
+var b=writeBatch(db);b.set(doc(db,'stores',SID,'public','portada'),{f:f,at:at});b.set(doc(db,'stores',SID,'public','info'),{pt:at},{merge:true});
+return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2.textContent='Portada guardada ✓'})}).catch(function(e){var s3=$('cat_pts');if(s3)s3.textContent='';fail(e)})}
 function catCard(){
-var p=PUB||{};
+var p=PUB||{};setTimeout(loadPt,0);
 var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style="margin:4px 0 0">Una página con tus productos, fotos y talles con stock. El cliente arma el pedido y te lo manda por WhatsApp. No muestra costos ni ganancias.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="cat_on" type="checkbox" style="width:auto"'+(p.enabled?' checked':'')+'> Catálogo activado</label>'+
 '<label>Logo de tu negocio</label><div class="row" style="gap:12px;align-items:center"><img id="cat_lgv" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--line);'+(logoNow(p)?'':'display:none')+'" src="'+esc(logoNow(p))+'"><input id="cat_logo" type="file" accept="image/*" style="flex:1"></div><button class="go alt" data-cat="nologo" style="margin-top:6px">Quitar logo</button>'+
+'<label>Foto de portada (opcional)</label><div class="k" style="margin:0 0 8px">La foto grande de arriba del catálogo: tus productos, tu local o una modelo con tu ropa. Queda mejor una foto vertical o cuadrada.</div>'+
+'<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
+'<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: Zapatillas y ropa por mayor y menor" value="'+esc(p.tag||'')+'" autocomplete="off">'+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
@@ -974,6 +991,7 @@ if(a=='slug'){saveSlug();return}
 if(a=='copy'){var l=catLink();if(navigator.clipboard)navigator.clipboard.writeText(l).then(function(){alert('Link copiado.')},function(){prompt('Copiá el link:',l)});else prompt('Copiá el link:',l);return}
 if(a=='open'){window.open(catLink(),'_blank');return}
 if(a=='nologo'){CLOGO='';var v=$('cat_lgv');if(v)v.style.display='none';return}
+if(a=='nopt'){if(!confirm('¿Quitar la foto de portada del catálogo?'))return;var b0=writeBatch(db);b0.delete(doc(db,'stores',SID,'public','portada'));b0.set(doc(db,'stores',SID,'public','info'),{pt:deleteField()},{merge:true});b0.commit().then(function(){PTIMG={at:0,f:''}}).catch(fail);return}
 if(a=='save'){
 // Si viene desde configCard, solo guarda configuraciones; si viene desde catCard, guarda todo
 var hasCatOn=$('cat_on');
@@ -1268,6 +1286,7 @@ else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
 document.addEventListener('change',function(e){if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
 if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}
 if(e.target.id=='eph'){var f=e.target.files&&e.target.files[0];if(f)readPhoto(f,function(o,hd){if(!o){alert('No pude leer esa foto. Probá con otra.');return}EPH=o;EPHD=hd||'';var v=$('epv');v.src=o;v.style.display=''})}
 if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}if(e.target.id=='gt')togglePlat()});

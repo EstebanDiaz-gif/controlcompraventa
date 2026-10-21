@@ -7,7 +7,7 @@
 (function(){var p=location.pathname,base='/';
 if(/\.github\.io$/.test(location.hostname)){var m=p.match(/^\/[^\/]+\//);if(m){base=m[0];p=p.slice(base.length-1)}}
 var s=decodeURIComponent(p.replace(/^\/+|\/+$/g,'').split('/')[0]||'').toLowerCase();
-if(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(s)){location.replace(base+'catalogo.html?s='+encodeURIComponent(s));return}
+if(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(s)){location.replace(base+'catalogo.html?s='+encodeURIComponent(s)+(location.search?'&'+location.search.slice(1):''));return}
 window.__nf=1})();
 </script>
 <style>body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f6f6f4;color:#16161a;text-align:center;padding:80px 20px}a{display:inline-block;margin-top:14px;padding:12px 20px;border-radius:12px;background:#111;color:#fff;text-decoration:none;font-weight:700}</style>

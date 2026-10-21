@@ -442,11 +442,14 @@ export function createAlmacen(X) {
       '<label>Nombre</label><input id="fn" autocomplete="off" maxlength="80" placeholder="Ej: Coca-Cola 2,25 L" value="' + esc(c.n) + '">' +
       '<label>Código de barras o código propio (opcional)</label><div style="display:flex;gap:8px;align-items:center"><input id="fs" autocomplete="off" maxlength="40" placeholder="Ej: 7790895000997" style="flex:1;min-width:0" value="' + esc(c.s) + '">' + scanButton('scanfs') + '</div>' +
       '<label>Categoría</label><select id="fc"><option value="">Sin categoría</option>' + catOpts + '</select>' +
+      '<label>Descripción para el catálogo (opcional)</label><textarea id="fdsc" maxlength="160" rows="2" placeholder="Ej: Dulce de leche clásico, pote de 200 g." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">' + esc(c.d || '') + '</textarea>' +
       '<label>¿Cómo se vende?</label><div class="seg"><button class="pay' + (!c.w ? ' on' : '') + '" data-al="fw" data-v="0">Por unidad</button><button class="pay' + (c.w ? ' on' : '') + '" data-al="fw" data-v="1">Por peso (kg)</button></div>' +
       '<div class="row"><div><label id="lpn">Precio de venta</label><input id="fpn" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.pn || '') + '"></div><div><label id="lco">Costo</label><input id="fco" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.c || '') + '"></div></div><div class="tot" id="fmg"></div>' +
       '<div class="row"><div><label id="lq">' + (p ? 'Stock actual (contado)' : 'Stock inicial') + '</label><input id="fq" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + (p ? n3(c.q) : '') + '"></div><div><label>Avisar cuando quede (opcional)</label><input id="fmin" type="text" inputmode="decimal" placeholder="Ej: 3" autocomplete="off" value="' + (c.min ? n3(c.min) : '') + '"></div></div>' +
       (p ? '<div class="k" style="margin-top:6px">Si contás la mercadería y no coincide, corregí el stock acá. Para cargar mercadería que compraste usá Reponer (así se calcula bien el costo).</div>' : '') +
       (c.img && !c.hd ? '<div class="bn warn" style="margin:14px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla para que se vea nítida en el catálogo.</div>' : '') + '<label style="margin-top:14px">Foto (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="fph" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:12px;' + (c.img ? '' : 'display:none') + '" src="' + (c.img || '') + '"><input id="fpf" type="file" accept="image/*" style="flex:1"></div>' +
+      '<label>Precio anterior (opcional)</label><input id="fpa" type="number" inputmode="decimal" min="0" placeholder="Ej: 2200" value="' + (c.pa || '') + '"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>' +
+      '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="fdt" type="checkbox" style="width:auto"' + (c.dt ? ' checked' : '') + '> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="foh" type="checkbox" style="width:auto"' + (c.oh ? ' checked' : '') + '> No mostrar en el catálogo</label>' +
       '<button class="go" data-al="savep">Guardar</button>' + (p ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:var(--buy)">Eliminar este producto</button>' : '') + '</div>';
     $('s-stk').innerHTML = h;
@@ -465,11 +468,13 @@ export function createAlmacen(X) {
     if (!n) { alert('Escribí el nombre del producto.'); return; }
     if (isNaN(q) || isNaN(min) || min < 0) { alert('Revisá el stock (usá números, por ejemplo 12 o 1,5).'); return; }
     if (!E.w && q !== Math.floor(q)) { alert('Este producto se vende por unidad: el stock tiene que ser un número entero.'); return; }
-    if (pn < 0 || co < 0) { alert('Los precios no pueden ser negativos.'); return; }
+    const d = $('fdsc').value.trim().replace(/\s+/g, ' ').slice(0, 160), pa = +$('fpa').value || 0, dt = $('fdt').checked;
+    if (pn < 0 || co < 0 || pa < 0) { alert('Los precios no pueden ser negativos.'); return; }
+    if (pa > 0 && pa <= pn) { alert('El precio anterior tiene que ser mayor que el precio de venta (' + money(pn) + '). Si no hay descuento, dejalo vacío.'); return; }
     if (s && P().some((x) => x.id !== E.id && x.s && x.s.toLowerCase() === s.toLowerCase())) { alert('Ya hay otro producto con el código ' + s + '.'); return; }
     if (!E.id && P().some((x) => x.n.toLowerCase() === n.toLowerCase()) && !confirm('Ya existe "' + n + '". ¿Crear otro con el mismo nombre?')) return;
     const id = E.id || 'al_' + X.rnd(10);
-    const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1 };
+    const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt };
     const b = writeBatch(db);
     if (E.img !== undefined) {
       o.img = E.img; o.hd = E.hd ? 1 : deleteField();

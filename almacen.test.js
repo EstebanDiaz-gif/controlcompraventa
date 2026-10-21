@@ -63,6 +63,13 @@ test('lista del catálogo: solo productos visibles, con precio y stock', () => {
   assert.notEqual(buildLista([{ ...P[0], pn: 2600 }, P[1]]).h, L.h);
   assert.equal(pubQty(0.2, true), 0);
 });
+test('lista del catálogo: descripción, precio anterior y destacado', () => {
+  const L = buildLista([
+    { id: 'a', n: 'Dulce de leche 200 g', pn: 1800, q: 6, d: 'Clásico', pa: 2200, dt: true },
+    { id: 'b', n: 'Yerba 1 kg', pn: 4000, q: 6, pa: 3500 }
+  ]);
+  assert.deepEqual(L.data[0], [{ i: 'a', n: 'Dulce de leche 200 g', p: 1800, q: pubQty(6), d: 'Clásico', a: 2200, t: 1 }, { i: 'b', n: 'Yerba 1 kg', p: 4000, q: pubQty(6) }]);
+});
 test('lista del catálogo: se parte en varios documentos si es grande', () => {
   const P = Array.from({ length: 3000 }, (_, i) => ({ id: 'p' + i, n: 'Producto número ' + i, pn: 1000 + i, q: 5, cat: 'Almacén' }));
   const L = buildLista(P, 100000);
