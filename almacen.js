@@ -13,7 +13,7 @@ import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, in
 import { fotoId } from './fotos.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, PAY, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista } from './almacen-calc.js';
-import { openScanner, scanButton, findByCode } from './scanner.js';
+import { openScanner, scanButton, findByCode, beep } from './scanner.js';
 export { CATS, PAY };
 
 // ---------- módulo de pantalla ----------
@@ -151,7 +151,7 @@ export function createAlmacen(X) {
     const q = S.q.trim().toLowerCase(); if (!q) return;
     let p = findByCode(P(), q);
     if (!p) { const r = results() || []; if (r.length === 1) p = r[0]; }
-    if (p) addProd(p);
+    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) beep(false); // código que no existe
   }
   function clearSearch(noFocus) { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); if (!noFocus) qi.focus(); } }
   function addProd(p, noFocus) {
@@ -514,10 +514,11 @@ export function createAlmacen(X) {
       const rq = $('rq');
       const rres = () => { const l = S.rq.trim() ? P().filter((x) => match(x.n + ' ' + x.s + ' ' + x.cat, S.rq)).sort((a, b) => a.n.localeCompare(b.n)).slice(0, 20) : []; $('rres').innerHTML = l.map((x) => '<button class="pl" data-al="rpick" data-id="' + esc(x.id) + '"><span><b>' + esc(x.n) + '</b><small>stock ' + fq(x.q, x.w) + (x.c ? ' · costo ' + money(x.c) : '') + '</small></span></button>').join(''); };
       rq.oninput = () => { S.rq = rq.value; rres(); };
-      rq.onkeydown = (e) => { if (e.key === 'Enter') { const f = findByCode(P(), S.rq); if (f) { e.preventDefault(); S.repo.id = f.id; renderRepo(); } } };
+      rq.onkeydown = (e) => { if (e.key === 'Enter') { const f = findByCode(P(), S.rq); if (!f && /^\d{6,}$/.test(S.rq.trim())) beep(false); if (f) { beep(true); e.preventDefault(); S.repo.id = f.id; renderRepo(); } } };
       rres(); setTimeout(() => rq.focus(), 50);
       return;
     }
+    if (R.note) h += '<div class="bn" style="margin:12px 0 0">Este producto ya estaba cargado con ese código. Poné cuántos compraste y se suma al stock.</div>';
     h += '<div class="bn" style="margin:12px 0 0;display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>' + esc(p.n) + '</b><br><small>Stock ' + fq(p.q, p.w) + ' · costo ' + (p.c ? money(p.c) : '—') + ' · venta ' + priceTxt(p) + '</small></span><button class="x" data-al="rpick" data-id="" style="font-size:14px;text-decoration:underline">Cambiar</button></div>' +
       '<div class="row"><div><label>Cantidad' + (p.w ? ' (kg)' : '') + '</label><input id="rqq" type="text" inputmode="decimal" autocomplete="off" placeholder="0"></div><div><label>Costo ' + (p.w ? 'por kilo' : 'por unidad') + '</label><input id="rcu" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (p.c || '') + '"></div></div>' +
       '<div class="k" style="margin-top:6px">¿Compraste por bulto? Poné las unidades totales y el costo de cada una (ej: bulto de 12 a $6.000 → 12 a $500).</div>' +
@@ -672,6 +673,10 @@ export function createAlmacen(X) {
       title: 'Escaneá el código del producto',
       onCode(code) {
         const dup = findByCode(P(), code);
+        if (dup && S.edit && !S.edit.id) { // producto nuevo, pero ese código ya está cargado: es una reposición
+          later(() => { repoForm(dup.id); S.repo.note = 1; renderRepo(); });
+          return { ok: true, close: true, msg: dup.n + ' ya está cargado' };
+        }
         later(() => {
           const f = $('fs'); if (f) f.value = code;
           if (dup && (!S.edit || dup.id !== S.edit.id)) alert('Ojo: ese código ya lo tiene "' + dup.n + '".');
@@ -716,7 +721,7 @@ export function createAlmacen(X) {
     else if (a === 'delp') delProd();
     else if (a === 'cancel') closeForms();
     else if (a === 'repo') repoForm(null);
-    else if (a === 'rpick') { S.repo.id = id || null; renderRepo(); }
+    else if (a === 'rpick') { S.repo.id = id || null; S.repo.note = 0; renderRepo(); }
     else if (a === 'saver') saveRepo();
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();

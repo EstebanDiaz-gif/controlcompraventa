@@ -23,6 +23,36 @@ function loadLib() {
   return libP;
 }
 
+// ---------- sonido de confirmación ----------
+// Un solo "pip" de caja de supermercado al leer bien, y dos tonos graves si algo falla.
+// El navegador solo deja sonar después de un toque del usuario: se habilita con el primer toque.
+let AC = null;
+function audio() {
+  if (!AC) { try { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } catch (e) { AC = null; } }
+  if (AC && AC.state !== 'running') { try { AC.resume().catch(() => {}); } catch (e) { /* nada */ } }
+  return AC;
+}
+['pointerdown', 'touchend', 'keydown'].forEach((ev) => document.addEventListener(ev, audio, { once: true, passive: true }));
+function tone(ac, t, f, d, vol) {
+  const o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter();
+  o.type = 'square'; o.frequency.value = f;
+  lp.type = 'lowpass'; lp.frequency.value = 5000;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+  g.gain.setValueAtTime(vol, t + d - 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(lp); lp.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + 0.02);
+}
+export function beep(ok = true) {
+  try { if (navigator.vibrate) navigator.vibrate(ok ? 70 : [60, 80, 60]); } catch (e) { /* sin vibración */ }
+  const ac = audio(); if (!ac) return;
+  try {
+    const t = ac.currentTime + 0.01;
+    if (ok) tone(ac, t, 1900, 0.12, 0.32);
+    else { tone(ac, t, 380, 0.14, 0.3); tone(ac, t + 0.2, 380, 0.14, 0.3); }
+  } catch (e) { /* sin sonido */ }
+}
+
 export function canScan() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
@@ -78,20 +108,7 @@ export function openScanner(opts) {
     msgEl.style.color = kind === 'warn' ? '#102468' : '#fff';
   };
 
-  // Sonido (se crea acá, dentro del toque del usuario, para que el iPhone lo permita).
-  let ac = null;
-  try { const AC = window.AudioContext || window.webkitAudioContext; if (AC) ac = new AC(); } catch (e) { ac = null; }
-  const beep = (ok) => {
-    try { if (navigator.vibrate) navigator.vibrate(ok ? 60 : [40, 60, 40]); } catch (e) { /* sin vibración */ }
-    if (!ac) return;
-    try {
-      const osc = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
-      osc.frequency.value = ok ? 1650 : 420; osc.type = ok ? 'sine' : 'square';
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(ok ? 0.12 : 0.05, t + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + (ok ? 0.09 : 0.18));
-      osc.connect(g); g.connect(ac.destination); osc.start(t); osc.stop(t + 0.2);
-    } catch (e) { /* sin sonido */ }
-  };
+  audio(); // habilita el sonido con este toque (iPhone)
 
   let h = null, closed = false;
   const st = { open: true };
@@ -99,7 +116,7 @@ export function openScanner(opts) {
   const close = () => {
     if (closed) return; closed = true; open = null;
     document.removeEventListener('keydown', onKey);
-    const done = () => { o.remove(); try { if (ac) ac.close(); } catch (e) { /* nada */ } if (opts.onClose) opts.onClose(); };
+    const done = () => { o.remove(); if (opts.onClose) opts.onClose(); };
     if (h) { Promise.resolve().then(() => h.stop()).catch(() => {}).then(() => { try { h.clear(); } catch (e) { /* nada */ } done(); }); }
     else done();
   };
