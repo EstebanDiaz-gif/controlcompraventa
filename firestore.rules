@@ -28,6 +28,29 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/stores/$(sid)/public/info).data.get('alm', false) != true;
     }
 
+    // Turnos online: la tienda los activa desde la app (stores/{sid}/public/agenda con on = true).
+    function agendaOn(sid) {
+      return exists(/databases/$(database)/documents/stores/$(sid)/public/agenda)
+        && get(/databases/$(database)/documents/stores/$(sid)/public/agenda).data.get('on', false) == true;
+    }
+    // Turno pedido por un cliente desde el catálogo (sin cuenta): solo campos conocidos y con tamaño acotado,
+    // y tiene que reservar en el mismo paso su primer bloque de 15 minutos (ver ocupado).
+    function turnoWebOk(sid, id) {
+      let t = request.resource.data;
+      return t.keys().hasOnly(['id', 'd', 'e', 'en', 'i', 'f', 'sv', 'sn', 'p', 'cl', 'tel', 'src', 'st', 'at'])
+        && t.keys().hasAll(['id', 'd', 'e', 'i', 'f', 'sv', 'sn', 'cl', 'tel', 'src', 'st'])
+        && t.sv is string && t.sv.size() <= 128 && t.sn is string && t.sn.size() <= 80
+        && (!('en' in t) || (t.en is string && t.en.size() <= 60))
+        && (!('p' in t) || t.p is number)
+        && t.id == id && t.src == 'web' && t.st == 'ok'
+        && t.d is string && t.d.matches('^20[0-9]{2}-[01][0-9]-[0-3][0-9]$')
+        && t.i is int && t.f is int && t.i >= 0 && t.f > t.i && t.f - t.i <= 600 && t.f <= 1440
+        && t.e is string && t.e.size() > 0 && t.e.size() <= 128
+        && t.cl is string && t.cl.size() > 0 && t.cl.size() <= 60
+        && t.tel is string && t.tel.size() >= 6 && t.tel.size() <= 20
+        && existsAfter(/databases/$(database)/documents/stores/$(sid)/ocupado/$(t.d + '_' + t.e + '_' + string(t.i)));
+    }
+
     function accessOk(sid) {
       return !exists(accessPath(sid))
         || get(accessPath(sid)).data.unlimited == true
@@ -160,6 +183,25 @@ service cloud.firestore {
           || (isMember(sid)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['q'])
               && request.resource.data.q < resource.data.q));
+      }
+
+      // ---------------- Turnos (servicios con agenda) ----------------
+      // Los datos del cliente (nombre, WhatsApp) solo los ve el equipo de la tienda.
+      match /turnos/{id} {
+        allow read: if isMember(sid);
+        allow create: if (isMember(sid) && accessOk(sid)) || (agendaOn(sid) && turnoWebOk(sid, id));
+        allow update, delete: if isMember(sid);
+      }
+      // Bloques de 15 minutos ocupados: {día}_{profesional}_{minuto}. Sin datos del cliente: los lee el catálogo
+      // para mostrar los horarios libres. Nadie puede pisar un bloque que ya existe (no hay "update"):
+      // así dos reservas al mismo horario nunca pueden quedar guardadas.
+      match /ocupado/{id} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['t', 'd', 'e', 'm'])
+          && id == request.resource.data.d + '_' + request.resource.data.e + '_' + string(request.resource.data.m)
+          && ((isMember(sid) && accessOk(sid))
+              || (agendaOn(sid) && existsAfter(/databases/$(database)/documents/stores/$(sid)/turnos/$(request.resource.data.t))));
+        allow delete: if isMember(sid);
       }
 
       // ---------------- Rubro almacén ----------------

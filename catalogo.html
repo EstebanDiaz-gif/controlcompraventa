@@ -165,6 +165,24 @@ footer{text-align:center;color:var(--mut);font-size:12px;padding:0 16px 20px}
 .ln .d{flex:1;min-width:0}.ln small{display:block;color:var(--mut)}
 .tot{display:flex;justify-content:space-between;font-weight:800;font-size:20px;margin:14px 0}
 .note{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}.hint{color:var(--ink);font-weight:700}
+/* carta de servicios y reserva de turnos */
+.svl{max-width:1100px;margin:0 auto;padding:6px 16px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0 24px}
+.svc{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
+.svc b{font-size:16.5px;font-weight:700}.svc .k{color:var(--mut);font-size:13.5px;font-weight:600;margin-top:2px;display:block}
+.svc p{margin:4px 0 0;color:var(--mut);font-size:14px;line-height:1.35}
+.svc .sr{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none}.svc .sr b{font-size:17px;font-weight:800}
+.rsv{border:0;border-radius:99px;background:var(--ink);color:#fff;font-weight:700;font-size:14px;padding:9px 16px;white-space:nowrap}
+.rsv.alt{background:var(--soft);color:var(--ink)}
+.bksv{display:flex;justify-content:space-between;gap:10px;align-items:baseline;background:var(--soft);border-radius:14px;padding:12px 14px;margin:12px 0 4px}
+.bksv span{color:var(--mut);font-size:14px;font-weight:600;white-space:nowrap}
+.drow2{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}.drow2::-webkit-scrollbar{display:none}
+.dch{flex:none;border:0;background:var(--soft);border-radius:14px;padding:9px 12px;font-weight:700;font-size:14px;display:flex;flex-direction:column;align-items:center;min-width:64px;line-height:1.15}
+.dch small{font-weight:600;font-size:12px;color:var(--mut)}.dch.on{background:var(--ink);color:#fff}.dch.on small{color:#ddd}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+.tch{border:0;background:var(--soft);border-radius:12px;padding:11px 0;font-weight:700;font-size:15px}.tch.on{background:var(--ink);color:#fff}
+.bkin{width:100%;padding:13px 14px;border-radius:14px;border:0;background:var(--soft);color:var(--ink);font:inherit;margin-top:8px;outline:none}
+.bkin:focus{box-shadow:0 0 0 2px var(--ink)}
+.okc{width:64px;height:64px;border-radius:50%;background:#1a8f4c;color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center;margin:10px auto 12px}
 /* tema de temporada */
 html[data-tema] .hdr{background:rgba(255,255,255,.96)}
 .promos{max-width:1100px;margin:0 auto;padding:18px 0 0}
@@ -205,6 +223,7 @@ html[data-tema] .card .im[data-bd]::after{content:attr(data-bd);position:absolut
 <div id="tmb" class="tmb" hidden></div>
 <div id="inf" class="info" hidden></div>
 <div id="promos" class="promos" hidden></div>
+<div id="carta" hidden></div>
 <div class="sec" id="sec"><h2 id="sect">Productos</h2><span class="cnt" id="cnt"></span></div>
 <div class="tools" id="tools"><div class="sbox"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sq" type="search" placeholder="Buscar producto o talle" autocomplete="off"></div>
 <div class="tr"><button class="pill" id="all">Ver todos</button><select class="sel" id="ord"><option value="az">A-Z</option><option value="dest">Destacados</option><option value="menor">Menor precio</option><option value="mayor">Mayor precio</option></select>
@@ -223,12 +242,13 @@ html[data-tema] .card .im[data-bd]::after{content:attr(data-bd);position:absolut
 <div class="sheet" id="sh" hidden><div id="shc"></div></div>
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot,writeBatch,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {firebaseConfig} from './firebase-config.js';
 import {fotoId} from './fotos.js';
 import {combos,cantidades,descuento,tituloCant,ahorro} from './promos.js';
 import {TEMAS,temaEfectivo,cuentaRegresiva,proxima,adornos,fechaTitulo} from './temas.js';
 import {introTema} from './intro.js';
+import {normDur,durTxt,hm,ymd,addDays,fechaCorta,fechaLargaT,dias,libres,elegirPro,desdeHoy,lockIds,gcalUrl} from './turnos.js';
 var $=function(i){return document.getElementById(i)};
 // El catálogo se abre con ?t=CODIGO (link viejo) o con el nombre de la tienda: pekeronapp.com/minombre
 // (esa dirección la atiende 404.html, que redirige acá con ?s=minombre).
@@ -285,7 +305,7 @@ if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
 (sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
-INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);
+INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);if(INFO.ag)loadAg();
 onSnapshot(doc(db,'platform','tema'),function(sn){var GL2=sn.exists()?sn.data():null;tema(GL2)});
 // mostrar siempre el link lindo en la barra de direcciones
 if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
@@ -352,9 +372,64 @@ l.sort(function(a,b){return ORD=='menor'?base(a)-base(b):ORD=='mayor'?base(b)-ba
 $('sect').textContent=FAVM?'Tus favoritos':CAT||'Productos';
 $('cnt').textContent=G.length?l.length+' producto'+(l.length==1?'':'s'):'';
 $('grid').className='grid'+(VIEW=='list'?' list':'');
+var soloSv=!G.length&&AGD&&AGD.sv&&AGD.sv.length;['sec','tools'].forEach(function(i){$(i).hidden=soloSv||(i=='tools'&&$(i).hidden)});$('grid').hidden=!!soloSv;
 if(!l.length){$('grid').innerHTML=!G.length&&!$('promos').hidden?'':'<div class="empty">'+(FAVM?'Todavía no guardaste favoritos. Tocá el corazón de un producto para guardarlo.':G.length?'No encontré productos con esa búsqueda.':'Por ahora no hay productos disponibles.')+'</div>';bar();openPend();return}
 $('grid').innerHTML=l.map(function(g){var mt=g.pm&&g.pn&&g.pm<g.pn&&(INFO.mode=='carrito'?INFO.minCart>0:g.mm>0),p=pct(g);
 return '<div class="card" data-k="'+esc(g.k)+'"><div class="im"'+(TEMA&&TEMAS[TEMA].badge?' data-bd="'+TEMAS[TEMA].badge+'"':'')+'>'+imgHtml(g,1)+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+(!g.w&&g.q<=2?'<span class="tag">Últimas unidades</span>':'')+(mt?'<span class="tag m">Mayorista</span>':'')+'</div><div class="body"><div class="nm">'+esc(g.n)+'</div>'+(g.d?'<div class="ds">'+esc(g.d)+'</div>':'')+'<div class="pb"><span class="pr">'+priceHtml(g)+'</span><span class="plus">'+PLUS+'</span></div></div></div>'}).join('');bar();openPend()}
+/* ---------- carta de servicios y turnos online (public/agenda la publica la app; ver turnos.js) ---------- */
+var AGD=null,BK=null,OCC={};
+function loadAg(){getDoc(doc(db,'stores',sid,'public','agenda')).then(function(d){if(!d.exists())return;AGD=d.data();drawCarta();draw()}).catch(function(){})}
+function svOfAg(id){return (AGD.sv||[]).filter(function(x){return x.id==id})[0]}
+function drawCarta(){var e=$('carta'),l=(AGD&&AGD.sv)||[];e.hidden=!l.length;if(!l.length)return;
+e.innerHTML='<div class="sec"><h2>Servicios</h2><span class="cnt">'+(AGD.on?'Reservá tu turno online':l.length+' servicio'+(l.length==1?'':'s'))+'</span></div><div class="svl">'+l.map(function(x){
+return '<div class="svc"><div><b>'+esc(x.n)+'</b><span class="k">'+durTxt(x.dur)+'</span>'+(x.d?'<p>'+esc(x.d)+'</p>':'')+'</div><div class="sr"><b>'+money(x.p)+'</b>'+(AGD.on?'<button class="rsv" data-rsv="'+esc(x.id)+'">Reservar</button>':WAS.length?'<button class="rsv alt" data-svq="'+esc(x.id)+'">Consultar</button>':'')+'</div></div>'}).join('')+'</div>';
+if(AGD.on){var inf=$('inf');inf.hidden=false;if(!$('agchip')){var c=document.createElement('a');c.id='agchip';c.href='#carta';c.textContent='📅 Reservá tu turno online';c.onclick=function(ev){ev.preventDefault();$('carta').scrollIntoView({behavior:'smooth'})};inf.insertBefore(c,inf.firstChild)}}}
+$('carta').onclick=function(e){var b=e.target.closest('[data-rsv]');if(b){openBook(b.dataset.rsv);return}
+var q=e.target.closest('[data-svq]');if(q){var x=svOfAg(q.dataset.svq),m='Hola! Quería consultar por *'+x.n+'* ('+money(x.p)+'). ¿Qué días tenés turno?';if(WAS.length>1){$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><b style="font-size:20px;display:block;margin:4px 44px 6px 0">¿A quién le querés escribir?</b>'+waBtns(function(w){return waUrl(w,m)});$('sh').hidden=false}else window.open(waUrl(WAS[0].w,m),'_blank')}};
+function proN(id){var p=(AGD.pros||[]).filter(function(x){return x.id==id})[0];return p?p.n:''}
+function openBook(svId){var x=svOfAg(svId);if(!x)return;OPEN='';
+var ds=dias(AGD,ymd(new Date()),AGD.max||30);
+BK={sv:x,pro:(AGD.pros||[]).length>1?'*':((AGD.pros||[])[0]||{}).id,days:ds,d:ds[0]||'',m:null,free:[],slots:null,done:null,busy:null};
+$('sh').className='sheet';$('sh').hidden=false;renderBook();loadSlots()}
+// Bloques ocupados de un día: 1 consulta; se guardan para no volver a leer.
+function occ(d,fresh){if(OCC[d]&&!fresh)return Promise.resolve(OCC[d]);
+return getDocs(query(collection(db,'stores',sid,'ocupado'),where('d','==',d))).then(function(sn){var s=new Set();sn.forEach(function(x){s.add(x.id)});OCC[d]=s;return s})}
+function loadSlots(fresh){if(!BK||!BK.d){renderBook();return}var d=BK.d;BK.slots=null;BK.err=0;renderBook();
+occ(d,fresh).then(function(busy){if(!BK||BK.d!=d)return;var ids=BK.pro=='*'?(AGD.pros||[]).map(function(p){return p.id}):[BK.pro];
+BK.busy=busy;BK.slots=libres(AGD,d,BK.sv.dur,ids,busy,desdeHoy(d,new Date(),AGD.ant||0));renderBook()}).catch(function(){if(BK){BK.slots=[];BK.err=1;renderBook()}})}
+function dLbl(d){var t=ymd(new Date());return d==t?'Hoy':d==addDays(t,1)?'Mañana':fechaCorta(d).split(' ')[0]}
+function renderBook(){if(!BK)return;var x=BK.sv,h='<button class="cl" data-cl="1" aria-label="Cerrar">×</button>';
+if(BK.done){var t=BK.done,msg='Hola! Reservé un turno desde el catálogo: *'+x.n+'* el '+fechaLargaT(t.d)+' a las '+hm(t.i)+((AGD.pros||[]).length>1?' con '+t.en:'')+'. Soy '+t.cl+'.';
+h+='<div style="text-align:center;padding:6px 4px 0"><div class="okc">✓</div><b style="font-size:22px">¡Turno reservado!</b><div style="font-size:18px;font-weight:700;margin-top:10px">'+esc(fechaLargaT(t.d))+' · '+hm(t.i)+'</div><div class="k" style="color:var(--mut);margin-top:4px">'+esc(x.n)+((AGD.pros||[]).length>1?' con '+esc(t.en):'')+' · '+durTxt(x.dur)+'</div></div>'+
+(WAS.length?'<a class="wa" target="_blank" rel="noopener" style="margin-top:18px" href="'+esc(waUrl(WAS[0].w,msg))+'">Avisar al negocio por WhatsApp</a>':'')+
+'<a class="wa" target="_blank" rel="noopener" style="margin-top:10px;background:var(--soft);color:var(--ink)" href="'+esc(gcalUrl(x.n+' · '+(INFO.name||''),t.d,t.i,t.f,'Turno reservado desde el catálogo.',INFO.addr||''))+'">Agregar a mi calendario</a>'+
+'<div class="note" style="margin-top:14px">Si no podés ir, avisale al negocio por WhatsApp así le dejás el horario a otra persona.</div>';
+$('shc').innerHTML=h;return}
+h+='<b style="font-size:20px">Reservar turno</b><div class="bksv"><b>'+esc(x.n)+'</b><span>'+durTxt(x.dur)+' · '+money(x.p)+'</span></div>';
+var pr=AGD.pros||[];
+if(pr.length>1)h+='<div class="lbl">¿Con quién?</div><div class="chips"><button class="chip'+(BK.pro=='*'?' on':'')+'" data-bkp="*">Cualquiera</button>'+pr.map(function(p){return '<button class="chip'+(BK.pro==p.id?' on':'')+'" data-bkp="'+esc(p.id)+'">'+esc(p.n)+'</button>'}).join('')+'</div>';
+if(!BK.days.length){h+='<div class="note">Por ahora no hay días disponibles para reservar. Consultá por WhatsApp.</div>';$('shc').innerHTML=h;return}
+h+='<div class="lbl">¿Qué día?</div><div class="drow2">'+BK.days.map(function(d){return '<button class="dch'+(BK.d==d?' on':'')+'" data-bkd="'+d+'">'+esc(dLbl(d))+'<small>'+d.slice(8)+'/'+d.slice(5,7)+'</small></button>'}).join('')+'</div>';
+h+='<div class="lbl">Horario</div>';
+if(BK.slots===null)h+='<div class="k" style="color:var(--mut)">Buscando horarios libres…</div>';
+else if(BK.err)h+='<div class="note">No pude ver los horarios. Probá de nuevo en un rato.</div>';
+else if(!BK.slots.length)h+='<div class="note">No quedan horarios libres este día. Probá con otro.</div>';
+else h+='<div class="tgrid">'+BK.slots.map(function(s){return '<button class="tch'+(BK.m==s.m?' on':'')+'" data-bkm="'+s.m+'">'+hm(s.m)+'</button>'}).join('')+'</div>';
+if(BK.m!=null){h+='<div class="lbl">Tus datos</div><input class="bkin" id="bk_n" maxlength="60" placeholder="Tu nombre" autocomplete="name" value="'+esc(BK.cl||'')+'"><input class="bkin" id="bk_w" maxlength="20" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" autocomplete="tel" value="'+esc(BK.tel||'')+'">'+
+'<button class="add" data-bkok="1" style="width:100%;margin-top:14px">Reservar · '+esc(dLbl(BK.d))+' '+hm(BK.m)+'</button><div class="k" style="color:var(--mut);font-size:13px;text-align:center;margin-top:8px">El turno queda reservado al instante.</div>'}
+$('shc').innerHTML=h;var n=$('bk_n'),w=$('bk_w');if(n){n.oninput=function(){BK.cl=n.value};w.oninput=function(){BK.tel=w.value}}}
+function confirmBook(btn){var x=BK.sv,cl=(BK.cl||'').trim().replace(/\s+/g,' '),tel=(BK.tel||'').trim();
+if(cl.length<2){alert('Escribí tu nombre.');return}
+if(tel.replace(/\D/g,'').length<8){alert('Escribí tu WhatsApp con código de área, así el negocio te puede avisar.');return}
+var sl=(BK.slots||[]).filter(function(s){return s.m==BK.m})[0];if(!sl)return;
+var e=BK.pro=='*'?elegirPro(sl.pros,BK.busy||new Set(),BK.d):BK.pro,d=BK.d,i=BK.m,f=i+normDur(x.dur);
+var id='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t={id:id,d:d,e:e,en:proN(e),i:i,f:f,sv:x.id,sn:x.n,p:x.p||0,cl:cl.slice(0,60),tel:tel.slice(0,20),src:'web',st:'ok',at:Date.now()};
+var b=writeBatch(db);b.set(doc(db,'stores',sid,'turnos',id),t);
+lockIds(d,e,i,f).forEach(function(k){b.set(doc(db,'stores',sid,'ocupado',k),{t:id,d:d,e:e,m:+k.split('_').pop()})});
+btn.disabled=true;btn.textContent='Reservando…';
+b.commit().then(function(){BK.done=t;var s=OCC[d];if(s)lockIds(d,e,i,f).forEach(function(k){s.add(k)});renderBook()}).catch(function(){
+BK.m=null;alert('Ese horario se acaba de ocupar. Elegí otro, por favor.');loadSlots(true)})}
+
 // link directo a un producto (?p=...): se abre cuando ya cargaron los productos
 function openPend(){if(!PEND||!G.length)return;var k=PEND;PEND='';if(gOf(k))prod(k)}
 function prod(k){var g=G.filter(function(x){return x.k==k})[0];if(!g)return;OPEN=k;
@@ -430,7 +505,8 @@ $('promos').onclick=function(e){var c=e.target.closest('[data-pr]');if(c)promoSh
 $('sh').onclick=function(e){var d=e.target.dataset||{};
 var bt=e.target.closest&&e.target.closest('button,a');if(bt&&bt.dataset)d=bt.dataset;
 if(!bt&&e.target.closest&&e.target.closest('[data-zoom]')){zoom();return}
-if(e.target==$('sh')||d.cl){$('sh').hidden=true;OPEN='';return}
+if(e.target==$('sh')||d.cl){$('sh').hidden=true;OPEN='';BK=null;return}
+if(BK&&!OPEN&&(d.bkp||d.bkd||d.bkm||d.bkok)){if(d.bkp){BK.pro=d.bkp;BK.m=null;loadSlots()}else if(d.bkd){BK.d=d.bkd;BK.m=null;loadSlots()}else if(d.bkm){BK.m=+d.bkm;renderBook();var nn=$('bk_n');if(nn&&!nn.value)setTimeout(function(){nn.scrollIntoView({behavior:'smooth',block:'center'})},50)}else confirmBook(bt);return}
 if(d.fav){togFav(d.fav);bt.classList.toggle('on',isFav(d.fav));draw();return}
 if(d.share){shareProd();return}
 if(d.wa1){consultWa();return}
