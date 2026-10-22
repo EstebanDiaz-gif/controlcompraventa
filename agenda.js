@@ -6,16 +6,17 @@
 // - Publica stores/{sid}/public/agenda: lo que el catálogo necesita para mostrar la carta y los horarios libres
 //   (sin datos de clientes). Ver turnos.js para cómo se evitan los turnos superpuestos.
 import { collection, doc, setDoc, getDocs, onSnapshot, writeBatch, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { beep } from './scanner.js';
 import { DIAS, DEF_CFG, hm, toMin, ymd, addDays, fechaLargaT, fechaCorta, normDur, durTxt, lockIds, busyFromTurnos, libres, elegirPro, desdeHoy, hToRows, rowsToH } from './turnos.js';
 
 const DURS = [15, 20, 30, 40, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240];
 export { DURS };
 
 // X: db, $, esc, money, rnd, today, fail, canWrite, blockedCard, nm, sid(), role(), user(), cs(), sv(), mem(),
-//    pub(), sname(), tab(), isAg(), startAtt(pre)
+//    pub(), sname(), tab(), isAg(), startAtt(pre), show(tab)
 export function createAgenda(X) {
   const { db, $, esc, money } = X;
-  const S = { day: X.today(), list: [], pro: null, ag: null, agOk: false, edit: false, cz: null, lastPub: null, dayCache: {} };
+  const S = { day: X.today(), list: [], pro: null, ag: null, agOk: false, edit: false, cz: null, lastPub: null, dayCache: {}, nuevos: [], nvIds: null, hl: '' };
   const un = {};
   const off = (k) => { if (un[k]) { un[k](); delete un[k]; } };
   const adm = () => X.role() === 'admin';
@@ -51,8 +52,69 @@ export function createAgenda(X) {
     if (un.ag) return;
     un.ag = onSnapshot(ref('public', 'agenda'), (sn) => { S.ag = sn.exists() ? sn.data() : null; S.agOk = true; if (S.lastPub === null && adm()) publishSoon(); if (X.tab() === 'agd') draw(); }, () => {});
     listenDay();
+    listenNuevos();
   }
-  function stop() { Object.keys(un).forEach(off); S.list = []; S.ag = null; S.agOk = false; S.lastPub = null; S.edit = false; S.dayCache = {}; S.pro = null; }
+  function stop() { Object.keys(un).forEach(off); S.list = []; S.ag = null; S.agOk = false; S.lastPub = null; S.edit = false; S.dayCache = {}; S.pro = null; S.nuevos = []; S.nvIds = null; S.hl = ''; badge(); }
+
+  // ---------- reservas nuevas (aviso al abrir la app y mientras está abierta) ----------
+  // Cada persona guarda en su celular hasta cuándo ya vio. El administrador ve las reservas online;
+  // cada profesional, las que le cayeron a él (online o agendadas por otro).
+  const seenKey = () => 'pk_agseen_' + X.sid() + '_' + uid();
+  let seenMem = 0;
+  function seenGet() { let v = 0; try { v = +localStorage.getItem(seenKey()) || 0; } catch (e) { v = seenMem; } return v; }
+  function seenSet(v) { seenMem = v; try { localStorage.setItem(seenKey(), String(v)); } catch (e) { /* sin almacenamiento */ } }
+  const relevante = (t) => !t.b && t.st === 'ok' && t.d >= X.today() && (adm() ? t.src === 'web' : t.e === uid() && t.by !== uid());
+  function listenNuevos() {
+    off('nv');
+    let seen = seenGet();
+    if (!seen) { seen = Date.now() - 24 * 3600 * 1000; seenSet(seen); } // primera vez: lo de las últimas 24 h
+    un.nv = onSnapshot(query(col('turnos'), where('at', '>', seen)), (sn) => {
+      const l = []; sn.forEach((x) => { const t = x.data(); if (relevante(t)) l.push(t); });
+      l.sort((a, b) => a.d.localeCompare(b.d) || a.i - b.i);
+      const first = S.nvIds === null, prev = S.nvIds || new Set();
+      const llegaron = first ? [] : l.filter((t) => !prev.has(t.id));
+      S.nuevos = l; S.nvIds = new Set(l.map((t) => t.id));
+      badge();
+      if (llegaron.length) { beep(true); toast(llegaron); }
+      if (X.tab() === 'agd' && !S.edit) drawNuevos();
+    }, () => {});
+  }
+  const nvTxt = (t) => fechaCorta(t.d) + ' · ' + hm(t.i) + ' · ' + (t.cl || 'Sin nombre') + ' · ' + t.sn + (adm() && pros().length > 1 ? ' (con ' + (t.en || proName(t.e)) + ')' : '');
+  // Número en la pestaña Agenda.
+  function badge() {
+    const b = document.querySelector('#tabs button[data-t="agd"]'); if (!b) return;
+    let i = b.querySelector('.agb');
+    const n = S.nuevos.length;
+    if (!n) { if (i) i.remove(); return; }
+    if (!i) { i = document.createElement('i'); i.className = 'agb'; i.style.cssText = 'position:absolute;top:2px;left:50%;margin-left:6px;min-width:18px;height:18px;border-radius:9px;background:#d92d20;color:#fff;font-size:11px;font-style:normal;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 5px;border:2px solid var(--bg)'; b.style.position = 'relative'; b.appendChild(i); }
+    i.textContent = n > 9 ? '9+' : n;
+  }
+  // Cartel flotante cuando entra una reserva con la app abierta (en cualquier pestaña).
+  function toast(l) {
+    let e = document.getElementById('agtoast');
+    if (!e) {
+      e = document.createElement('button'); e.id = 'agtoast'; e.type = 'button';
+      e.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:70;max-width:min(92vw,460px);width:100%;border:0;border-radius:18px;background:var(--ink);color:var(--bg);padding:14px 16px;text-align:left;font:inherit;box-shadow:0 12px 30px rgba(0,0,0,.3);cursor:pointer';
+      e.onclick = () => { e.remove(); const t = S.nuevos.find((x) => x.id === e.dataset.id) || S.nuevos[0]; X.show('agd'); if (t) verTurno(t); };
+      document.body.appendChild(e);
+    }
+    const t = l[l.length - 1];
+    e.dataset.id = t.id;
+    e.innerHTML = '<b style="display:block;font-size:15px">🔔 ' + (l.length > 1 ? l.length + ' reservas nuevas' : 'Nueva reserva' + (t.src === 'web' ? ' online' : '')) + '</b><span style="font-size:14px;opacity:.9">' + esc(nvTxt(t)) + '</span><span style="display:block;font-size:12.5px;opacity:.7;margin-top:4px">Tocá para verla</span>';
+    clearTimeout(e._t); e._t = setTimeout(() => e.remove(), 10000);
+  }
+  // Cartel arriba de la agenda con la lista de reservas sin ver.
+  function drawNuevos() {
+    const e = $('ag_nv'); if (!e) return;
+    const l = S.nuevos;
+    if (!l.length) { e.innerHTML = ''; return; }
+    e.innerHTML = '<div class="card" style="border:2px solid var(--ink)"><b style="font-size:17px">🔔 ' + (l.length === 1 ? '1 reserva nueva' : l.length + ' reservas nuevas') + (adm() ? ' online' : '') + '</b>' +
+      l.slice(0, 8).map((t) => '<button class="pl" data-ag="nvver" data-id="' + esc(t.id) + '"><span><b>' + esc(fechaCorta(t.d)) + ' · ' + hm(t.i) + '</b><small>' + esc((t.cl || 'Sin nombre') + ' · ' + t.sn + (adm() && pros().length > 1 ? ' · con ' + (t.en || proName(t.e)) : '')) + '</small></span><span class="k">Ver ›</span></button>').join('') +
+      (l.length > 8 ? '<div class="k" style="margin-top:6px">y ' + (l.length - 8) + ' más</div>' : '') +
+      '<button class="go alt" data-ag="nvok" style="margin-top:12px">Listo, ya las vi</button></div>';
+  }
+  function verTurno(t) { S.hl = t.id; if (S.pro && S.pro !== t.e) S.pro = ''; if (t.d !== S.day) setDay(t.d); else draw(); setTimeout(() => { const r = document.querySelector('#ag_list [data-tid="' + t.id + '"]'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 350); }
+  function nvOk() { const mx = S.nuevos.reduce((m, t) => Math.max(m, t.at || 0), 0); seenSet(Math.max(mx, Date.now() - 5000)); S.nuevos = []; S.nvIds = null; S.hl = ''; badge(); listenNuevos(); draw(); }
   function listenDay() {
     off('day');
     const d = S.day;
@@ -98,7 +160,7 @@ export function createAgenda(X) {
     if (S.edit) { if (!$('ag_cfg')) drawCfg(); return; }
     const c = cfg(), pr = pros();
     if (S.pro === null) S.pro = !adm() && pr.some((p) => p.id === uid()) ? uid() : '';
-    let h = '';
+    let h = '<div id="ag_nv"></div>';
     if (adm() && !c.on) h += '<div class="bn"><b>Turnos online apagados.</b> Configurá tus horarios y activalos para que tus clientes reserven solos desde el catálogo.<button class="go" data-ag="cfg" style="margin-top:10px">Configurar turnos</button></div>';
     else if (adm() && S.ag && !S.ag.on) h += '<div class="bn warn">Los turnos online están activados, pero falta ' + (!svcs().length ? 'cargar al menos un servicio' : 'elegir quién atiende') + ' para que aparezcan en el catálogo.</div>';
     h += '<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
@@ -112,7 +174,7 @@ export function createAgenda(X) {
     if (adm()) h += '<button class="x" data-ag="cfg" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Configurar turnos online y horarios</button>';
     box.innerHTML = h;
     $('ag_day').onchange = function () { if (this.value) setDay(this.value); };
-    drawList();
+    drawNuevos(); drawList(); badge();
   }
   function drawList() {
     const e = $('ag_list'); if (!e) { if (X.tab() === 'agd' && !S.edit) draw(); return; }
@@ -121,9 +183,10 @@ export function createAgenda(X) {
     if (!l.length) { e.innerHTML = '<div class="empty">No hay turnos ' + (S.day === X.today() ? 'hoy' : 'este día') + '.</div>'; return; }
     e.innerHTML = l.map((t) => {
       const done = t.st === 'done', blk = !!t.b;
-      return '<div class="it" style="' + (done || blk ? 'opacity:.62' : '') + '"><div style="min-width:0"><b>' + hm(t.i) + ' – ' + hm(t.f) + ' · ' + esc(t.sn || (blk ? 'Bloqueado' : 'Turno')) + '</b>' +
+      const nv = S.nvIds && S.nvIds.has(t.id), hl = S.hl === t.id;
+      return '<div class="it" data-tid="' + esc(t.id) + '" style="' + (done || blk ? 'opacity:.62;' : '') + (hl ? 'background:var(--line);border-radius:14px;padding-left:10px;padding-right:10px;' : '') + '"><div style="min-width:0"><b>' + hm(t.i) + ' – ' + hm(t.f) + ' · ' + esc(t.sn || (blk ? 'Bloqueado' : 'Turno')) + '</b>' +
         '<small>' + (multi ? esc(t.en || proName(t.e)) + (blk ? '' : ' · ') : '') + (blk ? '' : esc(t.cl || 'Sin nombre') + (t.tel ? ' · ' + esc(t.tel) : '')) + '</small>' +
-        '<small>' + (blk ? '<em class="tag">Bloqueado</em>' : '') + (t.src === 'web' ? '<em class="tag">Reservó online</em>' : '') + (done ? '<em class="tag">Atendido ✓</em>' : '') + (!blk && t.p ? money(t.p) : '') + '</small>' +
+        '<small>' + (blk ? '<em class="tag">Bloqueado</em>' : '') + (nv ? '<em class="tag" style="background:#d92d20;color:#fff">Nuevo</em>' : '') + (t.src === 'web' ? '<em class="tag">Reservó online</em>' : '') + (done ? '<em class="tag">Atendido ✓</em>' : '') + (!blk && t.p ? money(t.p) : '') + '</small>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">' +
         (!blk && !done && X.canWrite() ? '<button class="x" data-ag="att" data-id="' + esc(t.id) + '" style="font-size:14px;font-weight:700;color:var(--ink)">Atender</button>' : '') +
         (!blk && t.tel ? '<a class="x" target="_blank" rel="noopener" href="' + esc(waUrl(t.tel, recordatorio(t))) + '" style="font-size:14px">WhatsApp</a>' : '') +
@@ -307,7 +370,9 @@ export function createAgenda(X) {
     else if (a === 'savecfg') saveCfg();
     else if (a === 'czadd') { const v = $('ag_czd').value; if (v && S.cz.indexOf(v) < 0) { S.cz.push(v); S.cz.sort(); drawCz(); } }
     else if (a === 'czdel') { S.cz.splice(+el.dataset.i, 1); drawCz(); }
+    else if (a === 'nvver') { const t = S.nuevos.find((x) => x.id === el.dataset.id); if (t) verTurno(t); }
+    else if (a === 'nvok') nvOk();
   });
 
-  return { start, stop, draw, publishSoon, editing: () => S.edit, resetView() { S.edit = false; S.cz = null; } };
+  return { start, stop, draw, publishSoon, badge, editing: () => S.edit, resetView() { S.edit = false; S.cz = null; } };
 }

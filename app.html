@@ -194,7 +194,7 @@ var ATPRE=null; // turno que se está atendiendo (abre Atender con los datos car
 function isAgBiz(){var b=biz();return b=='servicios'||b=='ambos'}
 var AG=createAgenda({db:db,$:$,esc:esc,money:money,rnd:rnd,today:today,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 sid:function(){return SID},role:function(){return ROLE},user:function(){return U},cs:function(){return CS},sv:function(){return SV},mem:function(){return MEM},pub:function(){return PUB},sname:function(){return SNAME},tab:function(){return TAB},
-isAg:function(){return !!SID&&!!ROLE&&isAgBiz()},startAtt:function(pre){ATPRE=pre;$('s-att').innerHTML='';show('att');window.scrollTo(0,0)}});
+isAg:function(){return !!SID&&!!ROLE&&isAgBiz()},show:function(t){show(t)},startAtt:function(pre){ATPRE=pre;$('s-att').innerHTML='';show('att');window.scrollTo(0,0)}});
 function fail(e){var c=e&&e.code?String(e.code):'';
 if(c.indexOf('functions/')===0&&c!='functions/internal'&&c!='functions/unavailable'&&e.message){alert(e.message);return}
 if(c=='functions/unavailable'){alert('Necesitás internet para hacer esto.');return}
@@ -324,7 +324,7 @@ un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.f
 un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
 gate('app');drawHdr();drawAcct();drawBanner();buildTabs()}
 function buildTabs(){
-var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('');
+var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('');AG.badge();
 var ok=TAB=='promo'&&ROLE=='admin'||tabs.some(function(t){return t[0]==TAB});show(ok?TAB:tabs[0][0])}
 function drawBanner(){
 var b=$('banner'),d=dstate(),h='';
