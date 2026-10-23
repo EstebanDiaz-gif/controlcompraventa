@@ -13,7 +13,9 @@ import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, in
 import { fotoId } from './fotos.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, PAY, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista } from './almacen-calc.js';
-import { openScanner, scanButton, findByCode, beep } from './scanner.js';
+import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
+// Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
+const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
 import { CAMPOS, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
 export { CATS, PAY };
 
@@ -678,14 +680,33 @@ export function createAlmacen(X) {
     S.qk = { n: 0, log: [], cur: null };
     const c = qkCfg();
     $('s-stk').innerHTML = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Terminar y volver al stock</button>' +
-      '<div class="card"><b style="font-size:19px">Carga rápida</b><div class="k" style="margin-top:4px">Pasá cada producto por la cámara. Si es nuevo, completás nombre, precio y cuántos hay; si ya está, corregís el stock.</div>' +
-      '<div id="qkcam" style="margin-top:12px"></div><button class="go alt" data-al="qkman" style="margin-top:10px">Producto sin código (fiambre, suelto…)</button>' +
+      '<div class="card"><b style="font-size:19px">Carga rápida</b><div class="k" style="margin-top:4px">Pasá cada producto por ' + (PC ? 'el lector' : 'la cámara') + '. Si es nuevo, completás nombre, precio y cuántos hay; si ya está, corregís el stock.</div>' +
+      '<label>Código de barras</label><input id="qkcod" type="search" enterkeyhint="go" inputmode="numeric" autocomplete="off" placeholder="' + (PC ? 'Pasá el producto por el lector' : 'Escribilo o usá la cámara') + '">' +
+      '<div id="qkcam" style="margin-top:12px"></div>' + (PC && canScan() ? '<button class="go alt" data-al="qkcamon" id="qkcamb" style="margin-top:10px">📷 Usar la cámara en vez del lector</button>' : '') +
+      '<button class="go alt" data-al="qkman" style="margin-top:10px">Producto sin código (fiambre, suelto…)</button>' +
       '<details style="margin-top:12px"><summary class="k" style="cursor:pointer">Margen y redondeo: <b id="qkcs">' + c.m + '% · ' + (c.r > 1 ? 'a $' + c.r : 'sin redondeo') + '</b></summary>' +
       '<div class="row" style="margin-top:6px"><div><label>Margen de ganancia (%)</label><input id="qkm" type="number" inputmode="decimal" min="0" value="' + c.m + '"></div><div><label>Redondear precios a</label><select id="qkr">' + [[1, 'Sin redondeo'], [10, '$10'], [50, '$50'], [100, '$100']].map(([v, t]) => '<option value="' + v + '"' + (c.r === v ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div></div>' +
       '<div class="k" style="margin-top:6px">Con el costo te sugiero el precio; si no tenés la factura, con el precio estimo el costo.</div></details></div>' +
       '<div id="qkform"></div><div id="qklog"></div>';
     const upd = () => { const nc = { m: Math.max(0, +$('qkm').value || 0), r: +$('qkr').value }; qkSaveCfg(nc); $('qkcs').textContent = nc.m + '% · ' + (nc.r > 1 ? 'a $' + nc.r : 'sin redondeo'); };
     $('qkm').oninput = upd; $('qkr').onchange = upd;
+    const ci = $('qkcod');
+    ci.onkeydown = (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const code = ci.value.trim(); ci.value = '';
+      if (!code) return;
+      if (S.qk.cur) { beep(false); alert('Terminá el producto de abajo primero (Guardar o Saltear).'); return; }
+      beep(true); qkShow(code);
+    };
+    // En la compu se usa la pistola lectora: la cámara se abre solo si la piden.
+    if (!PC) qkCamOn();
+    else setTimeout(() => { try { ci.focus({ preventScroll: true }); } catch (e) { ci.focus(); } }, 120);
+    qkLog(); window.scrollTo(0, 0);
+  }
+  function qkCamOn() {
+    if (!S.qk || S.qk.cam || !canScan()) return;
+    const b = $('qkcamb'); if (b) b.remove();
     S.qk.cam = openScanner({
       box: $('qkcam'), multi: true,
       onCode(code) {
@@ -695,7 +716,10 @@ export function createAlmacen(X) {
         return { ok: true, msg: p ? '✓ ' + p.n : 'Código nuevo: ' + code };
       }
     });
-    qkLog(); window.scrollTo(0, 0);
+  }
+  function qkNext() {
+    const ci = $('qkcod');
+    if (ci && (PC || !S.qk.cam)) setTimeout(() => { try { ci.focus({ preventScroll: true }); } catch (e) { ci.focus(); } }, 60);
   }
   function qkStop() { if (S.qk && S.qk.cam) { try { S.qk.cam.close(); } catch (e) { /* nada */ } S.qk.cam = null; } }
   function qkShow(code) {
@@ -703,8 +727,8 @@ export function createAlmacen(X) {
     if (S.qk.cam) S.qk.cam.pause();
     S.qk.cur = code || '-';
     qkForm($('qkform'), code, {
-      onDone(p) { S.qk.n++; S.qk.log.unshift(p); S.qk.cur = null; $('qkform').innerHTML = ''; qkLog(); if (S.qk.cam) { S.qk.cam.resume(); S.qk.cam.say('✓ ' + p.n + ' guardado. Escaneá el siguiente', 'ok'); } window.scrollTo({ top: 0, behavior: 'smooth' }); },
-      onCancel() { S.qk.cur = null; $('qkform').innerHTML = ''; if (S.qk.cam) { S.qk.cam.resume(); S.qk.cam.say('Escaneá el siguiente producto', ''); } }
+      onDone(p) { S.qk.n++; S.qk.log.unshift(p); S.qk.cur = null; $('qkform').innerHTML = ''; qkLog(); if (S.qk.cam) { S.qk.cam.resume(); S.qk.cam.say('✓ ' + p.n + ' guardado. Escaneá el siguiente', 'ok'); } window.scrollTo({ top: 0, behavior: 'smooth' }); qkNext(); },
+      onCancel() { S.qk.cur = null; $('qkform').innerHTML = ''; if (S.qk.cam) { S.qk.cam.resume(); S.qk.cam.say('Escaneá el siguiente producto', ''); } qkNext(); }
     });
     setTimeout(() => { const f = $('qkform'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
   }
@@ -753,6 +777,7 @@ export function createAlmacen(X) {
     q('qk_ok').onclick = () => {
       const pr = +q('qk_p').value || 0, coIn = q('qk_co').value === '' ? null : +q('qk_co').value, qs = q('qk_q').value.trim(), cant = qs === '' ? null : r3(pnum(qs)), w = isW();
       if (pr < 0 || (coIn != null && coIn < 0)) { alert('Los precios no pueden ser negativos.'); return; }
+      if (/^\d{8,14}$/.test(qs)) { q('qk_q').value = ''; beep(false); alert('Eso parece un código de barras, no una cantidad. Terminá este producto (escribí cuántos hay y tocá Guardar) antes de pasar el siguiente.'); q('qk_q').focus(); return; }
       if (cant != null && (isNaN(cant) || cant < 0)) { alert('Revisá la cantidad (usá números, por ejemplo 12 o 1,5).'); return; }
       if (cant != null && !w && cant !== Math.floor(cant)) { alert('Este producto se vende por unidad: la cantidad tiene que ser entera.'); return; }
       if (p) {
@@ -1066,6 +1091,7 @@ export function createAlmacen(X) {
     else if (a === 'precios') preciosDlg();
     else if (a === 'qk') qkOpen();
     else if (a === 'qkman') qkShow('');
+    else if (a === 'qkcamon') qkCamOn();
     else if (a === 'libre') libreDlg();
     else if (a === 'snocod') { S.stNoCod = !S.stNoCod; S.stLow = false; S.stCat = ''; renderStock(); }
     else if (a === 'asigcod') asigCod(id);
