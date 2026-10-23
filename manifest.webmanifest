@@ -1,13 +1,24 @@
 {
-  "name": "Control de compras y ventas",
-  "short_name": "Control Pekeron",
+  "name": "Pekeron",
+  "short_name": "Pekeron",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#eef2ef",
-  "theme_color": "#0f7a55",
+  "background_color": "#FFF6E9",
+  "theme_color": "#1D3FAF",
   "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
-  ]
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "description": "Caja, stock, ventas, gastos y catálogo para tu negocio"
 }

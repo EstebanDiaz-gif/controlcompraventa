@@ -171,8 +171,11 @@ if(DP){DP.prompt();DP.userChoice.finally(function(){DP=null});return}
 var ua=navigator.userAgent,ios=/iPhone|iPad|iPod/.test(ua),and=/Android/.test(ua),h;
 if(ios)h='<ol><li>Abrí esta página en <b>Safari</b>.</li><li>Tocá el botón <b>Compartir</b> (el cuadrado con la flecha hacia arriba).</li><li>Elegí <b>“Agregar a inicio”</b> y confirmá.</li></ol>';
 else if(and)h='<ol><li>Tocá los <b>tres puntitos ⋮</b> de Chrome (arriba a la derecha).</li><li>Elegí <b>“Instalar app”</b> o <b>“Agregar a la pantalla principal”</b>.</li><li>Confirmá. Va a aparecer el ícono en tu celular.</li></ol>';
-else h='<ol><li>En <b>Chrome o Edge</b>, buscá el ícono de instalar al final de la barra de direcciones (una pantalla con una flecha).</li><li>Tocalo y elegí <b>Instalar</b>.</li></ol><div class="note">Si no aparece, es posible que la app ya esté instalada. Podés usarla igual desde el navegador.</div>';
+else if(/Firefox\//.test(ua))h='<p>Firefox no permite instalar apps en la computadora. Abrí <b>pekeronapp.com</b> en <b>Google Chrome</b> o <b>Microsoft Edge</b> (viene con Windows) y tocá de nuevo <b>Descargar la app</b>.</p>';
+else if(/Macintosh/.test(ua)&&/Safari\//.test(ua)&&!/Chrome|Edg\//.test(ua))h='<ol><li>En Safari, abrí el menú <b>Archivo</b> (arriba de todo).</li><li>Elegí <b>“Agregar al Dock”</b> y confirmá.</li></ol><div class="note">La app queda en el Dock y se abre en su propia ventana, como cualquier programa.</div>';
+else h='<ol><li>En <b>Chrome o Edge</b>, buscá el ícono de instalar al final de la barra de direcciones (una pantallita con una flecha ⬇).</li><li>Hacé clic y elegí <b>Instalar</b>.</li><li>Listo: queda un ícono de <b>Pekeron</b> en el escritorio y en el menú Inicio, y se abre en su propia ventana, como un programa.</li></ol><div class="note">Si no aparece el ícono, es posible que la app ya esté instalada en esta computadora. Buscala en el menú Inicio como “Pekeron”.</div>';
 $('dsteps').innerHTML=h;$('dlg').hidden=false}
+if(!/Android|iPhone|iPad|iPod|Mobile/.test(navigator.userAgent)){$('inst').textContent='⬇ Descargar para la computadora';$('inst2').textContent='⬇ Descargar para la computadora'}
 $('inst').onclick=inst;$('inst2').onclick=inst;$('dok').onclick=function(){$('dlg').hidden=true};
 $('dlg').onclick=function(e){if(e.target==$('dlg'))$('dlg').hidden=true};
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}

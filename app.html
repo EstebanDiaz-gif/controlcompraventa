@@ -109,6 +109,9 @@ td small{color:var(--mut)}
 #pr{display:none}
 @media print{body.printing main>*:not(#pr){display:none!important}body.printing{background:#fff}body.printing #pr{display:block;color:#000;background:#fff;font-size:13px;font-family:sans-serif}#pr h2{margin:0 0 4px}#pr td,#pr th{text-align:left;padding:6px 4px;border-top:1px solid #bbb;color:#000}#pr td.r,#pr th.r{text-align:right}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* Las opciones de los desplegables en la compu (Windows) no toman el tema: les damos el fondo y el color de la tarjeta */
+select option,select optgroup{background-color:var(--card);color:var(--ink)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark}}:root[data-theme="dark"]{color-scheme:dark}
 </style></head><body><main>
 <div id="load" class="empty">Cargando…</div>
 <section id="auth" hidden><div class="splash"><div class="brand lg"><b>PEKERON</b><span><i></i>APP<i></i></span></div></div><div class="card"><h1 style="margin-top:0">Entrá a tu cuenta</h1>
@@ -417,8 +420,13 @@ var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#FFD6AA','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
-a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>';
-$('out').onclick=function(){signOut(auth)}}
+a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
+$('out').onclick=function(){signOut(auth)};
+if($('instb'))$('instb').onclick=function(){if(!INSTP)return;INSTP.prompt();INSTP.userChoice.finally(function(){INSTP=null;drawAcct()})}}
+// Instalar como app (en la compu queda con su ventana propia y su ícono, como un programa).
+var INSTP=null;
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();INSTP=e;drawAcct()});
+window.addEventListener('appinstalled',function(){INSTP=null;drawAcct()});
 window.addEventListener('online',drawAcct);window.addEventListener('offline',drawAcct);
 
 /* ---------- escritura (movimiento + contador de stock en un solo paso) ---------- */
