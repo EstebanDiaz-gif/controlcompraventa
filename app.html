@@ -9,7 +9,7 @@
 :root{--bg:#FFF6E9;--card:#f4f3f0;--ink:#102468;--mut:#63645e;--line:rgba(0,0,0,.1);--buy:#FFD6AA;--sell:#1D3FAF;--onc:#fff;--hero:#bdbdb8;--nav:#bdbdb8;--btn:#1D3FAF;--btnink:#FFF6E9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#FFD6AA;--sell:#5B8FFF;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#1D3FAF;--btnink:#FFF6E9}}
 :root[data-theme="dark"]{--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#FFD6AA;--sell:#5B8FFF;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#1D3FAF;--btnink:#FFF6E9}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px);overflow-x:clip}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:'Archivo',system-ui,sans-serif;font-size:16px;line-height:1.35;-webkit-tap-highlight-color:transparent}
@@ -1209,7 +1209,7 @@ h+='<div class="card"><div style="display:flex;justify-content:space-between;gap
 '<div class="row" style="margin-top:10px"><div><select id="lp_'+esc(x.sid)+'">'+PLAN_IDS.map(function(k){return '<option value="'+k+'"'+((a&&(a.chosenPlan==k))?' selected':'')+'>'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select></div><div><input id="lm_'+esc(x.sid)+'" type="number" min="1" max="24" value="1" inputmode="numeric" placeholder="Meses"></div></div>'+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+
 (r.k=='life'?'':'<button class="go alt" data-lt="life" data-sid="'+esc(x.sid)+'">Pago único: habilitar de por vida</button>')+
-'<div class="row" style="gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:var(--buy)" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></div>'});
+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:#b3261e;border-color:#b3261e" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></div>'});
 h+=gTemaCard();$('s-plat').innerHTML=h;var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 function litBuild(base){
 var c=computeAccess({nowMs:Date.now(),config:CFG,paidPlan:base.paidPlan||null,trialStartMs:base.trialStartMs==null?null:base.trialStartMs,paidUntilMs:base.paidUntilMs==null?null:base.paidUntilMs,ownerFree:false,grants:[]});
