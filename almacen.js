@@ -14,6 +14,7 @@ import { fotoId } from './fotos.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, PAY, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista } from './almacen-calc.js';
 import { openScanner, scanButton, findByCode, beep } from './scanner.js';
+import { CAMPOS, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
 export { CATS, PAY };
 
 // ---------- módulo de pantalla ----------
@@ -24,7 +25,7 @@ export function createAlmacen(X) {
   const S = {
     cart: [], q: '', cat: '', pay: 'ef', cli: '', cliQ: '', paga: '', last: '',
     cl: [], clErr: false, fq: '', sel: null, fmov: null,
-    stQ: '', stCat: '', stLow: false, edit: null, repo: null, rq: '', rcomp: null,
+    stQ: '', stCat: '', stLow: false, stNoCod: false, edit: null, repo: null, rq: '', rcomp: null, imp: null,
     month: X.today().slice(0, 7), tot: null, totM: null, hoy: [], hoyDay: '', day: X.today(), dayV: null
   };
   const un = {};
@@ -401,36 +402,40 @@ export function createAlmacen(X) {
   // =====================================================================
   function drawStock() {
     const box = $('s-stk');
-    if (S.edit || S.repo) return; // hay un formulario abierto: no lo pisamos
+    if (S.edit || S.repo || S.imp) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
-      box.innerHTML = (adm() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go alt" data-al="precios" style="margin:4px 0 14px">Actualizar precios por %</button>' : '') +
+      box.innerHTML = (adm() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button><button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button></div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
       $('aq').oninput = function () { S.stQ = this.value; renderStock(); };
     }
     renderStock();
   }
   function renderStock() {
-    const all = P(), low = all.filter((p) => p.q <= (p.min || 0) && (p.min || p.q <= 0)).length;
+    const all = P(), low = all.filter((p) => p.q <= (p.min || 0) && (p.min || p.q <= 0)).length, sinCod = all.filter((p) => !p.s).length;
+    if (!sinCod) S.stNoCod = false;
     $('acats').innerHTML = '<button class="ch' + (!S.stCat && !S.stLow ? ' on' : '') + '" data-al="scat" data-v="">Todos (' + all.length + ')</button>' +
       '<button class="ch' + (S.stLow ? ' on' : '') + '" data-al="slow">Por reponer (' + low + ')</button>' +
+      (adm() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
-    const l = all.filter((p) => (!S.stCat || p.cat === S.stCat) && (!S.stLow || (p.q <= (p.min || 0) && (p.min || p.q <= 0))) && match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ)).sort((a, b) => a.n.localeCompare(b.n));
+    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || (p.q <= (p.min || 0) && (p.min || p.q <= 0))) && match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ)).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b></div>' : '';
     h += '<div class="card">';
+    if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
     if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (adm() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
     const shown = l.slice(0, 300);
     shown.forEach((p) => {
       const lw = p.q <= (p.min || 0) && (p.min || p.q <= 0), mg = p.pn && p.c ? Math.round((p.pn - p.c) / p.pn * 100) : null;
       h += '<div class="it"><div>' + (p.img ? '<img src="' + p.img + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">' : '') + '<b>' + esc(p.n) + '</b>' + (p.s ? '<span class="sku">' + esc(p.s) + '</span>' : '') +
         '<small>' + (p.cat ? '<em class="tag">' + esc(p.cat) + '</em>' : '') + priceTxt(p) + (adm() && p.c ? ' · costo ' + money(p.c) + (mg != null ? ' · margen ' + mg + '%' : '') : '') + '</small>' +
-        (adm() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') + '</div>' +
+        (adm() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') +
+        (adm() && S.stNoCod ? '<button class="x" data-al="asigcod" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">Escanear código</button>' : '') + '</div>' +
         '<div class="amt"><b class="' + (p.q < 0 ? 'neg' : lw ? 'neg' : '') + '">' + fq(p.q, p.w) + '</b><small>' + (lw ? 'reponer' : 'en stock') + '</small></div></div>';
     });
     if (l.length > shown.length) h += '<div class="k" style="margin-top:8px">Mostrando 300 de ' + l.length + '. Buscá para encontrar el resto.</div>';
     $('abody').innerHTML = h + '</div>';
   }
-  function closeForms() { S.edit = null; S.repo = null; $('s-stk').innerHTML = ''; drawStock(); }
+  function closeForms() { S.edit = null; S.repo = null; S.imp = null; $('s-stk').innerHTML = ''; drawStock(); }
 
   function prodForm(id, code) {
     const p = id ? prod(id) : null;
@@ -633,12 +638,181 @@ export function createAlmacen(X) {
       .catch(() => { S.dayV = []; if (X.tab() === 'res') drawRes(); });
   }
 
+  // ---------- importar desde Excel / CSV (planilla.js) ----------
+  const MAX_IMP = 5000;
+  function impOpen() { S.edit = null; S.repo = null; S.imp = { step: 'file' }; renderImp(); window.scrollTo(0, 0); }
+  const colName = (i) => { let s = '', n = i + 1; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  function renderImp() {
+    const I = S.imp, box = $('s-stk');
+    let h = I.step === 'run' ? '' : '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver al stock</button>';
+    if (I.step === 'file') {
+      h += '<div class="card"><b style="font-size:19px">Importar productos desde Excel</b><div class="k" style="margin-top:4px">Si ya tenés tus productos en una planilla (de Excel o la que exporta tu sistema anterior), cargalos todos de una vez. Sirven archivos <b>.xlsx</b> y <b>.csv</b>.</div>' +
+        '<label>Elegí el archivo</label><input id="impf" type="file" accept=".xlsx,.xlsm,.csv,.txt,.xls,.ods,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">' +
+        '<div class="bn" style="margin:16px 0 0;background:var(--line)"><b>¿Cómo tiene que estar la planilla?</b><br>Una fila por producto y los títulos arriba. Lo único obligatorio es el <b>nombre</b>; conviene que tenga <b>precio de venta</b> y, si lo tenés, el <b>código de barras</b> (así después se escanea en la caja). También puede traer costo, stock, categoría y si se vende por peso. Las columnas pueden estar en cualquier orden y con otros nombres: en el paso siguiente elegís cuál es cuál.</div>' +
+        '<button class="go alt" data-al="impej">Descargar planilla de ejemplo</button>' +
+        '<div class="k" style="margin-top:10px">¿Tu archivo es .xls (Excel viejo)? Abrilo y guardalo como .xlsx. En Google Sheets: Archivo → Descargar → .xlsx.</div></div>';
+      box.innerHTML = h;
+      $('impf').onchange = function () { const f = this.files && this.files[0]; if (f) impLeer(f); };
+      return;
+    }
+    if (I.step === 'map') {
+      const cols = Math.max(...I.rows.slice(Math.max(0, I.head), Math.max(0, I.head) + 30).map((r) => r.length), 0);
+      const hdr = I.head >= 0 ? I.rows[I.head] : [], sample = I.rows[I.head + 1] || [];
+      const opt = (k) => '<option value="-1">— No está en la planilla —</option>' + Array.from({ length: cols }, (_, i) => {
+        const t = String(hdr[i] == null ? '' : hdr[i]).trim() || String(sample[i] == null ? '' : sample[i]).trim().slice(0, 24);
+        return '<option value="' + i + '"' + (I.map[k] === i ? ' selected' : '') + '>Columna ' + colName(i) + (t ? ': ' + esc(t) : '') + '</option>';
+      }).join('');
+      h += '<div class="card"><b style="font-size:19px">' + esc(I.name) + '</b><div class="k" style="margin-top:2px">' + (I.rows.length - I.head - 1) + ' filas. Revisá qué columna es cada dato (ya elegí las que reconocí).</div>' +
+        '<label>Los títulos están en la fila</label><select id="imph">' + I.rows.slice(0, 15).map((r, i) => '<option value="' + i + '"' + (I.head === i ? ' selected' : '') + '>Fila ' + (i + 1) + ': ' + esc(r.filter((c) => String(c).trim()).slice(0, 3).join(' · ').slice(0, 40)) + '</option>').join('') + '<option value="-1"' + (I.head < 0 ? ' selected' : '') + '>No tiene títulos</option></select>' +
+        CAMPOS.map((f) => '<label>' + f.t + (f.req ? ' *' : '') + '</label><select class="impm" data-k="' + f.k + '">' + opt(f.k) + '</select>').join('') +
+        '<label style="margin-top:18px">Productos que ya están cargados (mismo código o mismo nombre)</label><select id="impu"><option value="upd"' + (I.upd !== 'skip' ? ' selected' : '') + '>Actualizar precio, costo y categoría</option><option value="skip"' + (I.upd === 'skip' ? ' selected' : '') + '>Dejarlos como están</option></select>' +
+        '<div id="impsw"><label>Stock</label><select id="imps"><option value="set"' + (I.stk === 'set' || !I.stk ? ' selected' : '') + '>Poner la cantidad de la planilla</option><option value="add"' + (I.stk === 'add' ? ' selected' : '') + '>Sumar la planilla al stock actual</option><option value="no"' + (I.stk === 'no' ? ' selected' : '') + '>No tocar el stock</option></select></div>' +
+        '<div id="impprev"></div><div id="impsum"></div><button class="go" data-al="impgo" id="impgo">Importar</button></div>';
+      box.innerHTML = h;
+      box.querySelectorAll('.impm').forEach((x) => { x.onchange = () => { I.map[x.dataset.k] = +x.value; impCalc(); }; });
+      $('imph').onchange = function () { I.head = +this.value; const d = detectar(I.rows.slice(Math.max(0, I.head))); if (I.head >= 0 && d.head === 0) I.map = d.map; renderImp(); };
+      $('impu').onchange = function () { I.upd = this.value; impCalc(); };
+      $('imps').onchange = function () { I.stk = this.value; impCalc(); };
+      impCalc();
+      return;
+    }
+    if (I.step === 'run') {
+      const pc = I.total ? Math.round(I.done / I.total * 100) : 0;
+      box.innerHTML = '<div class="card"><b style="font-size:19px">Importando…</b><div class="k" style="margin-top:6px">' + I.done + ' de ' + I.total + ' productos. No cierres la app.</div><div style="height:10px;border-radius:5px;background:var(--line);margin-top:14px;overflow:hidden"><div style="height:100%;width:' + pc + '%;background:var(--sell);transition:width .3s"></div></div></div>';
+      return;
+    }
+    if (I.step === 'done') {
+      const R = I.res;
+      h += '<div class="card"><b style="font-size:19px">' + (R.fail ? 'Importación incompleta' : '✓ Listo') + '</b><div style="margin-top:8px;line-height:1.5">' +
+        (R.nuevos ? '<b>' + R.nuevos + '</b> producto' + (R.nuevos === 1 ? '' : 's') + ' nuevo' + (R.nuevos === 1 ? '' : 's') + '<br>' : '') + (R.act ? '<b>' + R.act + '</b> actualizado' + (R.act === 1 ? '' : 's') + '<br>' : '') +
+        (R.err ? R.err + ' fila' + (R.err === 1 ? '' : 's') + ' salteada' + (R.err === 1 ? '' : 's') + '<br>' : '') + '</div>' +
+        (R.fail ? '<div class="bn warn" style="margin:12px 0 0">Se cortó a mitad (' + esc(R.fail) + '). Lo que ya se guardó quedó bien: volvé a importar el mismo archivo y los que ya están se actualizan en vez de repetirse.</div>' : '') +
+        (R.sinCod ? '<div class="bn" style="margin:12px 0 0;background:var(--line)"><b>' + R.sinCod + ' producto' + (R.sinCod === 1 ? '' : 's') + ' sin código de barras.</b> Para que se puedan escanear en la caja, en Stock tocá "Sin código" y escaneá cada uno, o escaneá desde el buscador y elegí a qué producto es.</div>' : '') +
+        '<button class="go" data-al="cancel">Ver el stock</button></div>';
+      box.innerHTML = h;
+    }
+  }
+  function impLeer(file) {
+    const st = $('impf'); if (st) st.disabled = true;
+    leerArchivo(file).then((rows) => {
+      if (!rows.length) { alert('El archivo está vacío o no pude encontrar datos en la primera hoja.'); renderImp(); return; }
+      const d = detectar(rows);
+      Object.assign(S.imp, { step: 'map', name: file.name, rows, head: d.head, map: d.map, upd: 'upd', stk: 'set' });
+      renderImp();
+    }).catch((e) => {
+      const c = e && e.code;
+      alert(c === 'xls' ? 'Ese archivo es de Excel viejo (.xls). Abrilo en Excel y guardalo como .xlsx (Archivo → Guardar como), o en Google Sheets: Archivo → Descargar → .xlsx. Después volvé a elegirlo acá.'
+        : c === 'ods' ? 'Ese archivo es de LibreOffice (.ods). Guardalo como .xlsx o .csv y volvé a elegirlo.'
+        : c === 'nav' ? 'Tu navegador no puede abrir archivos .xlsx. Actualizalo, o guardá la planilla como .csv y elegí ese.'
+        : 'No pude leer ese archivo. Probá guardarlo como .xlsx o .csv.');
+      renderImp();
+    });
+  }
+  function impCalc() {
+    const I = S.imp, ok = I.map.n != null && I.map.n >= 0;
+    $('impsw').hidden = !(I.map.q >= 0);
+    const btn = $('impgo');
+    if (!ok) { $('impprev').innerHTML = ''; $('impsum').innerHTML = '<div class="bn warn" style="margin:14px 0 0">Elegí qué columna tiene el <b>nombre</b> del producto.</div>'; btn.disabled = true; return; }
+    const A = armar(I.rows, I.head, I.map), Pl = plan(A.items, P());
+    I.A = A; I.Pl = Pl;
+    const show = A.items.slice(0, 5), has = (k) => I.map[k] != null && I.map[k] >= 0;
+    $('impprev').innerHTML = '<label style="margin-top:18px">Así van a quedar (primeros ' + show.length + ')</label>' + show.map((x) => '<div class="it" style="padding:10px 0"><div><b>' + esc(x.n) + '</b><small>' +
+      (x.cat ? '<em class="tag">' + esc(x.cat) + '</em>' : '') + [has('s') ? (x.s ? 'código ' + esc(x.s) : 'sin código') : '', has('c') && x.c != null ? 'costo ' + money(x.c) : '', has('q') && x.q != null ? 'stock ' + fq(x.q, x.w) : ''].filter(Boolean).join(' · ') +
+      '</small></div><div class="amt"><b>' + (has('pn') ? (x.pn ? money(x.pn) + (x.w ? '<span class="k"> /kg</span>' : '') : '<span class="k">sin precio</span>') : '') + '</b></div></div>').join('');
+      '<tr style="color:var(--mut);text-align:left"><th style="padding:6px 6px 6px 0">Nombre</th>' + (has('s') ? '<th>Código</th>' : '') + (has('pn') ? '<th>Precio</th>' : '') + (has('c') ? '<th>Costo</th>' : '') + (has('q') ? '<th>Stock</th>' : '') + '</tr>' +
+      show.map((x) => '<tr style="border-top:1px solid var(--line)"><td style="padding:6px 6px 6px 0;font-weight:700">' + esc(x.n) + (x.w ? ' <span class="k">(kg)</span>' : '') + (x.cat ? '<br><span class="k">' + esc(x.cat) + '</span>' : '') + '</td>' + (has('s') ? '<td>' + esc(x.s || '—') + '</td>' : '') + (has('pn') ? '<td>' + (x.pn ? money(x.pn) : '—') + '</td>' : '') + (has('c') ? '<td>' + (x.c != null ? money(x.c) : '—') + '</td>' : '') + (has('q') ? '<td>' + (x.q != null ? fq(x.q, x.w) : '—') + '</td>' : '') + '</tr>').join('') + '</table></div>';
+    const n = Pl.nuevos.length, u = I.upd === 'skip' ? 0 : Pl.actualizar.length, sinP = A.items.filter((x) => !x.pn).length, sinC = A.items.filter((x) => !x.s).length;
+    const tot = n + u;
+    $('impsum').innerHTML = '<div class="bn" style="margin:16px 0 0;background:var(--line);line-height:1.5">' +
+      (n ? 'Se van a crear <b>' + n + '</b> producto' + (n === 1 ? '' : 's') + ' nuevo' + (n === 1 ? '' : 's') + '.<br>' : '') +
+      (Pl.actualizar.length ? (I.upd === 'skip' ? Pl.actualizar.length + ' ya están cargados y se dejan como están.' : 'Se van a actualizar <b>' + u + '</b> que ya estaban cargados.') + '<br>' : '') +
+      (A.errores.length ? A.errores.length + ' fila' + (A.errores.length === 1 ? '' : 's') + ' se saltea' + (A.errores.length === 1 ? '' : 'n') + ' (' + esc(A.errores.slice(0, 4).map((e) => 'fila ' + e.fila + ': ' + e.motivo.toLowerCase()).join('; ')) + (A.errores.length > 4 ? '…' : '') + ').<br>' : '') +
+      (sinP && has('pn') ? sinP + ' sin precio de venta (los vas a poder completar después).<br>' : !has('pn') ? 'La planilla no tiene precio: los productos quedan sin precio hasta que lo cargues.<br>' : '') +
+      (sinC ? sinC + ' sin código de barras: después los podés escanear en Stock → "Sin código".' : '') + '</div>' +
+      (tot > MAX_IMP ? '<div class="bn warn" style="margin:12px 0 0">Son muchos productos: se pueden importar hasta ' + MAX_IMP + ' por vez. Partí la planilla en varias.</div>' : '');
+    btn.disabled = !tot || tot > MAX_IMP;
+    btn.textContent = tot ? 'Importar ' + tot + ' producto' + (tot === 1 ? '' : 's') : 'No hay nada para importar';
+  }
+  async function impRun() {
+    const I = S.imp; if (!I || !I.Pl) return;
+    if (!X.canWrite()) { alert('El acceso venció: por ahora no se pueden cargar productos.'); return; }
+    const hasQ = I.map.q >= 0, stk = hasQ ? I.stk : 'no', ops = [];
+    I.Pl.nuevos.forEach((it) => ops.push([ref('stock', 'al_' + X.rnd(10)), { n: it.n, s: it.s || '', cat: it.cat || '', w: !!it.w, pn: it.pn || 0, c: it.c || 0, q: stk !== 'no' && it.q != null ? it.q : 0, min: 0, oh: false, alm: 1 }]));
+    if (I.upd !== 'skip') I.Pl.actualizar.forEach(({ it, p }) => {
+      const o = {};
+      if (it.pn != null && it.pn > 0) o.pn = it.pn;
+      if (it.c != null) o.c = it.c;
+      if (it.cat) o.cat = it.cat;
+      if (it.s && !p.s) o.s = it.s;
+      if (it.w != null) o.w = !!it.w;
+      if (stk === 'set' && it.q != null) o.q = it.q; else if (stk === 'add' && it.q) o.q = increment(it.q);
+      if (Object.keys(o).length) ops.push([ref('stock', p.id), o]);
+    });
+    Object.assign(I, { step: 'run', total: ops.length, done: 0 }); renderImp();
+    let fail = '';
+    for (let k = 0; k < ops.length; k += 400) {
+      const b = writeBatch(db);
+      ops.slice(k, k + 400).forEach(([r, o]) => b.set(r, o, { merge: true }));
+      try { await b.commit(); } catch (e) { fail = deny(e) ? 'faltan permisos' : 'sin conexión o error de Firebase'; break; }
+      I.done = Math.min(ops.length, k + 400); if (S.imp === I) renderImp();
+    }
+    const sinCod = I.A.items.filter((x) => !x.s).length;
+    I.res = { nuevos: Math.min(I.Pl.nuevos.length, I.done), act: Math.max(0, I.done - I.Pl.nuevos.length), err: I.A.errores.length, sinCod, fail };
+    I.step = 'done'; if (S.imp === I) renderImp();
+  }
+  function impEjemplo() {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([ejemploCsv()], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'planilla-productos-ejemplo.csv'; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
   // ---------- escáner con la cámara (scanner.js) ----------
   const later = (f) => setTimeout(f, 320); // después de que se cierra el escáner
   const offerNew = (code) => {
     if (!adm()) { alert('No hay ningún producto con el código ' + code + '.'); return; }
-    if (confirm('No hay ningún producto con el código ' + code + '.\n¿Lo cargás como producto nuevo?')) { S.repo = null; prodForm(null, code); }
+    const o = modal('<b style="font-size:19px">Código ' + esc(code) + '</b><div class="k" style="margin-top:4px">No hay ningún producto con este código. ¿Qué es?</div>' +
+      '<button class="go" id="on_ya">Es un producto que ya cargué</button><div class="k" style="margin-top:6px">Por ejemplo, si lo importaste desde Excel sin código: elegilo y le queda asignado.</div>' +
+      '<button class="go alt" id="on_new">Es un producto nuevo</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    o.querySelector('#on_new').onclick = () => { o.remove(); S.repo = null; prodForm(null, code); };
+    o.querySelector('#on_ya').onclick = () => { o.remove(); pickForCode(code); };
   };
+  // Asignar un código escaneado a un producto que ya existe (elegido de una lista con buscador).
+  function pickForCode(code) {
+    const o = modal('<b style="font-size:19px">¿A qué producto es?</b><div class="k" style="margin-top:4px">Código ' + esc(code) + '. Primero aparecen los que no tienen código.</div>' +
+      '<input id="pf_q" type="search" placeholder="Buscar por nombre" autocomplete="off" style="margin-top:12px"><div id="pf_l" style="max-height:52vh;overflow:auto"></div>' +
+      '<button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const q = o.querySelector('#pf_q'), list = o.querySelector('#pf_l');
+    const draw = () => {
+      const l = P().filter((p) => match(p.n + ' ' + p.cat, q.value)).sort((a, b) => (a.s ? 1 : 0) - (b.s ? 1 : 0) || a.n.localeCompare(b.n)).slice(0, 40);
+      list.innerHTML = l.map((p) => '<button class="pl" data-pid="' + esc(p.id) + '"><span><b>' + esc(p.n) + '</b><small>' + (p.s ? 'ya tiene el código ' + esc(p.s) : 'sin código') + (p.cat ? ' · ' + esc(p.cat) : '') + '</small></span><b>' + priceTxt(p) + '</b></button>').join('') || '<div class="empty">No encontré productos con ese nombre.</div>';
+    };
+    q.oninput = draw; draw(); setTimeout(() => q.focus(), 50);
+    list.onclick = (e) => {
+      const b = e.target.closest('[data-pid]'); if (!b) return;
+      const p = prod(b.dataset.pid); if (!p) return;
+      if (p.s && !confirm('"' + p.n + '" ya tiene el código ' + p.s + '. ¿Lo reemplazo por ' + code + '?')) return;
+      o.remove(); setCode(p, code);
+    };
+  }
+  function setCode(p, code) {
+    setDoc(ref('stock', p.id), { s: code }, { merge: true }).then(() => {
+      if (S.repo) { S.repo.id = p.id; S.repo.note = 0; renderRepo(); }
+    }).catch(failW);
+  }
+  // Desde el filtro "Sin código": escanear el código de un producto puntual.
+  function asigCod(id) {
+    const p = prod(id); if (!p) return;
+    openScanner({
+      title: 'Código de: ' + p.n,
+      onCode(code) {
+        const dup = findByCode(P(), code);
+        if (dup && dup.id !== p.id) return { ok: false, msg: 'Ese código ya es de "' + dup.n + '". Probá con otro.' };
+        later(() => setCode(p, code));
+        return { ok: true, close: true, msg: '✓ ' + p.n + ' · ' + code };
+      }
+    });
+  }
   function scanCaja() {
     openScanner({
       title: 'Escaneá los productos', multi: true,
@@ -730,6 +904,11 @@ export function createAlmacen(X) {
     else if (a === 'saver') saveRepo();
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
+    else if (a === 'snocod') { S.stNoCod = !S.stNoCod; S.stLow = false; S.stCat = ''; renderStock(); }
+    else if (a === 'asigcod') asigCod(id);
+    else if (a === 'imp') impOpen();
+    else if (a === 'impej') impEjemplo();
+    else if (a === 'impgo') impRun();
     else if (a === 'scancaja') scanCaja();
     else if (a === 'scanstk') scanStock();
     else if (a === 'scanrepo') scanRepo();
@@ -742,6 +921,6 @@ export function createAlmacen(X) {
 
   return {
     start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes,
-    resetView() { if (S.edit || S.repo) { S.edit = null; S.repo = null; } $('s-stk').innerHTML = ''; }
+    resetView() { if (S.imp && S.imp.step === 'run') return; S.edit = null; S.repo = null; S.imp = null; $('s-stk').innerHTML = ''; }
   };
 }
