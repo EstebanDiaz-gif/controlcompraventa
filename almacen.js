@@ -25,7 +25,7 @@ export function createAlmacen(X) {
   const S = {
     cart: [], q: '', cat: '', pay: 'ef', cli: '', cliQ: '', paga: '', last: '',
     cl: [], clErr: false, fq: '', sel: null, fmov: null,
-    stQ: '', stCat: '', stLow: false, stNoCod: false, edit: null, repo: null, rq: '', rcomp: null, imp: null,
+    stQ: '', stCat: '', stLow: false, stNoCod: false, edit: null, repo: null, rq: '', rcomp: null, imp: null, qk: null,
     month: X.today().slice(0, 7), tot: null, totM: null, hoy: [], hoyDay: '', day: X.today(), dayV: null
   };
   const un = {};
@@ -117,6 +117,7 @@ export function createAlmacen(X) {
     }
     if (!$('cjq')) {
       box.innerHTML = '<div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
+        '<button class="x" data-al="libre" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">+ Importe libre (algo que no está cargado)</button>' +
         '<div id="cjcats" class="chips"></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
       const qi = $('cjq');
       qi.oninput = () => { S.q = qi.value; if (S.cat && S.q.trim()) { S.cat = ''; renderCats(); } renderRes(); };
@@ -152,7 +153,7 @@ export function createAlmacen(X) {
     const q = S.q.trim().toLowerCase(); if (!q) return;
     let p = findByCode(P(), q);
     if (!p) { const r = results() || []; if (r.length === 1) p = r[0]; }
-    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) beep(false); // código que no existe
+    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) { beep(false); if (adm() && confirm('El código ' + q + ' no está cargado. ¿Lo cargás ahora?')) qkModal(q, (np) => addProd(np)); } // código que no existe
   }
   function clearSearch(noFocus) { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); if (!noFocus) qi.focus(); } }
   function addProd(p, noFocus) {
@@ -402,9 +403,9 @@ export function createAlmacen(X) {
   // =====================================================================
   function drawStock() {
     const box = $('s-stk');
-    if (S.edit || S.repo || S.imp) return; // hay un formulario abierto: no lo pisamos
+    if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
-      box.innerHTML = (adm() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button><button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button></div>' : '') +
+      box.innerHTML = (adm() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button><button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button></div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
       $('aq').oninput = function () { S.stQ = this.value; renderStock(); };
     }
@@ -427,7 +428,7 @@ export function createAlmacen(X) {
     shown.forEach((p) => {
       const lw = p.q <= (p.min || 0) && (p.min || p.q <= 0), mg = p.pn && p.c ? Math.round((p.pn - p.c) / p.pn * 100) : null;
       h += '<div class="it"><div>' + (p.img ? '<img src="' + p.img + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">' : '') + '<b>' + esc(p.n) + '</b>' + (p.s ? '<span class="sku">' + esc(p.s) + '</span>' : '') +
-        '<small>' + (p.cat ? '<em class="tag">' + esc(p.cat) + '</em>' : '') + priceTxt(p) + (adm() && p.c ? ' · costo ' + money(p.c) + (mg != null ? ' · margen ' + mg + '%' : '') : '') + '</small>' +
+        '<small>' + (p.cat ? '<em class="tag">' + esc(p.cat) + '</em>' : '') + priceTxt(p) + (adm() && p.c ? ' · costo ' + money(p.c) + (p.ce ? ' (estimado)' : '') + (mg != null ? ' · margen ' + mg + '%' : '') : '') + '</small>' +
         (adm() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') +
         (adm() && S.stNoCod ? '<button class="x" data-al="asigcod" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">Escanear código</button>' : '') + '</div>' +
         '<div class="amt"><b class="' + (p.q < 0 ? 'neg' : lw ? 'neg' : '') + '">' + fq(p.q, p.w) + '</b><small>' + (lw ? 'reponer' : 'en stock') + '</small></div></div>';
@@ -435,7 +436,7 @@ export function createAlmacen(X) {
     if (l.length > shown.length) h += '<div class="k" style="margin-top:8px">Mostrando 300 de ' + l.length + '. Buscá para encontrar el resto.</div>';
     $('abody').innerHTML = h + '</div>';
   }
-  function closeForms() { S.edit = null; S.repo = null; S.imp = null; $('s-stk').innerHTML = ''; drawStock(); }
+  function closeForms() { qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; drawStock(); }
 
   function prodForm(id, code) {
     const p = id ? prod(id) : null;
@@ -554,7 +555,8 @@ export function createAlmacen(X) {
     const id = uid(), sid = X.sid(), u = X.user(), tot = Math.round(q * cu), b = writeBatch(db);
     const c = { id, pid: p.id, n: p.n, w: p.w ? 1 : 0, q, u: cu, tot, d, m, prov: $('rpv').value.trim().slice(0, 40), by: u.uid, bn: X.nm() };
     b.set(doc(db, 'stores', sid, 'compras', id), c);
-    b.update(doc(db, 'stores', sid, 'stock', p.id), { q: increment(q), c: newAvgCost(p.q, p.c, q, cu), pn });
+    // si el costo era estimado (carga sin factura), la primera compra real lo reemplaza
+    b.update(doc(db, 'stores', sid, 'stock', p.id), { q: increment(q), c: p.ce ? cu : newAvgCost(p.q, p.c, q, cu), ce: deleteField(), pn });
     b.set(doc(db, 'stores', sid, 'totales', m), { co: increment(tot) }, { merge: true });
     b.commit().catch(failW);
     if (S.rcomp && S.rcomp.list && S.rcomp.m === m) S.rcomp.list.unshift(c);
@@ -636,6 +638,159 @@ export function createAlmacen(X) {
     const d = S.day;
     getDocs(query(col('ventas'), where('d', '==', d))).then((sn) => { if (S.day !== d) return; const l = []; sn.forEach((x) => l.push(x.data())); l.sort((a, b) => String(b.id).localeCompare(String(a.id))); S.dayV = l; if (X.tab() === 'res') drawRes(); })
       .catch(() => { S.dayV = []; if (X.tab() === 'res') drawRes(); });
+  }
+
+  // ---------- carga rápida escaneando (cargar el negocio desde cero) ----------
+  // Cámara abierta dentro de la pantalla: cada producto que se escanea abre un formulario corto.
+  // Nuevo: nombre (se busca solo en Open Food Facts / Open Beauty Facts), precio, costo y cuántos hay.
+  // Ya cargado: se corrige el stock contado y el precio.
+  // Sin factura: el costo se estima desde el precio con el margen habitual (queda marcado como estimado, ce: 1).
+  const qkKey = () => 'pk_qk_' + X.sid();
+  function qkCfg() { let c = null; try { c = JSON.parse(localStorage.getItem(qkKey()) || 'null'); } catch (e) { c = null; } return Object.assign({ m: 35, r: 50 }, c || {}); }
+  function qkSaveCfg(c) { try { localStorage.setItem(qkKey(), JSON.stringify(c)); } catch (e) { /* sin almacenamiento */ } }
+  const precioDesde = (costo, c) => roundPrice(costo * (1 + c.m / 100), c.r);
+  const costoDesde = (precio, c) => Math.round(precio / (1 + c.m / 100));
+  // Nombre por código de barras en bases públicas y gratuitas (si no aparece, se escribe a mano).
+  const NOMC = {};
+  function buscarNombre(code) {
+    if (!/^\d{8,14}$/.test(code)) return Promise.resolve('');
+    if (NOMC[code] != null) return Promise.resolve(NOMC[code]);
+    const one = (host) => {
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, t = setTimeout(() => ctl && ctl.abort(), 3500);
+      return fetch('https://' + host + '/api/v2/product/' + code + '.json?fields=product_name_es,product_name,brands,quantity', ctl ? { signal: ctl.signal } : {})
+        .then((r) => (r.ok ? r.json() : null)).then((j) => {
+          clearTimeout(t); const p = j && j.status === 1 && j.product; if (!p) return '';
+          let n = String(p.product_name_es || p.product_name || '').trim(); if (!n) return '';
+          const b = String(p.brands || '').split(',')[0].trim(), q = String(p.quantity || '').trim();
+          if (b && n.toLowerCase().indexOf(b.toLowerCase()) < 0) n = b + ' ' + n;
+          if (q && n.toLowerCase().indexOf(q.toLowerCase()) < 0) n += ' ' + q;
+          return n.replace(/\s+/g, ' ').slice(0, 80);
+        }).catch(() => { clearTimeout(t); return ''; });
+    };
+    return Promise.all([one('world.openfoodfacts.org'), one('world.openbeautyfacts.org')]).then(([a, b]) => (NOMC[code] = a || b || ''));
+  }
+  function qkOpen() {
+    S.edit = null; S.repo = null; S.imp = null;
+    S.qk = { n: 0, log: [], cur: null };
+    const c = qkCfg();
+    $('s-stk').innerHTML = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Terminar y volver al stock</button>' +
+      '<div class="card"><b style="font-size:19px">Carga rápida</b><div class="k" style="margin-top:4px">Pasá cada producto por la cámara. Si es nuevo, completás nombre, precio y cuántos hay; si ya está, corregís el stock.</div>' +
+      '<div id="qkcam" style="margin-top:12px"></div><button class="go alt" data-al="qkman" style="margin-top:10px">Producto sin código (fiambre, suelto…)</button>' +
+      '<details style="margin-top:12px"><summary class="k" style="cursor:pointer">Margen y redondeo: <b id="qkcs">' + c.m + '% · ' + (c.r > 1 ? 'a $' + c.r : 'sin redondeo') + '</b></summary>' +
+      '<div class="row" style="margin-top:6px"><div><label>Margen de ganancia (%)</label><input id="qkm" type="number" inputmode="decimal" min="0" value="' + c.m + '"></div><div><label>Redondear precios a</label><select id="qkr">' + [[1, 'Sin redondeo'], [10, '$10'], [50, '$50'], [100, '$100']].map(([v, t]) => '<option value="' + v + '"' + (c.r === v ? ' selected' : '') + '>' + t + '</option>').join('') + '</select></div></div>' +
+      '<div class="k" style="margin-top:6px">Con el costo te sugiero el precio; si no tenés la factura, con el precio estimo el costo.</div></details></div>' +
+      '<div id="qkform"></div><div id="qklog"></div>';
+    const upd = () => { const nc = { m: Math.max(0, +$('qkm').value || 0), r: +$('qkr').value }; qkSaveCfg(nc); $('qkcs').textContent = nc.m + '% · ' + (nc.r > 1 ? 'a $' + nc.r : 'sin redondeo'); };
+    $('qkm').oninput = upd; $('qkr').onchange = upd;
+    S.qk.cam = openScanner({
+      box: $('qkcam'), multi: true,
+      onCode(code) {
+        if (S.qk.cur) return { ok: false, msg: 'Terminá el producto de abajo primero' };
+        const p = findByCode(P(), code);
+        setTimeout(() => qkShow(code), 0);
+        return { ok: true, msg: p ? '✓ ' + p.n : 'Código nuevo: ' + code };
+      }
+    });
+    qkLog(); window.scrollTo(0, 0);
+  }
+  function qkStop() { if (S.qk && S.qk.cam) { try { S.qk.cam.close(); } catch (e) { /* nada */ } S.qk.cam = null; } }
+  function qkShow(code) {
+    if (!S.qk) return;
+    if (S.qk.cam) S.qk.cam.pause();
+    S.qk.cur = code || '-';
+    qkForm($('qkform'), code, {
+      onDone(p) { S.qk.n++; S.qk.log.unshift(p); S.qk.cur = null; $('qkform').innerHTML = ''; qkLog(); if (S.qk.cam) { S.qk.cam.resume(); S.qk.cam.say('✓ ' + p.n + ' guardado. Escaneá el siguiente', 'ok'); } window.scrollTo({ top: 0, behavior: 'smooth' }); },
+      onCancel() { S.qk.cur = null; $('qkform').innerHTML = ''; if (S.qk.cam) { S.qk.cam.resume(); S.qk.cam.say('Escaneá el siguiente producto', ''); } }
+    });
+    setTimeout(() => { const f = $('qkform'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+  }
+  function qkLog() {
+    const e = $('qklog'); if (!e || !S.qk) return;
+    e.innerHTML = S.qk.n ? '<div class="card"><b>Cargados ahora: ' + S.qk.n + '</b>' + S.qk.log.slice(0, 10).map((p) => '<div class="it"><div><b>' + esc(p.n) + '</b><small>' + (p.s ? esc(p.s) + ' · ' : '') + (p.ce ? 'costo estimado' : p.c ? 'costo ' + money(p.c) : 'sin costo') + '</small></div><div class="amt"><b>' + (p.pn ? money(p.pn) : 'sin precio') + '</b><small>stock ' + fq(p.q, p.w) + '</small></div></div>').join('') + '</div>' : '';
+  }
+  // Formulario corto, reutilizado por la carga rápida y por la caja (código desconocido).
+  function qkForm(box, code, cb) {
+    const c = qkCfg(), p = code ? findByCode(P(), code) : null;
+    const catOpts = CATS.map((x) => '<option value="' + esc(x) + '"' + ((p ? p.cat : S.qkCat) === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    box.innerHTML = '<div class="card" style="border:2px solid var(--ink)">' +
+      (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · stock ' + fq(p.q, p.w) + '</div>'
+        : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
+          '<label>Nombre</label><input id="qk_n" maxlength="80" autocomplete="off" placeholder="' + (code ? 'Buscando el nombre…' : 'Ej: Queso cremoso') + '"><div class="k" id="qk_nf" style="margin-top:4px"></div>' +
+          '<label>Categoría</label><select id="qk_c"><option value="">Sin categoría</option>' + catOpts + '</select>' +
+          '<label class="row" style="align-items:center;gap:8px;margin-top:12px;font-weight:600;color:var(--ink)"><input id="qk_w" type="checkbox" style="width:auto"' + (code ? '' : ' checked') + '> Se vende por peso (kg)</label>') +
+      '<div class="row"><div><label id="qk_lp">Precio de venta</label><input id="qk_p" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (p && p.pn ? p.pn : '') + '"></div>' +
+      '<div><label id="qk_lc">Costo' + (p ? '' : ' (opcional)') + '</label><input id="qk_co" type="number" inputmode="decimal" min="0" placeholder="' + (p && p.c ? p.c : 'si no sabés, vacío') + '" value=""></div></div>' +
+      '<div class="k" id="qk_hint" style="margin-top:6px"></div>' +
+      '<label id="qk_lq">' + (p ? '¿Cuántos hay? (stock contado)' : '¿Cuántos hay?') + '</label><input id="qk_q" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (p ? n3(p.q) : '') + '" enterkeyhint="done">' +
+      '<div class="row" style="gap:8px"><button class="go" id="qk_ok">Guardar</button><button class="go alt" id="qk_x">' + (cb.cancelTxt || 'Saltear') + '</button></div></div>';
+    const q = (id) => box.querySelector('#' + id);
+    let pTouched = !!(p && p.pn);
+    const isW = () => (p ? p.w : q('qk_w').checked);
+    const labels = () => { const w = isW(); q('qk_lp').textContent = 'Precio de venta' + (w ? ' por kg' : ''); q('qk_lc').textContent = 'Costo' + (w ? ' por kg' : '') + (p ? '' : ' (opcional)'); q('qk_lq').textContent = (p ? '¿Cuántos hay? (stock contado)' : '¿Cuántos hay?') + (w ? ' en kg' : ''); };
+    const hint = () => {
+      const pr = +q('qk_p').value, co = +q('qk_co').value;
+      q('qk_hint').textContent = co > 0 && pr > 0 ? 'Ganás ' + money(pr - co) + ' (' + Math.round((pr - co) / pr * 100) + '% del precio)'
+        : pr > 0 && !co ? 'Sin factura: el costo queda estimado en ' + money(costoDesde(pr, c)) + ' (' + c.m + '% de margen). Se corrige solo cuando cargues una compra en Reponer.' : '';
+    };
+    q('qk_co').oninput = () => { const co = +q('qk_co').value; if (!pTouched && co > 0) q('qk_p').value = precioDesde(co, c); hint(); };
+    q('qk_p').oninput = () => { pTouched = q('qk_p').value !== ''; hint(); };
+    if (!p) { q('qk_w').onchange = labels; q('qk_c').onchange = () => { S.qkCat = q('qk_c').value; }; }
+    labels(); hint();
+    const first = p ? q('qk_q') : q('qk_n');
+    setTimeout(() => { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }, 120);
+    if (!p && code) buscarNombre(code).then((n) => {
+      const el = q('qk_n'); if (!el) return;
+      el.placeholder = 'Ej: Galletitas Oreo 118 g';
+      if (n && !el.value) { el.value = n; q('qk_nf').textContent = '✓ Nombre encontrado en la base de productos (podés corregirlo)'; try { q('qk_p').focus({ preventScroll: true }); } catch (e) { /* nada */ } }
+      else if (!n) q('qk_nf').textContent = 'No lo encontré en la base de productos: escribí el nombre.';
+    });
+    q('qk_q').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('qk_ok').click(); } };
+    q('qk_x').onclick = () => cb.onCancel();
+    q('qk_ok').onclick = () => {
+      const pr = +q('qk_p').value || 0, coIn = q('qk_co').value === '' ? null : +q('qk_co').value, qs = q('qk_q').value.trim(), cant = qs === '' ? null : r3(pnum(qs)), w = isW();
+      if (pr < 0 || (coIn != null && coIn < 0)) { alert('Los precios no pueden ser negativos.'); return; }
+      if (cant != null && (isNaN(cant) || cant < 0)) { alert('Revisá la cantidad (usá números, por ejemplo 12 o 1,5).'); return; }
+      if (cant != null && !w && cant !== Math.floor(cant)) { alert('Este producto se vende por unidad: la cantidad tiene que ser entera.'); return; }
+      if (p) {
+        const o = {};
+        if (pr > 0 && pr !== p.pn) o.pn = pr;
+        if (coIn != null && coIn > 0) { o.c = coIn; o.ce = deleteField(); }
+        if (cant != null) o.q = cant;
+        const done = Object.assign({}, p, { pn: o.pn || p.pn, c: o.c || p.c, q: cant != null ? cant : p.q, ce: o.c ? 0 : p.ce });
+        if (!Object.keys(o).length) { cb.onDone(done); return; }
+        q('qk_ok').disabled = true;
+        setDoc(ref('stock', p.id), o, { merge: true }).catch(failW); cb.onDone(done); return;
+      }
+      const n = q('qk_n').value.trim().replace(/\s+/g, ' ').slice(0, 80);
+      if (!n) { alert('Escribí el nombre del producto.'); q('qk_n').focus(); return; }
+      if (code && findByCode(P(), code)) { alert('Ese código ya está cargado.'); return; }
+      const ce = coIn == null && pr > 0, co = coIn != null ? coIn : (pr > 0 ? costoDesde(pr, c) : 0);
+      const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
+      if (ce) o.ce = 1;
+      q('qk_ok').disabled = true;
+      setDoc(ref('stock', id), o, { merge: true }).catch(failW);
+      cb.onDone(Object.assign({ id }, o));
+    };
+  }
+  // Desde la caja: código que no existe -> cargarlo en el momento y seguir la venta.
+  function qkModal(code, after) {
+    const o = modal('<div id="qkm_box"></div>');
+    const box = o.querySelector('#qkm_box');
+    qkForm(box, code, { cancelTxt: 'Cancelar', onDone(p) { o.remove(); if (after) after(p); }, onCancel() { o.remove(); } });
+  }
+  // Caja: cobrar algo que no está cargado (no descuenta stock).
+  function libreDlg() {
+    const o = modal('<b style="font-size:19px">Importe libre</b><div class="k" style="margin-top:4px">Para cobrar algo que todavía no cargaste. No descuenta stock.</div>' +
+      '<label>Importe</label><input id="lb_i" type="number" inputmode="decimal" min="0" placeholder="0">' +
+      '<label>Qué es (opcional)</label><input id="lb_n" maxlength="60" placeholder="Varios" autocomplete="off">' +
+      '<button class="go" id="lb_ok">Agregar a la venta</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const i = o.querySelector('#lb_i'); setTimeout(() => i.focus(), 50);
+    const ok = () => {
+      const v = Math.round((+i.value || 0) * 100) / 100; if (!(v > 0)) { alert('Poné el importe.'); return; }
+      S.cart.push({ id: 'lib_' + uid(), n: o.querySelector('#lb_n').value.trim().slice(0, 60) || 'Varios', q: 1, u: v, c: 0, w: false });
+      o.remove(); renderCart();
+    };
+    o.querySelector('#lb_ok').onclick = ok; i.onkeydown = (e) => { if (e.key === 'Enter') ok(); };
   }
 
   // ---------- importar desde Excel / CSV (planilla.js) ----------
@@ -818,7 +973,8 @@ export function createAlmacen(X) {
       title: 'Escaneá los productos', multi: true,
       onCode(code) {
         const p = findByCode(P(), code);
-        if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + (adm() ? '. Cargalo en Stock.' : '.') };
+        if (!p && adm()) { later(() => qkModal(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: cargalo y sigue la venta' }; }
+        if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + '. Avisale al administrador.' };
         if (!p.pn) return { ok: false, msg: '"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.' };
         if (p.w) { later(() => weightDlg(p)); return { ok: true, close: true, msg: p.n }; }
         addProd(p, true);
@@ -904,6 +1060,9 @@ export function createAlmacen(X) {
     else if (a === 'saver') saveRepo();
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
+    else if (a === 'qk') qkOpen();
+    else if (a === 'qkman') qkShow('');
+    else if (a === 'libre') libreDlg();
     else if (a === 'snocod') { S.stNoCod = !S.stNoCod; S.stLow = false; S.stCat = ''; renderStock(); }
     else if (a === 'asigcod') asigCod(id);
     else if (a === 'imp') impOpen();
@@ -921,6 +1080,6 @@ export function createAlmacen(X) {
 
   return {
     start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes,
-    resetView() { if (S.imp && S.imp.step === 'run') return; S.edit = null; S.repo = null; S.imp = null; $('s-stk').innerHTML = ''; }
+    resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }

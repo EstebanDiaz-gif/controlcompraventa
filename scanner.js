@@ -86,9 +86,17 @@ export function scanButton(al) {
 //   multi: true = queda abierto para escanear varios productos seguidos (caja)
 //   onCode(code) -> { ok, msg, close }  (ok=false muestra el mensaje como aviso)
 //   onClose(): se llama al cerrar
+//   box: elemento donde mostrar la cámara dentro de la página (carga rápida), en vez de pantalla completa.
+//        Queda abierta escaneando; devuelve pause()/resume() para ignorar lecturas mientras se completa un formulario.
 export function openScanner(opts) {
   if (open) return;
+  const inline = !!opts.box;
   const o = document.createElement('div');
+  if (inline) {
+    o.style.cssText = 'background:#000;color:#fff;border-radius:18px;overflow:hidden;font-family:inherit';
+    o.innerHTML = '<div id="scnv" style="width:100%"></div><div style="padding:8px 12px 10px;text-align:center"><div id="scnm" style="display:inline-block;font-weight:700;font-size:14px;padding:6px 12px;border-radius:10px">Preparando la cámara…</div><small id="scnk" style="display:block;opacity:.7;font-size:12px"></small></div>';
+    opts.box.innerHTML = ''; opts.box.appendChild(o);
+  } else {
   o.style.cssText = 'position:fixed;inset:0;z-index:90;background:#000;color:#fff;display:flex;flex-direction:column;font-family:inherit';
   o.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 12px">' +
@@ -101,6 +109,7 @@ export function openScanner(opts) {
       '<small id="scnk" style="opacity:.7;font-size:13px"></small>' +
     '</div>';
   document.body.appendChild(o);
+  }
   const msgEl = o.querySelector('#scnm'), subEl = o.querySelector('#scnk');
   const say = (t, kind) => {
     msgEl.textContent = t;
@@ -117,19 +126,19 @@ export function openScanner(opts) {
     if (closed) return; closed = true; open = null;
     document.removeEventListener('keydown', onKey);
     const done = () => { o.remove(); if (opts.onClose) opts.onClose(); };
+    st.paused = true;
     if (h) { Promise.resolve().then(() => h.stop()).catch(() => {}).then(() => { try { h.clear(); } catch (e) { /* nada */ } done(); }); }
     else done();
   };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', onKey);
-  o.querySelector('[data-scx]').onclick = close;
+  if (!inline) { document.addEventListener('keydown', onKey); o.querySelector('[data-scx]').onclick = close; }
 
   // Para no sumar dos veces el mismo producto mientras sigue frente a la cámara:
   // el mismo código vuelve a contar recién cuando dejó de verse un ratito.
   const seen = {};           // código -> última vez que se vio
   let lastAccept = 0, count = 0;
   const onRead = (raw) => {
-    if (closed) return;
+    if (closed || st.paused) return;
     const code = String(raw || '').trim(), now = Date.now();
     if (!code) return;
     const prev = seen[code]; seen[code] = now;
@@ -141,8 +150,8 @@ export function openScanner(opts) {
     beep(r.ok !== false);
     if (r.ok !== false) count++;
     say(r.msg || code, r.ok === false ? 'warn' : 'ok');
-    if (opts.multi) subEl.textContent = count ? 'Seguí escaneando o tocá Listo' : '';
-    if (r.close || !opts.multi) { if (r.ok !== false || r.close) setTimeout(close, r.ok === false ? 900 : 250); }
+    if (opts.multi) subEl.textContent = count ? (inline ? 'Seguí escaneando' : 'Seguí escaneando o tocá Listo') : '';
+    if (!inline && (r.close || !opts.multi)) { if (r.ok !== false || r.close) setTimeout(close, r.ok === false ? 900 : 250); }
   };
 
   loadLib().then((L) => {
@@ -151,7 +160,8 @@ export function openScanner(opts) {
     const formats = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'CODE_128', 'CODE_39', 'ITF', 'CODABAR', 'QR_CODE'].map((k) => F[k]).filter((x) => x != null);
     h = new L.Html5Qrcode('scnv', { formatsToSupport: formats, verbose: false, useBarCodeDetectorIfSupported: true, experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
     const box = (w, hh) => { const bw = Math.floor(w * 0.86); return { width: bw, height: Math.max(80, Math.floor(Math.min(hh * 0.6, bw * 0.55))) }; };
-    return h.start({ facingMode: 'environment' }, { fps: 12, qrbox: box, disableFlip: true }, onRead, () => {})
+    const conf = { fps: 12, qrbox: box, disableFlip: true }; if (inline) conf.aspectRatio = 1.6;
+    return h.start({ facingMode: 'environment' }, conf, onRead, () => {})
       .then(() => { if (closed) { h.stop().catch(() => {}); return; } say('Apuntá la cámara al código de barras', ''); });
   }).catch((e) => {
     if (closed) return;
@@ -165,7 +175,12 @@ export function openScanner(opts) {
     say(m, 'warn');
     beep(false);
   });
-  return { close };
+  return {
+    close,
+    say,
+    pause() { st.paused = true; },
+    resume() { st.paused = false; Object.keys(seen).forEach((k) => { seen[k] = Date.now(); }); }
+  };
 }
 
 function escH(s) {
