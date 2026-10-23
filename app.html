@@ -1316,6 +1316,36 @@ if(e.target.id=='plan-toggle'){var d=$('plan-details');if(d){d.style.display=d.s
 if(e.target.id=='config-toggle'){var c=$('config-details');if(c){c.style.display=c.style.display=='none'?'block':'none';e.target.textContent=c.style.display=='none'?'▼':'▲'}}
 });
 
+// ---------- Gesto / botón "atrás" del celular ----------
+// Sin esto, deslizar desde el costado cerraba la app. Ahora "atrás" cierra la ventana abierta, después
+// la pantalla interna (formulario, cliente…), después vuelve a la pestaña principal, y recién ahí sale.
+// Guardamos un paso en el historial cada vez que el usuario toca algo (el navegador solo lo respeta si
+// viene de un toque) y lo usamos al volver.
+function bkArm(){try{if(!(history.state&&history.state.pkb))history.pushState({pkb:1},'')}catch(e){}}
+function bkOverlay(){var k=document.body.children,i,o;for(i=k.length-1;i>=0;i--){o=k[i];if(o.style&&o.style.position=='fixed'&&o.style.inset=='0px'&&!o.hidden)return o}return null}
+function bkCloseOverlay(o){
+var b=o.querySelector('[data-scx],[data-close]');
+if(!b){var bs=o.querySelectorAll('button');for(var i=bs.length-1;i>=0;i--){if(/^(Cancelar|Cerrar|Listo|Entendido|Ahora no)$/i.test(bs[i].textContent.trim())){b=bs[i];break}}}
+if(b)b.click();else o.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+setTimeout(function(){if(o.parentNode&&!o.querySelector('[data-scx]'))o.remove()},60)}
+function bkSub(){var sec=$('s-'+TAB);if(!sec||sec.hidden)return null;
+var b=sec.querySelector('[data-al="cancel"],[data-al="closecli"],[data-pm="cancel"],[data-pm="back"],[data-ag="back"],[data-edx="cancel"]');
+if(b)return b;var bs=sec.querySelectorAll('button');for(var i=0;i<bs.length;i++){if(/^←/.test(bs[i].textContent.trim()))return bs[i]}return null}
+var BKT=null;
+function bkToast(t){var e=$('bktoast');if(!e){e=document.createElement('div');e.id='bktoast';e.style.cssText='position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:95;background:#111;color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.3);pointer-events:none;max-width:90vw;text-align:center';document.body.appendChild(e)}
+e.textContent=t;e.hidden=false;clearTimeout(BKT);BKT=setTimeout(function(){e.hidden=true},2200)}
+function bkHandle(){
+var o=bkOverlay();if(o){bkCloseOverlay(o);return true}
+if(!ROLE)return false;
+var b=bkSub();if(b){b.click();window.scrollTo(0,0);return true}
+if(TAB=='promo'){show(PREVTAB||'team');return true}
+var f=$('tabs').firstElementChild,home=f&&f.dataset.t;
+if(home&&TAB!=home){show(home);window.scrollTo(0,0);return true}
+return false}
+window.addEventListener('popstate',function(){
+if(bkHandle())bkArm();            // queda listo para el próximo "atrás"
+else bkToast('Volvé a deslizar para salir de la app')});
+document.addEventListener('click',bkArm,true);document.addEventListener('keydown',function(e){if(e.key!='Escape')bkArm()},true);
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){})})}
 }
 </script>
