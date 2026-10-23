@@ -246,12 +246,10 @@ b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 b.commit().then(function(){o.remove();
 if(bz!='productos')setDoc(doc(db,'stores',sid,'cfg','servicios'),{biz:bz},{merge:true}).catch(function(){});
-alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita del plan '+CFG.plans[plan].name+'.');
-importLegacy(sid)}).catch(function(e){$('sn_ok').disabled=false;fail(e)});return}
+alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita del plan '+CFG.plans[plan].name+'.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)});return}
 callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz}).then(function(r){o.remove();
 try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
-if(r.trial)alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita.');
-importLegacy(r.sid)}).catch(function(e){$('sn_ok').disabled=false;fail(e)})}}
+if(r.trial)alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)})}}
 function joinStore(){
 var c=(prompt('Pegá el código (o el mensaje completo) que te dieron:')||'').trim();if(!c)return;
 c=extractCode(c);
@@ -267,17 +265,6 @@ callFn('joinStore',{code:c,userName:nm()}).then(function(r){
 try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
 if(r.already)alert('Ya sos parte de esa tienda.');
 if(r.sid!=SID&&STORES.some(function(x){return x.id==r.sid}))openStore(r.sid)}).catch(fail)}
-function importLegacy(sid){
-if(localStorage.getItem('cv_leg_'+U.uid))return;
-return getDocs(collection(db,'users',U.uid,'movs')).then(function(sn){
-var a=[];sn.forEach(function(d){a.push(d.data())});
-try{localStorage.setItem('cv_leg_'+U.uid,'1')}catch(e){}
-if(!a.length||!confirm('Encontré '+a.length+' movimientos de la versión anterior. ¿Los paso a esta tienda?'))return;
-var st={},i,b;
-a.forEach(function(x){x.s=x.s||'';x.k=x.k||'';x.by=U.uid;x.bn=nm();var k=key(x.s||x.p),o=st[k]||(st[k]={n:x.p,s:x.s,q:0});o.q+=x.t=='c'?x.q:-x.q;o.n=x.p});
-for(i=0;i<a.length;i+=400){b=writeBatch(db);a.slice(i,i+400).forEach(function(x){b.set(doc(db,'stores',sid,'movs',String(x.id)),x)});b.commit().catch(fail)}
-b=writeBatch(db);Object.keys(st).forEach(function(k){b.set(doc(db,'stores',sid,'stock',skey(k)),st[k])});b.commit().catch(fail)
-}).catch(function(){})}
 
 onAuthStateChanged(auth,function(u){
 stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
