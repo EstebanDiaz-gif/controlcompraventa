@@ -8,6 +8,8 @@ service cloud.firestore {
     }
     function isMember(sid) { return signedIn() && exists(memberPath(sid)); }
     function isAdmin(sid) { return isMember(sid) && get(memberPath(sid)).data.role == 'admin'; }
+    // Puede cargar productos: administrador, o empleado al que el dueño le activó "cp" en Equipo.
+    function canLoad(sid) { return isMember(sid) && (get(memberPath(sid)).data.role == 'admin' || get(memberPath(sid)).data.get('cp', false) == true); }
 
     // Propietario de la plataforma: su documento en platform_owners se crea a mano desde la consola de Firebase.
     function isPlatformOwner() {
@@ -106,7 +108,8 @@ service cloud.firestore {
               && getAfter(/databases/$(database)/documents/stores/$(sid)).data.owner == request.auth.uid)
           || (request.auth.uid == uid
               && exists(/databases/$(database)/documents/stores/$(sid)/invites/$(request.resource.data.code))
-              && get(/databases/$(database)/documents/stores/$(sid)/invites/$(request.resource.data.code)).data.role == request.resource.data.role)
+              && get(/databases/$(database)/documents/stores/$(sid)/invites/$(request.resource.data.code)).data.role == request.resource.data.role
+              && request.resource.data.get('cp', false) == false)
         );
         allow update: if isAdmin(sid);
         allow delete: if isAdmin(sid)
@@ -171,15 +174,16 @@ service cloud.firestore {
       // del catálogo del almacén (public/lista, lista_d0…, lista_i0…). Los ve cualquiera; solo un administrador los cambia.
       match /public/{doc} {
         allow read: if true;
-        allow write: if isAdmin(sid);
+        allow write: if isAdmin(sid) || (canLoad(sid) && doc.matches('^foto_.*'));
       }
 
       // Stock: lo ven todos los de la tienda.
       // Un empleado solo puede bajar la cantidad, no cambiar nada más.
       match /stock/{id} {
         allow read: if isMember(sid) || catalogReadsStock(sid);
-        allow create, delete: if isAdmin(sid) && accessOk(sid);
-        allow update: if accessOk(sid) && (isAdmin(sid)
+        allow create: if canLoad(sid) && accessOk(sid);
+        allow delete: if isAdmin(sid) && accessOk(sid);
+        allow update: if accessOk(sid) && (canLoad(sid)
           || (isMember(sid)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['q'])
               && request.resource.data.q < resource.data.q));
@@ -214,7 +218,8 @@ service cloud.firestore {
       // Compras a proveedores (Reponer): solo administradores.
       match /compras/{id} {
         allow read: if isAdmin(sid);
-        allow write: if isAdmin(sid) && accessOk(sid);
+        allow create: if canLoad(sid) && accessOk(sid);
+        allow update, delete: if isAdmin(sid) && accessOk(sid);
       }
       // Totales del mes ya sumados: los suma cualquiera de la tienda al vender; solo el administrador los ve.
       match /totales/{mes} {

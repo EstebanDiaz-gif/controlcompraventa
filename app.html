@@ -180,7 +180,7 @@ var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
-isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},promos:function(){return PRM}});
+isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP}});
 // Promociones: las ven todos (Caja del almacén) y las administra un administrador.
 var PRM=[],PREVTAB='';
 var PRO=createPromos({db:db,$:$,esc:esc,money:money,rnd:rnd,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},
@@ -295,13 +295,14 @@ if(pick&&pick==SID){if(ROLE)drawHdr();return}
 if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;gate('nostore')}
 },function(){gate('nostore')})});
 
+var MECP=false; // permiso "puede cargar productos" de este empleado (members/{uid}.cp)
 function openStore(sid){
-stopStore();SID=sid;ROLE=null;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
+stopStore();SID=sid;ROLE=null;MECP=false;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
 if(!s.exists()){if(!s.metadata.fromCache){deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}return}
-var r=s.data().role;if(r!=ROLE){ROLE=r;startData()}},function(){})}
+var r=s.data().role,cp=!!s.data().cp,chg=cp!=MECP;MECP=cp;if(r!=ROLE){ROLE=r;startData()}else if(chg&&biz()=='almacen'){ALM.resetView();ALM.redraw()}},function(){})}
 
 // Ropa/servicios: el administrador lee todos los movimientos. Almacén: no (lee por día y por mes, ver almacen.js).
 function syncBiz(){
@@ -929,7 +930,8 @@ h+='</div>';$('xglist').innerHTML=h}
 function drawTeam(){
 var h='<div class="card"><b>Personas de '+esc(SNAME)+'</b>';
 MEM.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'')}).forEach(function(m){
-h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+esc(m.email)+' · '+(m.role=='admin'?'administrador':'empleado')+(m.id==U.uid?' · vos':'')+'</small></div>'+(m.id!=U.uid&&m.id!=OWNER?'<button class="x" data-rm="'+esc(m.id)+'" aria-label="Quitar">×</button>':'')+'</div>'});
+h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+esc(m.email)+' · '+(m.role=='admin'?'administrador':'empleado')+(m.id==U.uid?' · vos':'')+'</small>'+
+(m.role!='admin'&&biz()=='almacen'?'<label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:14px;font-weight:600;color:var(--ink)"><input type="checkbox" data-mcp="'+esc(m.id)+'" style="width:auto"'+(m.cp?' checked':'')+'> Puede cargar productos</label><small style="margin-top:2px">Carga y edita productos, precios y stock (carga rápida, Reponer, Excel). No ve ganancias ni gastos.</small>':'')+'</div>'+(m.id!=U.uid&&m.id!=OWNER?'<button class="x" data-rm="'+esc(m.id)+'" aria-label="Quitar">×</button>':'')+'</div>'});
 h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin:4px 0 0">Se genera un código. La persona crea su cuenta, toca el selector de tienda y elige "Unirme con un código".</div>'+
 '<button class="go" data-inv="empleado">Invitar empleado</button><button class="go alt" data-inv="admin">Invitar administrador</button></div>';
 if(INV.length){h+='<div class="card"><b>Códigos activos</b>';
@@ -1307,6 +1309,7 @@ else if(t.id=='sv_d'&&SVD)SVD.d=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
 document.addEventListener('change',function(e){if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores',SID,'members',mt.dataset.mcp),{cp:mt.checked},{merge:true}).catch(function(er){mt.checked=!mt.checked;fail(er)})}
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
 if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}

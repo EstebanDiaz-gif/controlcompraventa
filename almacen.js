@@ -31,6 +31,8 @@ export function createAlmacen(X) {
   const un = {};
   const off = (k) => { if (un[k]) { un[k](); delete un[k]; } };
   const adm = () => X.role() === 'admin';
+  // Puede cargar productos: administrador o empleado con el permiso "cp" (lo activa el dueño en Equipo).
+  const load = () => adm() || !!(X.canLoad && X.canLoad());
   const P = () => X.st();
   const prod = (id) => P().find((p) => p.id === id) || null;
   const cli = (id) => S.cl.find((c) => c.id === id) || null;
@@ -112,7 +114,7 @@ export function createAlmacen(X) {
     if (!X.canWrite()) { box.innerHTML = X.blockedCard(); return; }
     listenHoy();
     if (!P().length) {
-      box.innerHTML = '<div class="card"><div class="empty">' + (adm() ? 'Todavía no cargaste productos. Empezá por el Stock.' : 'Todavía no hay productos cargados. Un administrador tiene que cargarlos.') + '</div>' + (adm() ? '<button class="go" data-t="stk">Ir a Stock</button>' : '') + '</div>';
+      box.innerHTML = '<div class="card"><div class="empty">' + (load() ? 'Todavía no cargaste productos. Empezá por el Stock.' : 'Todavía no hay productos cargados. Un administrador tiene que cargarlos.') + '</div>' + (load() ? '<button class="go" data-t="stk">Ir a Stock</button>' : '') + '</div>';
       return;
     }
     if (!$('cjq')) {
@@ -153,7 +155,7 @@ export function createAlmacen(X) {
     const q = S.q.trim().toLowerCase(); if (!q) return;
     let p = findByCode(P(), q);
     if (!p) { const r = results() || []; if (r.length === 1) p = r[0]; }
-    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) { beep(false); if (adm() && confirm('El código ' + q + ' no está cargado. ¿Lo cargás ahora?')) qkModal(q, (np) => addProd(np)); } // código que no existe
+    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) { beep(false); if (load() && confirm('El código ' + q + ' no está cargado. ¿Lo cargás ahora?')) qkModal(q, (np) => addProd(np)); } // código que no existe
   }
   function clearSearch(noFocus) { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); if (!noFocus) qi.focus(); } }
   function addProd(p, noFocus) {
@@ -405,7 +407,7 @@ export function createAlmacen(X) {
     const box = $('s-stk');
     if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
-      box.innerHTML = (adm() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button><button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button></div>' : '') +
+      box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button>' + (adm() ? '<button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button>' : '') + '</div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
       $('aq').oninput = function () { S.stQ = this.value; renderStock(); };
     }
@@ -416,21 +418,21 @@ export function createAlmacen(X) {
     if (!sinCod) S.stNoCod = false;
     $('acats').innerHTML = '<button class="ch' + (!S.stCat && !S.stLow ? ' on' : '') + '" data-al="scat" data-v="">Todos (' + all.length + ')</button>' +
       '<button class="ch' + (S.stLow ? ' on' : '') + '" data-al="slow">Por reponer (' + low + ')</button>' +
-      (adm() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
+      (load() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || (p.q <= (p.min || 0) && (p.min || p.q <= 0))) && match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ)).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b></div>' : '';
     h += '<div class="card">';
     if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
-    if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (adm() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
+    if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (load() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
     const shown = l.slice(0, 300);
     shown.forEach((p) => {
       const lw = p.q <= (p.min || 0) && (p.min || p.q <= 0), mg = p.pn && p.c ? Math.round((p.pn - p.c) / p.pn * 100) : null;
       h += '<div class="it"><div>' + (p.img ? '<img src="' + p.img + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">' : '') + '<b>' + esc(p.n) + '</b>' + (p.s ? '<span class="sku">' + esc(p.s) + '</span>' : '') +
         '<small>' + (p.cat ? '<em class="tag">' + esc(p.cat) + '</em>' : '') + priceTxt(p) + (adm() && p.c ? ' · costo ' + money(p.c) + (p.ce ? ' (estimado)' : '') + (mg != null ? ' · margen ' + mg + '%' : '') : '') + '</small>' +
-        (adm() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') +
-        (adm() && S.stNoCod ? '<button class="x" data-al="asigcod" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">Escanear código</button>' : '') + '</div>' +
+        (load() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') +
+        (load() && S.stNoCod ? '<button class="x" data-al="asigcod" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">Escanear código</button>' : '') + '</div>' +
         '<div class="amt"><b class="' + (p.q < 0 ? 'neg' : lw ? 'neg' : '') + '">' + fq(p.q, p.w) + '</b><small>' + (lw ? 'reponer' : 'en stock') + '</small></div></div>';
     });
     if (l.length > shown.length) h += '<div class="k" style="margin-top:8px">Mostrando 300 de ' + l.length + '. Buscá para encontrar el resto.</div>';
@@ -457,7 +459,7 @@ export function createAlmacen(X) {
       '<label>Precio anterior (opcional)</label><input id="fpa" type="number" inputmode="decimal" min="0" placeholder="Ej: 2200" value="' + (c.pa || '') + '"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="fdt" type="checkbox" style="width:auto"' + (c.dt ? ' checked' : '') + '> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="foh" type="checkbox" style="width:auto"' + (c.oh ? ' checked' : '') + '> No mostrar en el catálogo</label>' +
-      '<button class="go" data-al="savep">Guardar</button>' + (p ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:var(--buy)">Eliminar este producto</button>' : '') + '</div>';
+      '<button class="go" data-al="savep">Guardar</button>' + (p && adm() ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:var(--buy)">Eliminar este producto</button>' : '') + '</div>';
     $('s-stk').innerHTML = h;
     S.edit.w = !!c.w;
     const mg = () => { const pn = +$('fpn').value, co = +$('fco').value; $('fmg').textContent = pn > 0 && co > 0 ? 'Ganás ' + money(pn - co) + (S.edit.w ? ' por kilo' : ' por unidad') + ' (' + Math.round((pn - co) / pn * 100) + '% del precio)' : ''; };
@@ -500,7 +502,7 @@ export function createAlmacen(X) {
   function repoForm(id) {
     S.repo = { id: id || null };
     S.edit = null;
-    if (!S.rcomp || S.rcomp.m !== X.today().slice(0, 7)) loadCompras();
+    if (adm() && (!S.rcomp || S.rcomp.m !== X.today().slice(0, 7))) loadCompras(); // la lista de compras (con totales) es solo del administrador
     renderRepo();
   }
   function loadCompras() {
@@ -515,12 +517,14 @@ export function createAlmacen(X) {
     if (!p) {
       h += '<label>¿Qué compraste?</label><div style="display:flex;gap:8px;align-items:center"><input id="rq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.rq) + '">' + scanButton('scanrepo') + '</div><div id="rres"></div>' +
         '<button class="x" data-al="newp" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:10px">+ Es un producto nuevo</button></div>';
+      if (adm()) {
       const cl = S.rcomp && S.rcomp.list;
       h += '<div class="card"><b>Compras de este mes</b>';
       if (S.rcomp && S.rcomp.err) h += rulesCard();
       else if (!cl) h += '<div class="empty">Cargando…</div>';
       else if (!cl.length) h += '<div class="empty">Todavía no cargaste compras este mes.</div>';
       else { let t = 0; cl.forEach((x) => { t += x.tot; }); h += '<div class="k">Total ' + money(t) + '</div>' + cl.slice(0, 50).map((x) => '<div class="it"><div><b>' + esc(x.n) + '</b><small>' + dmy(x.d) + ' · ' + fq(x.q, x.w) + ' × ' + money(x.u) + (x.prov ? ' · ' + esc(x.prov) : '') + '</small></div><div class="amt"><b class="neg">−' + money(x.tot) + '</b></div><button class="x" data-al="delc" data-id="' + esc(x.id) + '" aria-label="Borrar">×</button></div>').join(''); }
+      }
       $('s-stk').innerHTML = h + '</div>';
       const rq = $('rq');
       const rres = () => { const l = S.rq.trim() ? P().filter((x) => match(x.n + ' ' + x.s + ' ' + x.cat, S.rq)).sort((a, b) => a.n.localeCompare(b.n)).slice(0, 20) : []; $('rres').innerHTML = l.map((x) => '<button class="pl" data-al="rpick" data-id="' + esc(x.id) + '"><span><b>' + esc(x.n) + '</b><small>stock ' + fq(x.q, x.w) + (x.c ? ' · costo ' + money(x.c) : '') + '</small></span></button>').join(''); };
@@ -925,7 +929,7 @@ export function createAlmacen(X) {
   // ---------- escáner con la cámara (scanner.js) ----------
   const later = (f) => setTimeout(f, 320); // después de que se cierra el escáner
   const offerNew = (code) => {
-    if (!adm()) { alert('No hay ningún producto con el código ' + code + '.'); return; }
+    if (!load()) { alert('No hay ningún producto con el código ' + code + '.'); return; }
     const o = modal('<b style="font-size:19px">Código ' + esc(code) + '</b><div class="k" style="margin-top:4px">No hay ningún producto con este código. ¿Qué es?</div>' +
       '<button class="go" id="on_ya">Es un producto que ya cargué</button><div class="k" style="margin-top:6px">Por ejemplo, si lo importaste desde Excel sin código: elegilo y le queda asignado.</div>' +
       '<button class="go alt" id="on_new">Es un producto nuevo</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
@@ -973,8 +977,8 @@ export function createAlmacen(X) {
       title: 'Escaneá los productos', multi: true,
       onCode(code) {
         const p = findByCode(P(), code);
-        if (!p && adm()) { later(() => qkModal(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: cargalo y sigue la venta' }; }
-        if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + '. Avisale al administrador.' };
+        if (!p && load()) { later(() => qkModal(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: cargalo y sigue la venta' }; }
+        if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + '. Avisale a quien carga los productos.' };
         if (!p.pn) return { ok: false, msg: '"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.' };
         if (p.w) { later(() => weightDlg(p)); return { ok: true, close: true, msg: p.n }; }
         addProd(p, true);
@@ -1053,7 +1057,7 @@ export function createAlmacen(X) {
     else if (a === 'editp') prodForm(id);
     else if (a === 'fw') { S.edit.w = el.dataset.v === '1'; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); S.edit.lbl(); }
     else if (a === 'savep') saveProd();
-    else if (a === 'delp') delProd();
+    else if (a === 'delp') { if (adm()) delProd(); }
     else if (a === 'cancel') closeForms();
     else if (a === 'repo') repoForm(null);
     else if (a === 'rpick') { S.repo.id = id || null; S.repo.note = 0; renderRepo(); }
