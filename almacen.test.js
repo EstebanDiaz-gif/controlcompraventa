@@ -102,3 +102,15 @@ test('promos: reparto del precio del combo', () => {
   assert.equal(precioNormal([{ id: 'f', q: 1 }, { id: 'c', q: 2 }], (id) => ({ f: 9000, c: 2750 })[id]), 14500);
   assert.equal(ahorro({ precio: 12000, antes: 14500 }), 17);
 });
+
+test('lista del catálogo: los productos sin control de stock se muestran aunque tengan 0', async () => {
+  const { buildLista } = await import('./almacen-calc.js');
+  const L = buildLista([
+    { id: 'a', n: 'Jamón cocido', pn: 12000, q: 0, w: true, ns: true },
+    { id: 'b', n: 'Queso cremoso', pn: 9000, q: -2.5, w: true, ns: true },
+    { id: 'c', n: 'Pan de miga', pn: 3000, q: 0, ns: true },
+    { id: 'd', n: 'Yerba', pn: 4000, q: 0 }
+  ]);
+  const d = L.data[0];
+  assert.deepEqual(d.map((x) => [x.n, x.q]), [['Jamón cocido', 5], ['Pan de miga', 10], ['Queso cremoso', 5]]);
+});

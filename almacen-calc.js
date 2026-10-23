@@ -54,9 +54,11 @@ function chunk(items, max) {
   return out;
 }
 export function buildLista(products, max = 700000) {
-  const vis = products.filter((p) => !p.oh && p.pn > 0 && pubQty(p.q, p.w) > 0).sort((a, b) => a.n.localeCompare(b.n));
+  // ns = sin control de stock (fiambres, cosas que se usan para elaborar): siempre disponible, con el tope máximo.
+  const qOf = (p) => (p.ns ? (p.w ? 5 : 10) : pubQty(p.q, p.w));
+  const vis = products.filter((p) => !p.oh && p.pn > 0 && qOf(p) > 0).sort((a, b) => a.n.localeCompare(b.n));
   const data = vis.map((p) => {
-    const o = { i: p.id, n: p.n, p: p.pn, q: pubQty(p.q, p.w) };
+    const o = { i: p.id, n: p.n, p: p.pn, q: qOf(p) };
     if (p.cat) o.c = p.cat; if (p.w) o.w = 1; if (p.img) o.f = p.hd ? 2 : 1;
     if (p.d) o.d = p.d;                 // descripción
     if (p.pa > p.pn) o.a = p.pa;        // precio anterior (tachado)
