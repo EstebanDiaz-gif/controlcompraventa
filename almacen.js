@@ -126,6 +126,7 @@ export function createAlmacen(X) {
       const qi = $('cjq');
       qi.oninput = () => { S.q = qi.value; if (S.cat && S.q.trim()) { S.cat = ''; renderCats(); } renderRes(); };
       qi.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAdd(); } };
+      if (PC) setTimeout(() => { if (!document.activeElement || document.activeElement === document.body) qi.focus({ preventScroll: true }); }, 50);
     }
     renderCats(); renderRes(); renderHoy();
     // Si el cajero está escribiendo (paga con, buscar cliente), no le borramos lo que escribe.
@@ -1102,6 +1103,21 @@ export function createAlmacen(X) {
     else if (a === 'scanstk') scanStock();
     else if (a === 'scanrepo') scanRepo();
     else if (a === 'scanfs') scanField();
+  });
+  // En la compu, la pistola lectora escribe como un teclado. Si lee un código sin que haya ningún
+  // campo elegido (por ejemplo después de un clic en otro lado), lo mandamos al buscador de la pantalla:
+  // así no hace falta hacer clic en el campo antes de escanear.
+  if (PC) document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || !e.key || e.key.length !== 1 || e.key === ' ') return;
+    const a = document.activeElement;
+    if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+    if (Array.prototype.some.call(document.body.children, (o) => o.style && o.style.position === 'fixed' && o.style.inset === '0px')) return; // hay una ventana abierta
+    const t = ['qkcod', 'cjq', 'rq', 'aq'].map((id) => $(id)).find((el) => el && el.offsetParent !== null && !el.disabled);
+    if (!t) return;
+    e.preventDefault();
+    try { t.focus({ preventScroll: true }); } catch (er) { t.focus(); }
+    t.value += e.key;
+    t.dispatchEvent(new Event('input', { bubbles: true }));
   });
   document.addEventListener('change', (e) => {
     if (!X.isAlm() || !e.target.dataset || !e.target.dataset.alm) return;
