@@ -232,13 +232,15 @@ o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:2
 '<div class="note" style="background:var(--bg);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px"><b>'+CFG.trialDays+' días de prueba gratis.</b> Hoy no se te cobra nada. Elegí el plan que te conviene: cuando termine la prueba, para seguir usando la app se paga ese plan (con '+CFG.graceDays+' días de cortesía).</div>'+
 '<label>Nombre de la tienda</label><input id="sn_n" placeholder="Ej: Pekeron" autocomplete="off">'+
 '<label>¿Qué hace tu negocio?</label><select id="sn_b"><option value="productos">Vendo productos (ropa, calzado, etc.)</option><option value="servicios">Presto servicios (maquillaje, peluquería, barbería)</option><option value="ambos">Ambos</option><option value="almacen">Almacén, despensa o minimercado</option></select>'+
+'<div id="sn_rw"><label>¿Qué vendés principalmente?</label><select id="sn_r">'+rubOpts('ropa')+'</select></div>'+
 '<label style="margin-top:14px">Elegí tu plan</label>'+pc+
 '<button class="go" id="sn_ok">Empezar mi prueba gratis</button><button class="x" id="sn_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
 document.body.appendChild(o);
+$('sn_b').onchange=function(){$('sn_rw').hidden=['productos','ambos'].indexOf(this.value)<0};
 $('sn_x').onclick=function(){o.remove()};
 $('sn_ok').onclick=function(){
 var n=$('sn_n').value.trim();if(!n){alert('Escribí el nombre de la tienda.');return}
-var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',bz=$('sn_b').value;
+var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',bz=$('sn_b').value,rb=['productos','ambos'].indexOf(bz)>=0?$('sn_r').value:'';
 $('sn_ok').disabled=true;
 if(!SERVER_MODE){
 var sid=rnd(10),b=writeBatch(db);
@@ -248,9 +250,10 @@ b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 b.commit().then(function(){o.remove();
-if(bz!='productos')setDoc(doc(db,'stores',sid,'cfg','servicios'),{biz:bz},{merge:true}).catch(function(){});
+var c0={};if(bz!='productos')c0.biz=bz;if(rb)c0.rub=rb;if(Object.keys(c0).length)setDoc(doc(db,'stores',sid,'cfg','servicios'),c0,{merge:true}).catch(function(){});
 alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita del plan '+CFG.plans[plan].name+'.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)});return}
 callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz}).then(function(r){o.remove();
+if(rb&&r.sid)setDoc(doc(db,'stores',r.sid,'cfg','servicios'),{rub:rb},{merge:true}).catch(function(){});
 try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
 if(r.trial)alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)})}}
 function joinStore(){
@@ -407,6 +410,7 @@ if(t=='fia'&&biz()!='almacen'){drawFia();return}
 if(biz()=='almacen'&&['caja','fia','stk','res'].indexOf(t)>=0){ALM.redraw();return}
 if(t=='add')drawAdd();else if(t=='sell')drawSell();else if(t=='att')drawAtt();else if(t=='svc')drawSvc();else if(t=='plat')drawPlat();else redrawData()}
 function redrawData(){
+if(biz()=='productos'||biz()=='ambos')applyEx();
 if(ROLE=='admin'&&isAgBiz())AG.publishSoon();
 if(TAB=='agd'){if(!AG.editing())AG.draw();return}
 if(biz()=='almacen'&&['caja','fia','stk','res'].indexOf(TAB)>=0){ALM.redraw();return}
@@ -437,7 +441,38 @@ var o={n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(mv.t=='c'?mv.q:-mv.q)};
 if(pr&&pr.pm)o.pm=pr.pm;if(pr&&pr.pn)o.pn=pr.pn;if(pr&&pr.mm)o.mm=pr.mm;if(pr&&pr.cat)o.cat=pr.cat;
 if(pr&&pr.img&&mv===list[0]&&!photoOf(key(mv.s||mv.p))){o.img=pr.img;if(pr.hd){o.hd=1;b.set(fref(key(mv.s||mv.p)),{f:pr.hd,at:Date.now()})}}
 b.set(sref(pk(mv)),o,{merge:true})});b.commit().catch(fail)}
-var RCATS=['Zapatillas','Remeras','Camisas','Buzos y camperas','Pantalones','Jeans','Shorts','Vestidos y polleras','Ropa deportiva','Ropa interior','Calzado','Accesorios','Bolsos y carteras','Otros'];
+// Qué vende la tienda (cfg/servicios.rub): cambia los ejemplos de los formularios y las categorías sugeridas,
+// para que alguien que vende ropa no vea "Zapatillas Duramo" como ejemplo.
+var RUBS=[['ropa','Ropa'],['calzado','Calzado'],['ropaycalz','Ropa y calzado'],['celus','Celulares y tecnología'],['acc','Carteras, accesorios y bijou'],['perf','Perfumería y cosmética'],['otro','Otros productos']];
+var RUBX={
+ropa:{p:'Remera manga corta negra',s:'REM-MC-NEG',cat:'Remeras',d:'Algodón peinado, calce regular.',tag:'Ropa de mujer y hombre por mayor y menor',z:'S, M, L, XL...',zl:'Talle (S, M...)',c:'Negro, Blanco...',
+ cats:['Remeras','Camisas','Buzos y camperas','Pantalones','Jeans','Shorts y bermudas','Vestidos y polleras','Ropa deportiva','Ropa interior','Accesorios','Otros']},
+calzado:{p:'Zapatillas urbanas blancas',s:'ZAP-URB-BL',cat:'Zapatillas',d:'Livianas y cómodas para todos los días.',tag:'Calzado para toda la familia',z:'36, 37, 38...',zl:'Talle (38, 39...)',c:'Blanco, Negro...',
+ cats:['Zapatillas','Zapatos','Botas y borcegos','Sandalias y ojotas','Pantuflas','Calzado de niños','Medias','Otros']},
+ropaycalz:{p:'Bermuda de jean celeste',s:'BER-JEAN-CEL',cat:'Bermudas',d:'Jean elastizado, tiro medio.',tag:'Ropa y calzado por mayor y menor',z:'S, M, L, 38...',zl:'Talle (38, M...)',c:'Celeste, Negro...',
+ cats:['Remeras','Camisas','Buzos y camperas','Pantalones','Jeans','Bermudas','Vestidos y polleras','Ropa deportiva','Zapatillas','Calzado','Accesorios','Otros']},
+celus:{p:'Auriculares bluetooth negros',s:'AUR-BT-NEG',cat:'Auriculares',d:'Bluetooth, hasta 20 horas de batería.',tag:'Celulares, fundas y accesorios',z:'Modelo o capacidad (128 GB, A15...)',zl:'Modelo / capacidad',c:'Negro, Azul...',
+ cats:['Celulares','Fundas','Vidrios y protectores','Cargadores y cables','Auriculares','Parlantes','Relojes inteligentes','Otros']},
+acc:{p:'Cartera de cuero negra',s:'CAR-CUE-NEG',cat:'Carteras',d:'Cuero ecológico, con correa regulable.',tag:'Carteras, billeteras y accesorios',z:'Único, Chica, Grande...',zl:'Medida (única, chica...)',c:'Negro, Suela...',
+ cats:['Carteras','Billeteras','Mochilas','Cinturones','Bijou','Lentes de sol','Relojes','Otros']},
+perf:{p:'Perfume floral 100 ml',s:'PERF-FLO-100',cat:'Perfumes',d:'Fragancia floral y fresca, de larga duración.',tag:'Perfumes, cremas y maquillaje',z:'50 ml, 100 ml...',zl:'Tamaño (100 ml...)',c:'Tono o fragancia...',
+ cats:['Perfumes','Cremas','Maquillaje','Cuidado del pelo','Cuidado de la piel','Otros']},
+otro:{p:'Taza de cerámica blanca',s:'TAZA-BL',cat:'Bazar',d:'Apta microondas, 350 ml.',tag:'Regalos, bazar y mucho más',z:'Tamaño o medida',zl:'Tamaño / medida',c:'Blanco, Negro...',
+ cats:['Bazar','Regalería','Juguetes','Librería','Decoración','Otros']}};
+// Si la tienda todavía no eligió, lo adivinamos por lo que ya cargó y por el nombre.
+var RUBK=[['calzado',/zapatill|botin|botín|borcego|sandalia|ojota|zapato|pantufla|calzado/],['ropa',/remera|buzo|campera|jean|pantal|bermuda|short|vestido|pollera|camisa|musculosa|calza|jogger|blusa|ropa|indumentaria/],
+['celus',/celular|funda|cargador|auricular|parlante|vidrio templado|smart ?watch|iphone|samsung|motorola|xiaomi/],['acc',/cartera|billetera|mochila|cintur|bijou|collar|lentes|marroquin/],['perf',/perfum|crema|maquillaje|labial|cosm/]];
+function rub(){if(CS&&CS.rub&&RUBX[CS.rub])return CS.rub;
+var t=(ST.slice(0,200).map(function(d){return d.n+' '+d.cat}).join(' ')+' '+SNAME).toLowerCase(),hit={};
+RUBK.forEach(function(k){if(k[1].test(t))hit[k[0]]=1});
+if(hit.ropa&&hit.calzado)return 'ropaycalz';for(var i=0;i<RUBK.length;i++)if(hit[RUBK[i][0]])return RUBK[i][0];return 'ropa'}
+function EX(k){return RUBX[rub()][k]}
+function rubOpts(cur){return RUBS.map(function(r){return '<option value="'+r[0]+'"'+(cur==r[0]?' selected':'')+'>'+r[1]+'</option>'}).join('')}
+var RCATS={forEach:function(f){RUBX[rub()].cats.forEach(f)}};
+// Los formularios se dibujan antes de que lleguen el stock y la configuración: al llegar, actualizamos los ejemplos.
+function applyEx(){var ph=function(sel,v){Array.prototype.forEach.call(document.querySelectorAll(sel),function(e){e.placeholder=v})};
+ph('#p','Ej: '+EX('p'));ph('#s','Ej: '+EX('s'));ph('#ac,#ecat','Ej: '+EX('cat'));ph('#edsc','Ej: '+EX('d'));ph('#cat_tag','Ej: '+EX('tag'));
+ph('.sz-z',EX('z'));ph('.sz-c',EX('c'));ph('.ez-z',EX('zl'));var dl=$('rcats');if(dl)dl.innerHTML=catOpts()}
 function catOpts(){var o={};RCATS.forEach(function(c){o[c]=1});ST.forEach(function(d){if(d.cat)o[d.cat]=1});return Object.keys(o).map(function(c){return '<option value="'+esc(c)+'">'}).join('')}
 function fieldOf(b,f){var r=0;baseDocs(b).forEach(function(d){if(d[f])r=d[f]});return r}
 function photoOf(b){var r='';baseDocs(b).forEach(function(d){if(d.img)r=d.img});return r}
@@ -473,9 +508,9 @@ SZ=[];SZON=false;
 if(biz()=='servicios')type='c';
 if(type=='v'&&!MAN&&ST.length){drawSell();return}
 $('s-add').innerHTML='<div class="card">'+(biz()=='servicios'?'<b>Compré insumos o productos para el servicio</b><div class="k" style="margin:4px 0 0">Cargá lo que comprás para trabajar (productos, insumos). Lo que cobrás a tus clientes se registra en Atender.</div>':'<div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>')+
-'<label>Producto</label><input id="p" list="prods" placeholder="Ej: Adidas Duramo 2 azul" autocomplete="off">'+
-'<label>Código (SKU) · el mismo que en tu tienda</label><input id="s" placeholder="Ej: DURAMO2-AZ" autocomplete="off">'+
-(type=='c'?'<label>Categoría (opcional)</label><input id="ac" list="rcats" placeholder="Ej: Zapatillas" autocomplete="off" maxlength="30"><datalist id="rcats">'+catOpts()+'</datalist>':'')+
+'<label>Producto</label><input id="p" list="prods" placeholder="Ej: '+esc(EX('p'))+'" autocomplete="off">'+
+'<label>Código (SKU) · el mismo que en tu tienda</label><input id="s" placeholder="Ej: '+esc(EX('s'))+'" autocomplete="off">'+
+(type=='c'?'<label>Categoría (opcional)</label><input id="ac" list="rcats" placeholder="Ej: '+esc(EX('cat'))+'" autocomplete="off" maxlength="30"><datalist id="rcats">'+catOpts()+'</datalist>':'')+
 '<div class="row"><div><label>Cantidad</label><input id="q" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="u" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 (type=='c'?'<div class="row"><div><label>Venta por mayor (opcional)</label><input id="pm" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Venta por menor (opcional)</label><input id="pn" type="number" inputmode="decimal" min="0" placeholder="0"></div></div><label>Mínimo de unidades para precio mayorista (opcional)</label><input id="mmq" type="number" inputmode="numeric" min="0" placeholder="Ej: 4">':'')+
 (type=='c'?'<label>Foto (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="phv" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:12px;display:none"><input id="ph" type="file" accept="image/*" style="flex:1"></div>':'')+
@@ -521,7 +556,7 @@ function drawSizes(){
 var b=$('szbox');if(!b)return;var q=+$('q').value||0,h='';
 if(!SZON){if(q>0)h='<div class="note" style="margin-top:12px">¿Compraste varios talles o colores? Especificalos acá.</div><button class="go alt" data-sz="open" style="margin-top:8px">Agregar talles y colores</button>'}
 else{h='<label style="margin-top:10px">Talles, colores y cantidades</label>';
-SZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:flex-start"><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Talle</label><input class="sz-z" data-i="'+i+'" placeholder="S, M, L, 38..." value="'+esc(r.z)+'" autocomplete="off"></div><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Color</label><input class="sz-c" data-i="'+i+'" placeholder="Azul, Negro..." value="'+esc(r.c||'')+'" autocomplete="off"></div><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Cuántos</label><input class="sz-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="1" value="'+esc(r.q)+'"></div><button class="x" data-sz="del" data-i="'+i+'" aria-label="Quitar" style="margin-top:26px">×</button></div>'});
+SZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:flex-start"><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Talle</label><input class="sz-z" data-i="'+i+'" placeholder="'+esc(EX('z'))+'" value="'+esc(r.z)+'" autocomplete="off"></div><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Color</label><input class="sz-c" data-i="'+i+'" placeholder="'+esc(EX('c'))+'" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><label style="font-size:12px;color:var(--mut);margin:0 0 4px">Cuántos</label><input class="sz-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="1" value="'+esc(r.q)+'"></div><button class="x" data-sz="del" data-i="'+i+'" aria-label="Quitar" style="margin-top:26px">×</button></div>'});
 h+='<div class="tot" id="szsum" style="margin:10px 0;font-weight:700;color:var(--sell)"></div><button class="go alt" data-sz="add" style="margin:8px 0">+ Agregar otro talle/color</button> <button class="go alt" data-sz="off" style="margin:8px 0">Sin talles (usar todo como uno)</button>'}
 b.innerHTML=h;sumSizes()}
 function sizeAction(a,i){
@@ -700,15 +735,15 @@ var st0=stock(b);
 var h='<div class="card"><b>'+esc(g.n)+'</b>'+(g.s?'<small style="display:block">'+esc(g.s)+'</small>':'')+
 '<div class="row"><div><label>Venta por mayor</label><input id="epm" type="number" inputmode="decimal" min="0" placeholder="0" value="'+(g.pm||'')+'"></div><div><label>Venta por menor</label><input id="epn" type="number" inputmode="decimal" min="0" placeholder="0" value="'+(g.pn||'')+'"></div></div>'+
 '<div class="k" style="margin-top:6px">Con estos precios, quien carga una venta no tiene que escribirlos.</div>'+
-'<label style="margin-top:14px">Categoría</label><input id="ecat" list="rcats" placeholder="Ej: Zapatillas" autocomplete="off" maxlength="30" value="'+esc(fieldOf(b,'cat')||'')+'"><datalist id="rcats">'+catOpts()+'</datalist>'+
+'<label style="margin-top:14px">Categoría</label><input id="ecat" list="rcats" placeholder="Ej: '+esc(EX('cat'))+'" autocomplete="off" maxlength="30" value="'+esc(fieldOf(b,'cat')||'')+'"><datalist id="rcats">'+catOpts()+'</datalist>'+
 '<label style="margin-top:14px">Mínimo de unidades para precio mayorista</label><input id="emm" type="number" inputmode="numeric" min="0" placeholder="Ej: 4 (vacío = sin mínimo)" value="'+(fieldOf(b,'mm')||'')+'">'+
-'<label style="margin-top:14px">Descripción para el catálogo (opcional)</label><textarea id="edsc" maxlength="160" rows="2" placeholder="Ej: Zapatillas de running con amortiguación, muy livianas." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">'+esc(fieldOf(b,'d')||'')+'</textarea>'+
+'<label style="margin-top:14px">Descripción para el catálogo (opcional)</label><textarea id="edsc" maxlength="160" rows="2" placeholder="Ej: '+esc(EX('d'))+'" style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">'+esc(fieldOf(b,'d')||'')+'</textarea>'+
 '<label style="margin-top:14px">Precio anterior (opcional)</label><input id="epa" type="number" inputmode="decimal" min="0" placeholder="Ej: 55000" value="'+(fieldOf(b,'pa')||'')+'"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="edt" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.dt})?' checked':'')+'> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="eoh" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.oh})?' checked':'')+'> No mostrar en el catálogo</label>'+
 (photoOf(b)&&!baseDocs(b).some(function(d){return d.hd})?'<div class="bn warn" style="margin:18px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla abajo para que se vea nítida en el catálogo.</div>':'')+'<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*"><button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>';
 if(st0>0){h+='<label style="margin-top:18px">Agregar talles y colores ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
-ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="Talle (38, M...)" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
+ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="'+esc(EX('zl'))+'" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
 h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle o color</button>'}
 else h+='<div class="k" style="margin-top:14px">Este producto no tiene unidades sin talle para repartir.</div>';
 var ml=M.filter(function(x){return key(x.s||x.p)==b}).sort(function(a,c){return c.d.localeCompare(a.d)||c.id-a.id});
@@ -891,6 +926,7 @@ setDoc(doc(db,'stores',SID,'cfg','servicios'),{pay:{ef:num('cf_ef'),tr:num('cf_t
 function bizCard(){
 return '<div class="card"><b>Tipo de negocio</b><div class="k" style="margin:4px 0 0">Elegí qué vende o hace tu negocio. Los datos que ya cargaste se conservan.</div>'+
 '<select id="bz" style="margin-top:10px"><option value="productos"'+(biz()=='productos'?' selected':'')+'>Vendo productos (ropa, calzado, etc.)</option><option value="servicios"'+(biz()=='servicios'?' selected':'')+'>Presto servicios (maquillaje, peluquería, barbería)</option><option value="ambos"'+(biz()=='ambos'?' selected':'')+'>Ambos</option><option value="almacen"'+(biz()=='almacen'?' selected':'')+'>Almacén, despensa o minimercado</option></select>'+
+'<div id="bzrw"'+(['productos','ambos'].indexOf(biz())<0?' hidden':'')+'><label>¿Qué vendés principalmente?</label><select id="bzr">'+rubOpts(rub())+'</select><div class="k" style="margin-top:4px">Sirve para que los ejemplos y las categorías sugeridas sean de tu rubro.</div></div>'+
 '<button class="go alt" data-bz="save">Guardar</button></div>'}
 
 /* ---------- Gastos (administrador) ---------- */
@@ -971,7 +1007,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<label>Foto de portada (opcional)</label><div class="k" style="margin:0 0 8px">La foto grande de arriba del catálogo: tus productos, tu local o una modelo con tu ropa. Queda mejor una foto vertical o cuadrada.</div>'+
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
-'<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: Zapatillas y ropa por mayor y menor" value="'+esc(p.tag||'')+'" autocomplete="off">'+
+'<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
@@ -1284,7 +1320,7 @@ return}
 if(d.tmoff!==undefined){if(ROLE=='admin')setDoc(doc(db,'stores',SID,'public','info'),{temaOff:d.tmoff=='1'?true:deleteField()},{merge:true}).catch(fail);return}
 if(d.gtema!==undefined){gTema(d.gtema);return}
 if(d.tmall){TMALL=true;drawTeam();var tc=$('tmcard');if(tc)tc.scrollIntoView({block:'start'});return}
-if(d.bz){setDoc(doc(db,'stores',SID,'cfg','servicios'),{biz:$('bz').value},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
+if(d.bz){var bzv=$('bz').value,bzo={biz:bzv};if(['productos','ambos'].indexOf(bzv)>=0)bzo.rub=$('bzr').value;setDoc(doc(db,'stores',SID,'cfg','servicios'),bzo,{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
 if(d.ed){startEdit(d.ed);return}
 if(d.edx){editAction(d.edx,d.i);return}
@@ -1303,7 +1339,7 @@ else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.id=='sv_d'&&SVD)SVD.d=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
-document.addEventListener('change',function(e){if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+document.addEventListener('change',function(e){if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
 if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores',SID,'members',mt.dataset.mcp),{cp:mt.checked},{merge:true}).catch(function(er){mt.checked=!mt.checked;fail(er)})}
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
