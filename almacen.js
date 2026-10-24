@@ -17,6 +17,7 @@ import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
 import { CAMPOS, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
+import { cargarDemo, borrarDemo, DEMO_TIPOS } from './demo.js';
 export { CATS, PAY };
 
 // ---------- módulo de pantalla ----------
@@ -612,6 +613,9 @@ export function createAlmacen(X) {
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b></div>' : '';
     h += '<div class="card">';
     if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
+    const own = X.isOwner && X.isOwner() && adm();
+    if (own && !all.length) h += '<div class="bn" style="margin:0 0 12px"><b>✨ Demo para mostrar</b><div style="margin:4px 0 10px;font-size:14px">Llená esta tienda con productos de ejemplo, fotos, destacados y el catálogo listo. Solo lo ves vos (dueño de Pekeron).</div><button class="go" data-al="demo" style="margin:0">Cargar demo</button></div>';
+    if (own && all.some((p) => p.demo)) h += '<button class="x" data-al="demodel" style="font-size:13px;text-decoration:underline;margin:0 4px 10px;color:#b3261e">Borrar los productos de ejemplo</button>';
     if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (load() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
     const shown = l.slice(0, 300);
     shown.forEach((p) => {
@@ -908,6 +912,19 @@ export function createAlmacen(X) {
       setDoc(ref('cfg', 'servicios'), { bal: { on: q('bon').checked, plu: +q('bplu').value, val: q('bval').value } }, { merge: true }).catch(failW);
       o.remove();
     };
+  }
+  function demoDlg() {
+    const o = modal('<b style="font-size:19px">✨ Cargar demo</b><div class="k" style="margin-top:4px">Elegí qué tipo de negocio querés mostrar. Se cargan productos con fotos, precios, stock, categorías y destacados, y se activa el catálogo.</div>' +
+      DEMO_TIPOS.map(([k, t]) => '<button class="go alt" data-dt="' + k + '">' + t + '</button>').join('') +
+      '<button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    o.querySelectorAll('[data-dt]').forEach((b) => {
+      b.onclick = () => {
+        o.querySelectorAll('button').forEach((x) => { x.disabled = true; }); b.textContent = 'Cargando…';
+        cargarDemo({ db, sid: X.sid(), sname: X.sname() || 'Mi negocio', tipo: b.dataset.dt })
+          .then((n) => { o.remove(); publishSoon(); alert('Listo: se cargaron ' + n + ' productos de ejemplo. En unos segundos aparecen en el catálogo (Equipo → Catálogo → Copiar link).'); })
+          .catch((e) => { o.remove(); failW(e); });
+      };
+    });
   }
   function loadDay() {
     const d = S.day;
@@ -1344,6 +1361,8 @@ export function createAlmacen(X) {
     else if (a === 'xtop') expTop();
     else if (a === 'xstk') expStock();
     else if (a === 'baldlg') balDlg();
+    else if (a === 'demo') demoDlg();
+    else if (a === 'demodel') { const ids = P().filter((p) => p.demo).map((p) => p.id); if (ids.length && confirm('¿Borrar los ' + ids.length + ' productos de ejemplo?')) borrarDemo({ db, sid: X.sid(), ids }).catch(failW); }
     else if (a === 'cjmov') cajaMov();
     else if (a === 'cjclose') cajaClose();
     else if (a === 'cjver') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { if (c.st === 'open') cajaClose(); else cajaVer(c); } }

@@ -159,10 +159,10 @@ body.alm #hero,body.alm #dest,body.alm #cats,body.alm #inf,body.alm .tools .sbox
 .arow .ac{flex:none;width:158px;scroll-snap-align:start}
 body.alm .sec h2{color:var(--ad)}
 @media(min-width:760px){.ahban .pi{width:250px}.ahban h2{font-size:38px}}
-body.alm .hdr{background:var(--ap);border-bottom:0;color:#fff}
-body.alm .hdr b{color:#fff}
-body.alm .hdr .ib{background:rgba(255,255,255,.14);color:#fff}
-body.alm .hdr .logo{background:#fff;color:var(--ap)}
+html body.alm .hdr{background:var(--ap);border-bottom:0;color:#fff}
+html body.alm .hdr b{color:#fff}
+html body.alm .hdr .ib{background:rgba(255,255,255,.14);color:#fff}
+html body.alm .hdr .logo{background:#fff;color:var(--ap)}
 body.alm .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 12px}
 @media(min-width:760px){body.alm .grid{grid-template-columns:repeat(4,minmax(0,1fr))}.arow .ac{width:190px}}
 @media(min-width:1000px){body.alm .grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
@@ -420,7 +420,7 @@ drawFoot();fxStart(TEMA)}
 // ---------- Pie de página ----------
 var SEAS='';
 // ---------- Catálogo de almacén ----------
-var CATI={'Almacén':'🥫','Bebidas':'🥤','Galletitas y golosinas':'🍪','Lácteos':'🥛','Fiambrería':'🧀','Panadería':'🥖','Verdulería':'🥕','Congelados':'🧊','Limpieza':'🧴','Perfumería':'🧼','Cigarrillos':'🚬','Otros':'🛒','Kiosco':'🍫','Carnicería':'🥩','Bazar':'🍽️','Mascotas':'🐾','Bebés':'🍼','Farmacia':'💊'};
+var CATI={'Almacén':'🥫','Bebidas':'🥤','Galletitas y golosinas':'🍪','Lácteos':'🥛','Fiambrería':'🧀','Panadería':'🥖','Verdulería':'🥕','Congelados':'🧊','Limpieza':'🧴','Perfumería':'🧼','Cigarrillos':'🚬','Otros':'🛒','Kiosco':'🍫','Carnicería':'🥩','Bazar':'🍽️','Mascotas':'🐾','Bebés':'🍼','Farmacia':'💊','Carne vacuna':'🥩','Cerdo':'🐖','Pollo':'🍗','Embutidos':'🌭','Para el asado':'🔥','Elaborados':'🍽️','Golosinas':'🍬','Snacks':'🍟','Varios':'🔋'};
 function almSetup(){document.body.classList.toggle('alm',!!ALM);if(!ALM)return;
 var r=document.documentElement;if(!TEMA&&goodColor(INFO.color)&&!/^#1{6}$|^#0{6}$/i.test(INFO.color)&&lum(INFO.color)<170)r.style.setProperty('--ap',INFO.color);if(TEMA)r.style.setProperty('--ap',TEMAS[TEMA].cat.b);
 var n=INFO.name||'Catálogo',lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':esc((n[0]||'C').toUpperCase());

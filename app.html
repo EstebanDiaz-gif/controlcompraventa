@@ -183,7 +183,7 @@ var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
-isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP}});
+isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP}});
 // Promociones: las ven todos (Caja del almacén) y las administra un administrador.
 var PRM=[],PREVTAB='';
 var PRO=createPromos({db:db,$:$,esc:esc,money:money,rnd:rnd,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},
@@ -305,7 +305,7 @@ ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(){syncBiz()});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},function(){});
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
