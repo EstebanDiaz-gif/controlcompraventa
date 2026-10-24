@@ -114,3 +114,37 @@ test('lista del catálogo: los productos sin control de stock se muestran aunque
   const d = L.data[0];
   assert.deepEqual(d.map((x) => [x.n, x.q]), [['Jamón cocido', 5], ['Pan de miga', 10], ['Queso cremoso', 5]]);
 });
+
+test('caja: billetes sugeridos, partes del pago y efectivo esperado', async () => {
+  const { billetes, partes, payLabel, esperado } = await import('./almacen-calc.js');
+  assert.deepEqual(billetes(11750), [12000, 15000, 20000]);
+  assert.deepEqual(billetes(850), [1000, 2000, 5000, 10000]);
+  assert.deepEqual(billetes(20000), []);
+  assert.deepEqual(partes({ pay: 'tr', tot: 500 }), { tr: 500 });
+  assert.deepEqual(partes({ pay: 'mix', tot: 500, pp: { ef: 200, qr: 300 } }), { ef: 200, qr: 300 });
+  assert.equal(payLabel({ pay: 'mix', pp: { ef: 1, tr: 2 } }), 'Efectivo + Transferencia');
+  assert.equal(esperado({ ini: 5000, p: { ef: 12000, tr: 3000 }, c: { ef: 2000 }, ing: 1000, ret: 4000 }), 16000);
+});
+test('balanza: lee peso o importe de la etiqueta', async () => {
+  const { balanza, eanOk, porPlu } = await import('./almacen-calc.js');
+  const mk = (d12) => { let s = 0; for (let i = 0; i < 12; i++) s += (+d12[i]) * (i % 2 ? 3 : 1); return d12 + ((10 - (s % 10)) % 10); };
+  const c1 = mk('200012301250');            // PLU 00123, 1250 g
+  assert.ok(eanOk(c1));
+  assert.deepEqual(balanza(c1, { on: true, plu: 5, val: 'peso' }), { plu: '00123', kg: 1.25 });
+  assert.deepEqual(balanza(mk('210123004500'), { on: true, plu: 4, val: 'precio' }), { plu: '0123', importe: 4500 });
+  assert.equal(balanza(c1, { on: false }), null);
+  assert.equal(balanza('7790895000997', { on: true }), null);
+  assert.equal(balanza(c1.slice(0, 12) + '0', { on: true }), null);   // dígito verificador mal
+  const L = [{ id: 'a', s: '123', w: true }, { id: 'b', s: '7790895000997' }];
+  assert.equal(porPlu(L, '00123').id, 'a');
+  assert.equal(porPlu(L, '0999'), null);
+});
+test('ranking de vendidos, sin ventas y CSV', async () => {
+  const { ranking, sinVentas, csv } = await import('./almacen-calc.js');
+  const P = [{ id: 'a', n: 'Coca', q: 5, c: 100 }, { id: 'b', n: 'Queso', q: 2, c: 900, w: true }, { id: 'c', n: 'Yerba', q: 3, c: 300 }, { id: 'd', n: 'Jamón', q: 0, ns: true }];
+  const pr = { a: { q: 10, v: 30000 }, b: { q: 1.5, v: 14000 }, x: { q: 1, v: 100, n: 'Viejo' } };
+  assert.deepEqual(ranking(pr, P).map((r) => r.n), ['Coca', 'Queso', 'Viejo']);
+  assert.deepEqual(ranking(pr, P, 'q').map((r) => r.n), ['Coca', 'Queso', 'Viejo']);
+  assert.deepEqual(sinVentas(pr, P).map((p) => p.n), ['Yerba']);
+  assert.equal(csv([['Nombre', 'Precio'], ['Pan "lactal"; grande', 1.5]]), '﻿Nombre;Precio\r\n"Pan ""lactal""; grande";1,5\r\n');
+});

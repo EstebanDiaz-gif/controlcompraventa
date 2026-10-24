@@ -232,6 +232,14 @@ service cloud.firestore {
         allow create, update: if isMember(sid) && accessOk(sid);
         allow delete: if isAdmin(sid);
       }
+      // Cierre de caja: la caja abierta la ven y la actualizan todos los de la tienda (cada venta suma);
+      // una caja ya cerrada solo la puede cambiar un administrador.
+      match /cajas/{id} {
+        allow read: if isMember(sid);
+        allow create: if isMember(sid) && accessOk(sid);
+        allow update: if isMember(sid) && accessOk(sid) && (resource.data.get('st', '') == 'open' || isAdmin(sid));
+        allow delete: if isAdmin(sid);
+      }
       match /fiado/{id} {
         allow read: if isMember(sid);
         allow create: if accessOk(sid) && isMember(sid) && request.resource.data.by == request.auth.uid;

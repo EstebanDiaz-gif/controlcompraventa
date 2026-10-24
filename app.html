@@ -183,7 +183,7 @@ var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
-isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP}});
+isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP}});
 // Promociones: las ven todos (Caja del almacén) y las administra un administrador.
 var PRM=[],PREVTAB='';
 var PRO=createPromos({db:db,$:$,esc:esc,money:money,rnd:rnd,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},
