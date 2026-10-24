@@ -305,7 +305,7 @@ ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:!!x.dt,ce:!!x.ce,ns:!!x.ns})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:!!x.dt,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(){syncBiz()});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},function(){});
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
@@ -479,6 +479,16 @@ function photoOf(b){var r='';baseDocs(b).forEach(function(d){if(d.img)r=d.img});
 // Foto en dos versiones: chica (va en el producto) y grande (documento aparte para el catálogo). Ver fotos.js.
 function readPhoto(file,cb){makePhotos(file).then(function(r){cb(r.thumb,r.hd)})}
 function fref(b){return doc(db,'stores',SID,'public',fotoId(b))}
+// Fotos extra del producto (hasta 4): una por documento público foto_<clave>~1 … ~4. El producto guarda cuántas tiene (nx).
+var XMAX=4,XPH=null,XCH=false;
+function xref(b,i){return doc(db,'stores',SID,'public',fotoId(b)+'~'+i)}
+function xLoad(b){var n=fieldOf(b,'nx')||0;XPH=n?null:[];XCH=false;if(!n)return;
+Promise.all(Array.from({length:n},function(_,i){return getDoc(xref(b,i+1)).catch(function(){return null})})).then(function(r){if(EDK!==b)return;
+XPH=r.filter(function(s){return s&&s.exists()&&s.data().f}).map(function(s){var d=s.data();return {f:d.f,t:d.t||d.f}});xDraw()})}
+function xHtml(){if(XPH===null)return '<div class="k">Cargando fotos…</div>';
+return '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">'+XPH.map(function(x,i){return '<div style="position:relative;width:84px;height:84px"><img alt="" src="'+x.t+'" style="width:84px;height:84px;object-fit:cover;border-radius:12px"><button class="x" data-edx="rmx" data-i="'+i+'" aria-label="Quitar foto" style="position:absolute;top:-8px;right:-8px;width:28px;height:28px;border-radius:50%;background:#b3261e;color:#fff;font-size:18px;line-height:28px;text-decoration:none;padding:0">×</button></div>'}).join('')+
+(XPH.length<XMAX?'<label style="width:84px;height:84px;border-radius:12px;border:2px dashed var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--mut);margin:0;cursor:pointer;text-align:center">+ Foto<input id="xpf" type="file" accept="image/*" multiple style="display:none"></label>':'')+'</div>'}
+function xDraw(){var e=$('xph');if(e)e.innerHTML=xHtml()}
 function baseDocs(b){return ST.filter(function(d){return key(d.s||d.n)==b})}
 function priceOf(b,k){var v=0;baseDocs(b).forEach(function(d){var x=k=='mayor'?d.pm:d.pn;if(x)v=x});return v}
 function addMov(mv){addMovs([mv])}
@@ -724,7 +734,7 @@ qs[ni]=(qs[ni]||0)+c}
 if(take==x.q)ops.push({op:'del',id:x.id});
 else{var o=JSON.parse(JSON.stringify(x));o.q=x.q-take;ops.push({op:'set',mov:o})}});
 return {ops:ops,qs:qs,tot:tot,left:left}}
-function startEdit(b){EDK=b;EPH=undefined;EPHD='';var st0=stock(b);ESZ=[];
+function startEdit(b){EDK=b;EPH=undefined;EPHD='';xLoad(b);var st0=stock(b);ESZ=[];
 if(st0>0){if(st0<=12)for(var n=0;n<st0;n++)ESZ.push({z:'',q:'1'});else ESZ.push({z:'',q:String(st0)})}
 drawEdit()}
 function closeEdit(){EDK=null;ESZ=[];$('s-stk').innerHTML='';drawStk()}
@@ -741,7 +751,8 @@ var h='<div class="card"><b>'+esc(g.n)+'</b>'+(g.s?'<small style="display:block"
 '<label style="margin-top:14px">Precio anterior (opcional)</label><input id="epa" type="number" inputmode="decimal" min="0" placeholder="Ej: 55000" value="'+(fieldOf(b,'pa')||'')+'"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="edt" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.dt})?' checked':'')+'> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="eoh" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.oh})?' checked':'')+'> No mostrar en el catálogo</label>'+
-(photoOf(b)&&!baseDocs(b).some(function(d){return d.hd})?'<div class="bn warn" style="margin:18px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla abajo para que se vea nítida en el catálogo.</div>':'')+'<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*"><button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>';
+(photoOf(b)&&!baseDocs(b).some(function(d){return d.hd})?'<div class="bn warn" style="margin:18px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla abajo para que se vea nítida en el catálogo.</div>':'')+'<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*"><button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>'+
+'<label style="margin-top:18px">Más fotos (hasta '+XMAX+')</label><div class="k" style="margin-top:2px">Otros ángulos, puesta, detalles. En el catálogo el cliente las pasa deslizando.</div><div id="xph">'+xHtml()+'</div>';
 if(st0>0){h+='<label style="margin-top:18px">Agregar talles y colores ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
 ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="'+esc(EX('zl'))+'" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
 h+='<div class="tot" id="ezsum"></div><button class="x" data-edx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar talle o color</button>'}
@@ -756,7 +767,7 @@ function delProduct(){
 var b=EDK,ml=M.filter(function(x){return key(x.s||x.p)==b}),ds=baseDocs(b),nm0=ml.length?ml[0].p:(ds[0]?ds[0].n:'');
 if(!canWrite()){alert('El acceso venció: por ahora no se pueden borrar datos.');return}
 if(!confirm('¿Eliminar "'+nm0+'" por completo? Se borran sus '+ml.length+' movimiento(s) (compras y ventas) y su stock. Esto afecta tus resúmenes y no se puede deshacer.'))return;
-var ops=[fref(b)];ml.forEach(function(x){ops.push(mref(x.id))});ds.forEach(function(d){ops.push(doc(db,'stores',SID,'stock',d.id))});
+var ops=[fref(b)];for(var xi=1;xi<=XMAX;xi++)ops.push(xref(b,xi));ml.forEach(function(x){ops.push(mref(x.id))});ds.forEach(function(d){ops.push(doc(db,'stores',SID,'stock',d.id))});
 var chunks=[];for(var i=0;i<ops.length;i+=400)chunks.push(ops.slice(i,i+400));
 Promise.all(chunks.map(function(c){var bt=writeBatch(db);c.forEach(function(r){bt.delete(r)});return bt.commit()})).then(function(){closeEdit()}).catch(fail)}
 function editMov(id){
@@ -791,6 +802,7 @@ function editAction(a,i){
 if(a=='add'){ESZ.push({z:'',q:'1'});drawEdit()}
 else if(a=='del'){ESZ.splice(+i,1);drawEdit()}
 else if(a=='cancel')closeEdit();
+else if(a=='rmx'){if(XPH){XPH.splice(+i,1);XCH=true;xDraw()}}
 else if(a=='rmph'){EPH='';var v=$('epv');if(v){v.removeAttribute('src');v.style.display='none'}}
 else if(a=='delprod')delProduct();
 else if(a=='save')saveEdit()}
@@ -812,11 +824,15 @@ var pl=splitPlan(pur,needs,Date.now());
 if(pl.left>0){alert('No pude repartir esas unidades. Probá recalcular el stock en Equipo y reintentá.');return}
 pl.ops.forEach(function(o){if(o.op=='set')bt.set(mref(o.mov.id),o.mov);else bt.delete(mref(o.id))});
 bt.set(sref(b),{q:increment(-tot)},{merge:true});
-needs.forEach(function(n){bt.set(sref(b+'|'+key(n.z)),{n:name,s:sku,z:n.z,q:increment(n.q),pm:pm,pn:pn,mm:mm,oh:oh,cat:cat,d:dsc,pa:pa,dt:dt},{merge:true})})}
+needs.forEach(function(n){bt.set(sref(b+'|'+key(n.z)),{n:name,s:sku,z:n.z,q:increment(n.q),pm:pm,pn:pn,mm:mm,oh:oh,cat:cat,d:dsc,pa:pa,dt:dt,nx:XCH&&XPH?XPH.length:(fieldOf(b,'nx')||0)},{merge:true})})}
 if(EPH!==undefined){var ds=baseDocs(b),tg=ds.filter(function(d){return d.img})[0]||ds[0];
 ds.forEach(function(d){if(d.img&&(EPH===''||d!==tg))bt.set(doc(db,'stores',SID,'stock',d.id),{img:deleteField(),hd:deleteField()},{merge:true})});
 if(EPH&&tg)bt.set(doc(db,'stores',SID,'stock',tg.id),{img:EPH,hd:EPHD?1:deleteField()},{merge:true});
 if(EPH&&EPHD)bt.set(fref(b),{f:EPHD,at:Date.now()});else bt.delete(fref(b))}
+if(XCH&&XPH){var nx0=fieldOf(b,'nx')||0,nx1=XPH.length;
+XPH.forEach(function(x,i){bt.set(xref(b,i+1),{f:x.f,t:x.t,at:Date.now()})});
+for(var j=nx1+1;j<=Math.max(nx0,XMAX);j++)bt.delete(xref(b,j));
+baseDocs(b).forEach(function(d){bt.set(doc(db,'stores',SID,'stock',d.id),{nx:nx1||deleteField()},{merge:true})})}
 bt.commit().catch(fail);closeEdit()}
 
 /* ---------- Servicios (atenciones, comisiones, insumos) ---------- */
@@ -1350,6 +1366,8 @@ if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
 if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}
+if(e.target.id=='xpf'){var fs=Array.prototype.slice.call(e.target.files||[]),room=XMAX-((XPH||[]).length);if(fs.length>room)alert('Entran '+XMAX+' fotos extra: se agregan las primeras '+room+'.');
+fs.slice(0,Math.max(0,room)).forEach(function(f){readPhoto(f,function(o,hd){if(!o){alert('No pude leer una de las fotos. Probá con otra.');return}if(!XPH||XPH.length>=XMAX)return;XPH.push({t:o,f:hd||o});XCH=true;xDraw()})});e.target.value='';return}
 if(e.target.id=='eph'){var f=e.target.files&&e.target.files[0];if(f)readPhoto(f,function(o,hd){if(!o){alert('No pude leer esa foto. Probá con otra.');return}EPH=o;EPHD=hd||'';var v=$('epv');v.src=o;v.style.display=''})}
 if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}if(e.target.id=='gt')togglePlat()});
 
