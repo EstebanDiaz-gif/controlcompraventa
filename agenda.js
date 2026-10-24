@@ -134,7 +134,7 @@ export function createAgenda(X) {
   let pubT = 0;
   function publishSoon() { if (!adm() || !X.isAg()) return; clearTimeout(pubT); pubT = setTimeout(publish, 2500); }
   function payload() {
-    const c = cfg(), sv = svcs().map((s) => { const o = { id: s.id, n: s.n, p: s.p || 0, dur: normDur(s.dur || 30) }; if (s.d) o.d = s.d; return o; });
+    const c = cfg(), sv = svcs().map((s) => { const o = { id: s.id, n: s.n, p: s.p || 0, dur: normDur(s.dur || 30) }; if (s.d) o.d = s.d; if (s.f) o.f = 1; return o; });
     const pr = pros(), t = X.today();
     return { on: !!c.on && pr.length > 0 && sv.length > 0, paso: c.paso, ant: c.ant, max: c.max, h: c.h, cz: (c.cz || []).filter((d) => d >= t), pros: pr, sv };
   }

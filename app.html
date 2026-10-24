@@ -149,6 +149,7 @@ import {createAlmacen} from './almacen.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
 import {createAgenda,DURS} from './agenda.js';
+import {cargarDemoServ,DEMO_SV} from './demo.js';
 import {normDur,durTxt} from './turnos.js';
 import {TEMAS,temaActivo,temaGeneral,temaEfectivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
 import {introTema} from './intro.js';
@@ -921,7 +922,8 @@ function delAtt(id){var a=null;AT.forEach(function(x){if(String(x.id)==id)a=x});
 var b=writeBatch(db);b.delete(doc(db,'stores',SID,'atenciones',String(a.id)));
 (a.ins||[]).forEach(function(i){if(ST.some(function(x){return x.id==i.id}))b.update(doc(db,'stores',SID,'stock',i.id),{q:increment(i.q)})});b.commit().catch(fail)}
 /* configuración: servicios, formas de pago y comisiones (administrador) */
-function newSvd(x){SVD=x?{id:x.id,n:x.n,p:x.p,dur:x.dur||30,d:x.d||'',ins:(x.ins||[]).map(function(i){return {id:i.id,q:i.q}})}:{id:'',n:'',p:'',dur:30,d:'',ins:[]}}
+function newSvd(x){SVD=x?{id:x.id,n:x.n,p:x.p,dur:x.dur||30,d:x.d||'',f:!!x.f,ins:(x.ins||[]).map(function(i){return {id:i.id,q:i.q}})}:{id:'',n:'',p:'',dur:30,d:'',f:false,ins:[]};SVD.ph=undefined;SVD.pv='';
+if(SVD.f&&SVD.id)getDoc(doc(db,'stores',SID,'public','svfoto_'+SVD.id)).then(function(d){var v=$('svpv');if(d.exists()&&v&&SVD&&SVD.ph===undefined){SVD.pv=d.data().f;v.src=SVD.pv;v.style.display=''}}).catch(function(){})}
 function insOpts(sel){return ST.slice().sort(function(a,b){return a.n.localeCompare(b.n)||String(a.z).localeCompare(String(b.z),undefined,{numeric:true})}).map(function(d){return '<option value="'+esc(d.id)+'"'+(d.id==sel?' selected':'')+'>'+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+'</option>'}).join('')}
 function drawSvc(){
 if(ROLE!='admin'){return}
@@ -930,12 +932,14 @@ if(!SVD)newSvd();
 var h='<button class="x" data-t="'+(biz()=='productos'?'add':'att')+'" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver</button>';
 h+='<div class="card"><b>'+(SVD.id?'Editar servicio':'Nuevo servicio')+'</b><label>Nombre</label><input id="sv_n" placeholder="Ej: Maquillaje social" value="'+esc(SVD.n)+'" autocomplete="off"><label>Precio de lista</label><input id="sv_p" type="number" inputmode="decimal" min="0" placeholder="0" value="'+esc(SVD.p)+'">'+
 '<label>Duración (para la agenda de turnos)</label><select id="sv_dur">'+DURS.map(function(m){return '<option value="'+m+'"'+(normDur(SVD.dur||30)==m?' selected':'')+'>'+durTxt(m)+'</option>'}).join('')+'</select>'+
+'<label>Foto para el catálogo (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="svpv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+((SVD.ph||SVD.pv)?'':'display:none')+'" src="'+(SVD.ph||SVD.pv||'')+'"><div style="flex:1"><input id="svph" type="file" accept="image/*"><button class="x" data-svx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>'+
 '<label>Descripción para la carta del catálogo (opcional)</label><textarea id="sv_d" maxlength="140" rows="2" placeholder="Ej: Corte a tijera o máquina, con lavado." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">'+esc(SVD.d||'')+'</textarea>';
 h+='<label style="margin-top:14px">Insumos que usa (opcional)</label><div class="k" style="margin:2px 0 8px">Se descuentan del stock cada vez que se hace el servicio.</div>';
 SVD.ins.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><select class="svi-s" data-i="'+i+'">'+insOpts(r.id)+'</select></div><div><input class="svi-q" data-i="'+i+'" type="number" inputmode="decimal" min="0" step="any" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-svx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
 h+=(ST.length?'<button class="x" data-svx="add" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar insumo</button>':'<div class="k">Para usar insumos, primero cargá la compra de esos productos.</div>')+
 '<button class="go" data-svx="save">Guardar servicio</button>'+(SVD.id?'<button class="go alt" data-svx="cancel">Cancelar edición</button>':'')+'</div>';
 h+='<div class="card"><b>Servicios cargados</b>';
+if(!SV.length&&IS_OWNER)h+='<div class="bn" style="margin:10px 0"><b>✨ Demo para mostrar</b><div style="margin:4px 0 10px;font-size:14px">Llená esta tienda con servicios con foto, productos, agenda de turnos y catálogo listo. Solo lo ves vos (dueño de Pekeron).</div>'+DEMO_SV.map(function(x){return '<button class="go alt" data-svx="demo" data-id="'+x[0]+'" style="margin-top:6px">'+x[1]+'</button>'}).join('')+'</div>';
 if(!SV.length)h+='<div class="empty">Todavía no cargaste ninguno.</div>';
 SV.slice().sort(function(a,b){return a.n.localeCompare(b.n)}).forEach(function(x){h+='<div class="it"><div><b>'+esc(x.n)+'</b><small>'+money(x.p)+' · '+durTxt(normDur(x.dur||30))+(x.ins&&x.ins.length?' · '+x.ins.length+' insumo(s)':'')+(x.a===false?' · pausado':'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-svx="edit" data-id="'+esc(x.id)+'">Editar</button><button class="x" style="font-size:14px;text-decoration:underline" data-svx="tog" data-id="'+esc(x.id)+'">'+(x.a===false?'Activar':'Pausar')+'</button><button class="x" data-svx="rm" data-id="'+esc(x.id)+'" aria-label="Borrar">×</button></div></div>'});
 h+='</div>';
@@ -951,7 +955,11 @@ $('s-svc').innerHTML=h}
 function svcAction(a,i,id){
 if(a=='add'){SVD.ins.push({id:ST.length?ST[0].id:'',q:''});drawSvc();return}
 if(a=='del'){SVD.ins.splice(+i,1);drawSvc();return}
+if(a=='demo'){if(!confirm('¿Cargar la demo en "'+SNAME+'"? Se agregan servicios, productos y se activa la agenda online.'))return;
+Array.prototype.forEach.call(document.querySelectorAll('[data-svx="demo"]'),function(b){b.disabled=true});
+cargarDemoServ({db:db,sid:SID,sname:SNAME,tipo:id,uid:U.uid,bn:nm(),hoy:today()}).then(function(n){alert('Listo: se cargaron '+n+' servicios con foto, productos y la agenda online. En unos segundos aparece todo en el catálogo.');drawSvc()}).catch(fail);return}
 if(a=='cancel'){newSvd();drawSvc();return}
+if(a=='rmph'){SVD.ph='';SVD.pv='';var v=$('svpv');if(v){v.removeAttribute('src');v.style.display='none'}return}
 if(a=='edit'){var x=null;SV.forEach(function(y){if(y.id==id)x=y});if(x){newSvd(x);drawSvc();window.scrollTo(0,0)}return}
 if(a=='tog'){var y=null;SV.forEach(function(z){if(z.id==id)y=z});if(y)setDoc(doc(db,'stores',SID,'servicios',id),{a:y.a===false},{merge:true}).catch(fail);return}
 if(a=='rm'){if(confirm('¿Borrar este servicio? Las atenciones ya cargadas se conservan.'))deleteDoc(doc(db,'stores',SID,'servicios',id)).catch(fail);return}
@@ -960,7 +968,10 @@ if(!n||$('sv_p').value===''||!(p>=0)){alert('Completá el nombre y el precio.');
 var ins=[];SVD.ins.forEach(function(r){var q=+r.q,d=null;ST.forEach(function(x){if(x.id==r.id)d=x});if(d&&q>0)ins.push({id:d.id,n:d.n+(d.z?' '+d.z:''),q:q})});
 var sid=SVD.id||String(Date.now());
 var dur=normDur(+$('sv_dur').value||30),dsc=$('sv_d').value.trim().replace(/\s+/g,' ').slice(0,140);
-setDoc(doc(db,'stores',SID,'servicios',sid),{n:n,p:p,ins:ins,a:true,dur:dur,d:dsc}).then(function(){newSvd();drawSvc()}).catch(fail);return}
+var hasF=SVD.ph===undefined?!!SVD.f:!!SVD.ph,o0={n:n,p:p,ins:ins,a:true,dur:dur,d:dsc};if(hasF)o0.f=1;
+var bt=writeBatch(db);bt.set(doc(db,'stores',SID,'servicios',sid),o0);
+if(SVD.ph)bt.set(doc(db,'stores',SID,'public','svfoto_'+sid),{f:SVD.ph,at:Date.now()});else if(SVD.ph==='')bt.delete(doc(db,'stores',SID,'public','svfoto_'+sid));
+bt.commit().then(function(){newSvd();drawSvc()}).catch(fail);return}
 if(a=='cfg'){var num=function(i){var v=+$(i).value;return isNaN(v)?0:v},cm={};
 Array.prototype.forEach.call(document.querySelectorAll('#s-svc .cf-u'),function(e){cm[e.dataset.uid]=e.value===''?deleteField():Math.max(0,Math.min(100,+e.value||0))});
 setDoc(doc(db,'stores',SID,'cfg','servicios'),{pay:{ef:num('cf_ef'),tr:num('cf_tr'),tj:num('cf_tj')},commDefault:Math.max(0,Math.min(100,num('cf_cd'))),comm:cm},{merge:true}).then(function(){alert('Guardado.')}).catch(fail)}}
@@ -1049,6 +1060,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
+(isAgBiz()?'<label>Estilo del catálogo</label><select id="cat_svs">'+[['','Automático (según el nombre del negocio)'],['barber','Barbería · oscuro y dorado'],['rosa','Estética y peluquería · rosa claro'],['lila','Uñas y pestañas · lila suave'],['verde','Spa y masajes · verde suave'],['claro','Neutro claro']].map(function(o){return '<option value="'+o[0]+'"'+((p.svs||'')==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>':'')+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
@@ -1100,7 +1112,7 @@ if($('cat_on').checked&&!was.length){alert('Escribí al menos un WhatsApp para r
 if(was.length>1&&was.some(function(x){return !x.n})){alert('Poné un nombre a cada número, así el cliente sabe a quién le escribe.');return}
 $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
 return}
 }
 function planCardCollapsible(){
@@ -1410,6 +1422,7 @@ if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(
 if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}
 if(e.target.id=='ph'&&$('pphs')){var pf=Array.prototype.slice.call(e.target.files||[]),pr0=XMAX+1-PPS.length;if(pf.length>pr0)alert('Entran hasta '+(XMAX+1)+' fotos: se agregan las primeras '+pr0+'.');
 readSeq(pf.slice(0,Math.max(0,pr0)),function(o,hd){if(PPS.length>XMAX)return;PPS.push({t:o,hd:hd||''});ppsDraw()});e.target.value='';return}
+if(e.target.id=='svph'&&SVD){var sf=e.target.files&&e.target.files[0];if(sf)readPhoto(sf,function(o){if(!o){alert('No pude leer esa foto. Probá con otra.');return}SVD.ph=o;var v=$('svpv');if(v){v.src=o;v.style.display=''}});return}
 if(e.target.id=='xpf'){var fs=Array.prototype.slice.call(e.target.files||[]),room=XMAX-((XPH||[]).length);if(fs.length>room)alert('Entran '+XMAX+' fotos extra: se agregan las primeras '+room+'.');
 readSeq(fs.slice(0,Math.max(0,room)),function(o,hd){if(!XPH||XPH.length>=XMAX)return;XPH.push({t:o,f:hd||o});XCH=true;xDraw()});e.target.value='';return}
 if(e.target.id=='eph'){var f=e.target.files&&e.target.files[0];if(f)readPhoto(f,function(o,hd){if(!o){alert('No pude leer esa foto. Probá con otra.');return}EPH=o;EPHD=hd||'';var v=$('epv');v.src=o;v.style.display=''})}

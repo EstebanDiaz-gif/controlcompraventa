@@ -146,3 +146,56 @@ export async function borrarDemo({ db, sid, ids }) {
     await b.commit();
   }
 }
+
+// ---------- Demo de servicios (barbería / estética): servicios con foto, productos, agenda online y catálogo ----------
+const SERV = {
+  barberia: {
+    titulo: 'Barbería', tag: 'Tu estilo. Tu momento.', svs: 'barber', emoji: '💈', fondo: ['#1B1B1B', '#4A3B24'],
+    sv: [
+      ['Corte clásico', 12000, 30, '✂️', 'Tijera o máquina, con lavado.'],
+      ['Corte + barba', 16000, 45, '🧔', 'Corte completo y perfilado de barba con toalla caliente.'],
+      ['Fade / degradé', 14000, 40, '💈', 'Degradé a máquina con terminación a navaja.'],
+      ['Perfilado de barba', 7000, 15, '🪒', 'Rebaje y perfilado con navaja.'],
+      ['Corte infantil', 9000, 30, '👦', 'Hasta 12 años.'],
+      ['Color / mechas', 22000, 60, '🎨', 'Incluye lavado y secado.']
+    ],
+    pr: [['Cera mate 85 g', 9500, 5800, 10, '🫙'], ['Shampoo para barba 250 ml', 11000, 7000, 8, '🧴'], ['Aceite para barba 30 ml', 8500, 5200, 8, '💧'], ['Pomada de brillo', 9000, 5500, 8, '✨'], ['Máquina de corte profesional', 85000, 60000, 3, '🔌']]
+  },
+  estetica: {
+    titulo: 'Estética y belleza', tag: 'Tu momento de belleza', svs: 'rosa', emoji: '💅', fondo: ['#F7D6DC', '#E8A2B4'],
+    sv: [
+      ['Limpieza facial profunda', 18000, 60, '🧖‍♀️', 'Limpieza, exfoliación y mascarilla según tu piel.'],
+      ['Manicura semipermanente', 12000, 60, '💅', 'Esmaltado semipermanente con diseño simple.'],
+      ['Lifting de pestañas', 15000, 60, '👁️', 'Curvado natural que dura hasta 6 semanas.'],
+      ['Perfilado de cejas', 6000, 20, '✨', 'Diseño y perfilado con pinza o hilo.'],
+      ['Masaje descontracturante', 20000, 60, '💆‍♀️', 'Espalda, cuello y hombros.'],
+      ['Maquillaje social', 25000, 60, '💄', 'Para eventos, con prueba de tonos.']
+    ],
+    pr: [['Crema hidratante facial', 14000, 8500, 8, '🧴'], ['Sérum vitamina C', 18000, 11000, 6, '💧'], ['Protector solar FPS 50', 12000, 7500, 8, '☀️'], ['Aceite para cutículas', 5000, 2800, 10, '🌸'], ['Kit de uñas', 9000, 5500, 6, '💅']]
+  }
+};
+export const DEMO_SV = Object.keys(SERV).map((k) => [k, SERV[k].titulo]);
+
+export async function cargarDemoServ({ db, sid, sname, tipo, uid, bn, hoy }) {
+  const set = SERV[tipo] || SERV.barberia;
+  const b = writeBatch(db), t0 = Date.now();
+  set.sv.forEach(([n, p, dur, em, d], i) => {
+    const id = 'demo_' + tipo + '_' + i;
+    b.set(doc(db, 'stores', sid, 'servicios', id), { n, p, dur, d, a: true, ins: [], f: 1, demo: 1 });
+    b.set(doc(db, 'stores', sid, 'public', 'svfoto_' + id), { f: foto(em, i), at: t0 });
+  });
+  await b.commit();
+  // productos: como en las tiendas de productos, el stock sale de una compra
+  const b2 = writeBatch(db);
+  set.pr.forEach(([n, pn, c, q, em], i) => {
+    const s = 'DEMO-' + (i + 1), mid = t0 + i, k = s.toLowerCase();
+    b2.set(doc(db, 'stores', sid, 'movs', String(mid)), { id: mid, t: 'c', d: hoy, p: n, s, z: '', q, u: c, k: '', by: uid, bn });
+    b2.set(doc(db, 'stores', sid, 'stock', k), { n, s, z: '', q, pn, pm: 0, cat: 'Productos', img: foto(em, i + 3), demo: 1 });
+  });
+  await b2.commit();
+  const h = { 0: [], 1: [540, 1200], 2: [540, 1200], 3: [540, 1200], 4: [540, 1200], 5: [540, 1200], 6: [540, 1080] };
+  await setDoc(doc(db, 'stores', sid, 'cfg', 'servicios'), { biz: 'ambos', ag: { on: true, paso: 30, ant: 60, max: 14, h, cz: [], pros: null } }, { merge: true });
+  await setDoc(doc(db, 'stores', sid, 'public', 'portada'), { f: portada(set), at: Date.now() });
+  await setDoc(doc(db, 'stores', sid, 'public', 'info'), { enabled: true, biz: 'ambos', svs: set.svs, name: sname, tag: set.tag, hours: 'Lun a Vie de 9 a 20 · Sáb de 9 a 18', pt: 1 }, { merge: true });
+  return set.sv.length;
+}
