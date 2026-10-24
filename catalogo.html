@@ -504,6 +504,20 @@ else if(a=='fav'){FAVM=!FAVM;draw();$('sec').scrollIntoView({behavior:'smooth'})
 else if(a=='sr'){$('tools').scrollIntoView({behavior:'smooth',block:'center'});setTimeout(function(){$('sq').focus()},350)}
 $('nIni').classList.toggle('on',a=='ini'||(a!='fav'&&!FAVM));$('nFav').classList.toggle('on',FAVM);$('nSr').classList.toggle('on',a=='sr')});
 $('promos').onclick=function(e){var c=e.target.closest('[data-pr]');if(c)promoSheet(c.dataset.pr)};
+/* ---------- Gesto / botón "atrás" del celular ----------
+   Sin esto, "atrás" con un producto abierto cerraba el catálogo. Ahora cierra la foto ampliada o la
+   ventana abierta (producto, pedido, turno), después vuelve al inicio del catálogo, y recién ahí sale.
+   El paso en el historial se guarda al tocar algo (el navegador solo lo respeta si viene de un toque). */
+function bkArm(){try{if(!(history.state&&history.state.pkb))history.pushState({pkb:1},'')}catch(e){}}
+function bkHandle(){
+var lb=document.querySelector('.lb');if(lb){lb.remove();return 'more'}
+if(!$('sh').hidden){$('sh').hidden=true;OPEN='';BK=null;return (FAVM||Q||CAT||window.scrollY>200)?'more':'last'}
+if(FAVM||Q||CAT||window.scrollY>200){FAVM=false;Q='';CAT='';$('sq').value='';draw();window.scrollTo({top:0,behavior:'smooth'});
+$('nIni').classList.add('on');$('nFav').classList.remove('on');$('nSr').classList.remove('on');return 'last'}
+return false}
+// Si después de volver ya no queda nada abierto ('last'), el próximo "atrás" sale del catálogo.
+window.addEventListener('popstate',function(){if(bkHandle()=='more')bkArm()});
+document.addEventListener('click',bkArm,true);
 $('sh').onclick=function(e){var d=e.target.dataset||{};
 var bt=e.target.closest&&e.target.closest('button,a');if(bt&&bt.dataset)d=bt.dataset;
 if(!bt&&e.target.closest&&e.target.closest('[data-zoom]')){zoom();return}
