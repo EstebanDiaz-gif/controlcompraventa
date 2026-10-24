@@ -120,7 +120,30 @@ main{max-width:1100px;margin:0 auto;padding:12px 16px 170px}
 .grid.list .im{width:104px;flex:none}
 .grid.list .body{padding:0}.grid.list .nm{min-height:0}
 .empty{color:var(--mut);text-align:center;padding:50px 0;grid-column:1/-1}
-footer{text-align:center;color:var(--mut);font-size:12px;padding:0 16px 20px}
+/* ---------- Pie de página ---------- */
+footer{position:relative;z-index:1;margin-top:34px;background:#141414;color:#d9d9d6;font-size:14px;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+.fseas{position:relative;overflow:hidden;padding:18px 20px;display:flex;align-items:center;gap:14px}
+.fseas .em{font-size:38px;line-height:1;flex:none}
+.fseas b{display:block;font-size:20px;font-family:Georgia,"Times New Roman",serif;font-style:italic;letter-spacing:-.01em}
+.fseas small{display:block;font-size:13px;font-weight:600;opacity:.9;margin-top:2px}
+.fseas .cd{margin-left:auto;flex:none;border-radius:10px;padding:7px 12px;font-weight:800;font-size:13px;white-space:nowrap}
+.fin{max-width:1100px;margin:0 auto;padding:28px 20px 10px;display:grid;gap:26px}
+@media(min-width:760px){.fin{grid-template-columns:1.4fr 1fr 1fr 1fr}}
+.fbr{display:flex;gap:12px;align-items:center}
+.fbr .logo,.fbr img{width:46px;height:46px;border-radius:50%;flex:none;object-fit:cover;background:#2a2a2a;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+.fbr b{display:block;color:#fff;font-size:18px}
+.fbr small{display:block;color:#a3a39f;font-size:13px;margin-top:2px}
+.fcol h4{margin:0 0 10px;color:#fff;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+.fcol a,.fcol button,.fcol span{display:flex;gap:8px;align-items:center;color:#d9d9d6;text-decoration:none;background:none;border:0;padding:5px 0;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.fcol a:hover,.fcol button:hover{color:#fff}
+.fbot{max-width:1100px;margin:0 auto;padding:16px 20px 0;border-top:1px solid #2a2a2a;display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;color:#8b8b87;font-size:12.5px}
+.fbot a{color:#d9d9d6;text-decoration:none;font-weight:700}
+.fbot a:hover{text-decoration:underline}
+/* ---------- Efectos de la fecha especial: se mueven con el scroll, por detrás de los productos ---------- */
+#fx{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+#fx i{position:absolute;left:0;top:0;font-style:normal;line-height:1;will-change:transform;opacity:.9;filter:drop-shadow(0 1px 1px rgba(0,0,0,.15))}
+#fx .th{position:absolute;top:0;width:1px;background:rgba(120,120,120,.5)}
+main,.sec,.tools,.cats,.info,.promos,#carta{position:relative;z-index:1}
 /* barra inferior */
 .bnav{position:fixed;left:0;right:0;bottom:0;z-index:4;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:flex-end;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));max-width:620px;margin:0 auto;box-shadow:0 -6px 24px rgba(0,0,0,.06)}
 @media(min-width:620px){.bnav{border-radius:22px 22px 0 0;border:1px solid var(--line);border-bottom:0}}
@@ -268,6 +291,7 @@ select option{background-color:var(--card);color:var(--ink)}
 <main><div class="grid" id="grid"><div class="empty">Cargando…</div></div></main>
 <div id="tmb" class="tmb" hidden></div>
 <footer id="ft"></footer>
+<div id="fx" aria-hidden="true"></div>
 <div class="vpill" id="bar" hidden><button id="vc"></button></div>
 <nav class="bnav" id="bnav">
 <button id="nIni" class="on" data-nav="ini"><svg class="ic" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1Z"/></svg><span>Inicio</span></button>
@@ -317,11 +341,64 @@ function theme(){var c=goodColor(INFO.color)?INFO.color:'#111111';document.docum
 function tema(g){TEMA=temaEfectivo(INFO,g,Date.now());if(!TEMA)return;introTema(TEMA,'cat');
 var T=TEMAS[TEMA],r=document.documentElement,c=T.cat;r.setAttribute('data-tema',TEMA);
 ['bg','line','b','bi'].forEach(function(k){r.style.setProperty('--'+k,c[k])});
-var f=proxima(TEMA,Date.now()),e=$('tmb');e.hidden=false;
-e.innerHTML='<div class="box" style="background:'+T.ban.g+';color:'+T.ban.ink+'">'+adornos(TEMA,1)+
-'<div class="in"><small>'+T.emoji+' '+esc(fechaTitulo(f))+'</small><b>'+esc(T.titulo)+'</b><span class="t">'+esc(T.sub)+(T.regalo?' Pedilo por WhatsApp.':'')+'</span><span class="cd" style="background:'+T.ban.cd+';color:'+T.ban.cdi+'">'+cuentaRegresiva(Date.now(),f)+'</span></div></div>';
-// el cartel aparece arriba de todo: que no empuje la página hacia abajo
-requestAnimationFrame(function(){if(window.scrollY<=e.offsetHeight+5)window.scrollTo(0,0)})}
+var f=proxima(TEMA,Date.now());
+SEAS='<div class="fseas" style="background:'+T.ban.g+';color:'+T.ban.ink+'"><span class="em">'+T.emoji+'</span><div><b>'+esc(T.titulo)+'</b><small>'+esc(fechaTitulo(f))+' · '+esc(T.sub)+(T.regalo?' Pedilo por WhatsApp.':'')+'</small></div><span class="cd" style="background:'+T.ban.cd+';color:'+T.ban.cdi+'">'+cuentaRegresiva(Date.now(),f)+'</span></div>';
+drawFoot();fxStart(TEMA)}
+// ---------- Pie de página ----------
+var SEAS='';
+function drawFoot(){if(!INFO)return;var n=INFO.name||'Catálogo',ft=$('ft'),c=cats().slice(0,6),y=new Date().getFullYear();
+var lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':'<span class="logo">'+esc((n[0]||'C').toUpperCase())+'</span>';
+var ct=[];WAS.forEach(function(x){ct.push('<a target="_blank" rel="noopener" href="'+esc(waUrl(x.w,'Hola! Vi tu catálogo y quería consultar.'))+'">💬 WhatsApp'+(x.n?' · '+esc(x.n):'')+'</a>')});
+if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)ct.push('<a target="_blank" rel="noopener" href="https://instagram.com/'+esc(u)+'">📷 @'+esc(u)+'</a>')}
+if(INFO.addr)ct.push('<span>📍 '+esc(INFO.addr)+'</span>');if(INFO.hours)ct.push('<span>🕒 '+esc(INFO.hours)+'</span>');
+ft.innerHTML=SEAS+'<div class="fin"><div class="fbr">'+lg+'<div><b>'+esc(n)+'</b>'+(INFO.tag?'<small>'+esc(INFO.tag)+'</small>':'')+'</div></div>'+
+(ct.length?'<div class="fcol"><h4>Contacto</h4>'+ct.join('')+'</div>':'')+
+'<div class="fcol"><h4>Comprar</h4><button data-fn="ini">Inicio</button><button data-fn="fav">Mis favoritos</button><button data-fn="sr">Buscar</button><button data-fn="cart">Ver mi pedido</button></div>'+
+(c.length>1?'<div class="fcol"><h4>Categorías</h4>'+c.map(function(x){return '<button data-fc="'+esc(x)+'">'+esc(x)+'</button>'}).join('')+'</div>':'')+'</div>'+
+'<div class="fbot"><span>© '+y+' '+esc(n)+'</span><span>Desarrollado por <a href="https://pekeronapp.com/?utm_source=catalogo" target="_blank" rel="noopener">App Pekeron</a> · Impulso Digital</span></div>';
+ft.onclick=function(e){var b=e.target.closest('[data-fn],[data-fc]');if(!b)return;
+if(b.dataset.fc!=null){CAT=b.dataset.fc;FAVM=false;Q='';$('sq').value='';draw();$('sec').scrollIntoView({behavior:'smooth'});return}
+var a=b.dataset.fn;if(a=='cart'){$('cb').click();return}var nb=document.querySelector('.bnav [data-nav="'+a+'"]');if(nb)nb.click()}}
+// ---------- Efectos de la fecha: chiquitos, por detrás de los productos, se mueven al scrollear ----------
+var FXC={halloween:{t:'spider'},navidad:{t:'fall',e:['❄️','❄️','✨'],n:14},anio_nuevo:{t:'fall',e:['✨','🎉','🎊'],n:12},reyes:{t:'fall',e:['⭐','✨'],n:10},
+san_valentin:{t:'rise',e:['💗','❤️','💕'],n:10},madre:{t:'fall',e:['🌸','🌷','💐'],n:10},padre:{t:'rise',e:['⭐','👔'],n:8},amigo:{t:'rise',e:['💛','🤝','✨'],n:9},
+nino:{t:'rise',e:['🎈','🎈','🧸'],n:9},primavera:{t:'fly',e:['🦋','🌼','🌸'],n:10},pascuas:{t:'fall',e:['🥚','🐣','🍫'],n:9},
+mayo:{t:'fall',e:['☀️','🇦🇷'],n:7},julio:{t:'fall',e:['☀️','🇦🇷'],n:7},bandera:{t:'fall',e:['🇦🇷','☀️'],n:7},black_friday:{t:'fall',e:['🏷️','💸'],n:8}};
+var FX=null,LANES=[];
+// pasillos donde caminan las arañitas: el margen izquierdo, el espacio entre columnas y el margen derecho
+function fxLanes(){var c=document.querySelectorAll('#grid .card');if(c.length<2){LANES=[];return}var a=c[0].getBoundingClientRect(),b=c[1].getBoundingClientRect();
+if(Math.abs(a.top-b.top)>5){LANES=[a.left/2,null,(a.right+innerWidth)/2];return}LANES=[a.left/2,(a.right+b.left)/2,(b.right+innerWidth)/2]}
+function fxStart(tm){var cfg=FXC[tm],box=$('fx');if(!cfg||!box||FX)return;
+try{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return}catch(e){}
+var W=innerWidth,H=innerHeight,P=[],rnd=function(a,b){return a+Math.random()*(b-a)};
+function mk(ch,sz){var e=document.createElement('i');e.textContent=ch;e.style.fontSize=sz+'px';box.appendChild(e);return e}
+if(cfg.t=='spider'){
+// arañitas que caminan cuando el cliente scrollea, y una colgando de su hilo
+// caminan por los pasillos entre las tarjetas (se asoman entre los productos); cada una va para su lado
+for(var i=0;i<3;i++)P.push({el:mk('🕷️',i==1?18:15),lane:i,y:rnd(H*.15,H*.9),dir:i==1?-1:1,a:rnd(0,6),k:'walk'});
+var th=document.createElement('div');th.className='th';box.appendChild(th);
+P.push({el:mk('🕷️',18),len:110,k:'hang',th:th});
+P.push({el:mk('🦇',22),x:-60,y:H*.25,k:'bat',v:0})}
+else for(var j=0;j<cfg.n;j++)P.push({el:mk(cfg.e[j%cfg.e.length],rnd(16,26)),x:rnd(0,W),y:rnd(0,H),a:rnd(0,6),s:rnd(.4,1),k:cfg.t});
+var last=scrollY,vel=0,run=false,tPrev=0;
+function frame(t){var dt=Math.min(50,t-(tPrev||t))/16;tPrev=t;W=innerWidth;H=innerHeight;var d=vel;vel*=0.9;
+P.forEach(function(p){var e=p.el;
+if(p.k=='walk'){var mv=d*0.8*p.dir;p.y+=mv;p.a+=Math.abs(mv)*0.6;if(p.y<-30)p.y=H+20;if(p.y>H+30)p.y=-20;
+var lx=LANES[p.lane]!=null?LANES[p.lane]:W*(p.lane/2),wob=Math.abs(mv)>0.3?Math.sin(p.a)*2:0;
+e.style.transform='translate('+(lx-e.offsetWidth/2+wob)+'px,'+p.y+'px) rotate('+((mv<0?180:0)+(Math.abs(mv)>0.3?Math.sin(p.a*1.7)*12:0))+'deg)'}
+else if(p.k=='hang'){var hx=LANES[2]!=null?LANES[2]:W-10;p.len=Math.max(70,Math.min(H*.65,p.len+d*0.5));var sw=Math.sin(t/700)*2;p.th.style.left=hx+'px';p.th.style.height=(p.len+4)+'px';e.style.transform='translate('+(hx-e.offsetWidth/2+sw)+'px,'+p.len+'px) rotate(180deg)'}
+else if(p.k=='bat'){if(Math.abs(d)>14&&p.v==0){p.v=6;p.x=-60;p.y=rnd(H*.1,H*.5)}if(p.v){p.x+=p.v*dt;p.y+=Math.sin(t/120)*1.2;if(p.x>W+60)p.v=0}e.style.transform='translate('+p.x+'px,'+p.y+'px)';e.style.opacity=p.v?.8:0}
+else{var base=(p.k=='rise'?-0.35:0.45)*p.s*dt,sc=d*0.35*p.s;
+if(p.k=='fly'){p.a+=0.05*dt+Math.abs(d)*0.02;p.x+=Math.cos(p.a)*1.2*p.s+d*0.1;p.y+=Math.sin(p.a*1.3)*0.8-d*0.25}else{p.y+=base+(p.k=='rise'?-Math.abs(sc):sc);p.a+=0.03*dt;p.x+=Math.sin(p.a)*0.6}
+if(p.y>H+30){p.y=-30;p.x=rnd(0,W)}if(p.y<-30){p.y=H+30;p.x=rnd(0,W)}if(p.x<-30)p.x=W+20;if(p.x>W+30)p.x=-20;
+e.style.transform='translate('+p.x+'px,'+p.y+'px) rotate('+(Math.sin(p.a)*15)+'deg)'}});
+var calm=Math.abs(vel)<0.05;var idle=P.some(function(p){return p.k=='fall'||p.k=='rise'||p.k=='fly'||(p.k=='bat'&&p.v)});
+if(!document.hidden&&(!calm||idle))requestAnimationFrame(frame);else run=false}
+function kick(){if(!run){run=true;tPrev=0;fxLanes();requestAnimationFrame(frame)}}
+addEventListener('resize',fxLanes);
+addEventListener('scroll',function(){var y=scrollY;vel=Math.max(-40,Math.min(40,vel*0.5+(y-last)));last=y;kick()},{passive:true});
+document.addEventListener('visibilitychange',function(){if(!document.hidden)kick()});
+FX={P:P};kick()}
 function head(){var n=INFO.name||'Catálogo';$('ttl').textContent=n;$('ttl2').textContent=n;document.title=n;
 if(INFO.logo&&/^data:image\//.test(INFO.logo)){['lg','lg2'].forEach(function(id){var e=$(id);e.outerHTML='<img id="'+id+'" class="logo" alt="" src="'+esc(INFO.logo)+'">'});var ic=document.querySelector('link[rel=icon]')||document.head.appendChild(document.createElement('link'));ic.rel='icon';ic.href=INFO.logo}else{$('lg').textContent=$('lg2').textContent=(n[0]||'C').toUpperCase()}
 $('hsub').textContent=INFO.addr||INFO.hours||'';
@@ -335,7 +412,7 @@ if(i.length){$('inf').hidden=false;$('inf').innerHTML=i.join('')}
 WAS=(INFO.was||[]).filter(function(x){return x&&x.w});if(!WAS.length&&INFO.wa)WAS=[{n:'',w:INFO.wa}];
 if(WAS.length){var wf=$('waf');wf.hidden=false;wf.href=waUrl(WAS[0].w,'Hola! Vi tu catálogo y quería consultar.');
 if(WAS.length>1)wf.onclick=function(e){e.preventDefault();elegirWa()}}
-$('ft').textContent=n;favLoad();
+drawFoot();favLoad();
 // barra compacta arriba cuando la portada sale de la pantalla
 var hdr=$('hdr'),hero=$('hero');window.addEventListener('scroll',function(){hdr.classList.toggle('on',window.scrollY>hero.offsetHeight-60)},{passive:true})}
 if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
@@ -429,7 +506,7 @@ $('rnl').onclick=function(){hold();ringGo(-1)};$('rnr').onclick=function(){hold(
 window.addEventListener('resize',ringLay)})();
 function draw(){
 var t=key(Q).split(/\s+/).filter(Boolean);
-drawCats();drawPromos();drawDest();favUI();
+drawCats();drawPromos();drawDest();favUI();drawFoot();
 $('tools').hidden=!G.length&&!$('promos').hidden;
 var l=G.filter(function(g){if(FAVM&&!isFav(g.k))return false;if(CAT&&g.cat!=CAT)return false;var h=key(g.n+' '+g.s+' '+g.cat+' '+(g.d||'')+' '+g.sz.map(function(s){return s.z+' t'+s.z}).join(' '));return t.every(function(w){return h.indexOf(w)>=0})});
 l.sort(function(a,b){return ORD=='menor'?base(a)-base(b):ORD=='mayor'?base(b)-base(a):ORD=='dest'?(((+a.dt||(a.dt?999:1e4))-(+b.dt||(b.dt?999:1e4)))||a.n.localeCompare(b.n)):a.n.localeCompare(b.n)});
