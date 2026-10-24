@@ -127,8 +127,13 @@ footer{position:relative;z-index:1;margin-top:34px;background:#141414;color:#d9d
 .fseas b{display:block;font-size:20px;font-family:Georgia,"Times New Roman",serif;font-style:italic;letter-spacing:-.01em}
 .fseas small{display:block;font-size:13px;font-weight:600;opacity:.9;margin-top:2px}
 .fseas .cd{margin-left:auto;flex:none;border-radius:10px;padding:7px 12px;font-weight:800;font-size:13px;white-space:nowrap}
-.fin{max-width:1100px;margin:0 auto;padding:28px 20px 10px;display:grid;gap:26px}
-@media(min-width:760px){.fin{grid-template-columns:1.4fr 1fr 1fr 1fr}}
+.fin{max-width:1100px;margin:0 auto;padding:24px 20px 10px;display:grid;grid-template-columns:1.25fr 1fr;gap:22px 18px}
+.fin .fbr{grid-column:1/-1}
+.fin .fcat{grid-column:1/-1}
+.fcat .fl{display:flex;flex-wrap:wrap;gap:8px}
+.fcat .fl button{display:inline-block;padding:7px 12px;border-radius:99px;background:#232323;font-size:13px}
+@media(min-width:760px){.fin{grid-template-columns:1.4fr 1fr 1fr 1fr}.fin .fbr,.fin .fcat{grid-column:auto}.fcat .fl{display:block}.fcat .fl button{display:flex;background:none;padding:5px 0;font-size:14px}}
+.fcol a,.fcol span{word-break:break-word}
 .fbr{display:flex;gap:12px;align-items:center}
 .fbr .logo,.fbr img{width:46px;height:46px;border-radius:50%;flex:none;object-fit:cover;background:#2a2a2a;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
 .fbr b{display:block;color:#fff;font-size:18px}
@@ -348,13 +353,13 @@ drawFoot();fxStart(TEMA)}
 var SEAS='';
 function drawFoot(){if(!INFO)return;var n=INFO.name||'Catálogo',ft=$('ft'),c=cats().slice(0,6),y=new Date().getFullYear();
 var lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':'<span class="logo">'+esc((n[0]||'C').toUpperCase())+'</span>';
-var ct=[];WAS.forEach(function(x){ct.push('<a target="_blank" rel="noopener" href="'+esc(waUrl(x.w,'Hola! Vi tu catálogo y quería consultar.'))+'">💬 WhatsApp'+(x.n?' · '+esc(x.n):'')+'</a>')});
+var ct=[];WAS.forEach(function(x){ct.push('<a target="_blank" rel="noopener" href="'+esc(waUrl(x.w,'Hola! Vi tu catálogo y quería consultar.'))+'">💬 '+(x.n?esc(x.n):'WhatsApp')+'</a>')});
 if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)ct.push('<a target="_blank" rel="noopener" href="https://instagram.com/'+esc(u)+'">📷 @'+esc(u)+'</a>')}
 if(INFO.addr)ct.push('<span>📍 '+esc(INFO.addr)+'</span>');if(INFO.hours)ct.push('<span>🕒 '+esc(INFO.hours)+'</span>');
 ft.innerHTML=SEAS+'<div class="fin"><div class="fbr">'+lg+'<div><b>'+esc(n)+'</b>'+(INFO.tag?'<small>'+esc(INFO.tag)+'</small>':'')+'</div></div>'+
 (ct.length?'<div class="fcol"><h4>Contacto</h4>'+ct.join('')+'</div>':'')+
 '<div class="fcol"><h4>Comprar</h4><button data-fn="ini">Inicio</button><button data-fn="fav">Mis favoritos</button><button data-fn="sr">Buscar</button><button data-fn="cart">Ver mi pedido</button></div>'+
-(c.length>1?'<div class="fcol"><h4>Categorías</h4>'+c.map(function(x){return '<button data-fc="'+esc(x)+'">'+esc(x)+'</button>'}).join('')+'</div>':'')+'</div>'+
+(c.length>1?'<div class="fcol fcat"><h4>Categorías</h4><div class="fl">'+c.map(function(x){return '<button data-fc="'+esc(x)+'">'+esc(x)+'</button>'}).join('')+'</div></div>':'')+'</div>'+
 '<div class="fbot"><span>© '+y+' '+esc(n)+'</span><span>Desarrollado por <a href="https://pekeronapp.com/?utm_source=catalogo" target="_blank" rel="noopener">App Pekeron</a> · Impulso Digital</span></div>';
 ft.onclick=function(e){var b=e.target.closest('[data-fn],[data-fc]');if(!b)return;
 if(b.dataset.fc!=null){CAT=b.dataset.fc;FAVM=false;Q='';$('sq').value='';draw();$('sec').scrollIntoView({behavior:'smooth'});return}
