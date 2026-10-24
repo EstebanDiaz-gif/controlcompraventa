@@ -436,10 +436,22 @@ window.addEventListener('online',drawAcct);window.addEventListener('offline',dra
 /* ---------- escritura (movimiento + contador de stock en un solo paso) ---------- */
 function mref(id){return doc(db,'stores',SID,'movs',String(id))}
 function sref(k){return doc(db,'stores',SID,'stock',skey(k))}
-function addMovs(list,pr){var b=writeBatch(db);list.forEach(function(mv){b.set(mref(mv.id),mv);
+// Fotos elegidas al cargar una compra: [{t: miniatura, hd: versión grande o ''}]. La primera es la principal.
+var PPS=[];
+function ppsHtml(){return '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">'+PPS.map(function(x,i){return '<div style="position:relative;width:76px;height:76px"><img alt="" src="'+x.t+'" style="width:76px;height:76px;object-fit:cover;border-radius:12px'+(i?'':';outline:3px solid var(--btn)')+'">'+(i?'':'<span style="position:absolute;left:4px;bottom:4px;background:var(--btn);color:var(--btnink);font-size:10px;font-weight:800;border-radius:6px;padding:1px 5px">Principal</span>')+'<button type="button" class="x" data-rmp="'+i+'" aria-label="Quitar foto" style="position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:#b3261e;color:#fff;font-size:17px;line-height:26px;text-decoration:none;padding:0">×</button></div>'}).join('')+
+(PPS.length<=XMAX?'<label style="width:76px;height:76px;border-radius:12px;border:2px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--mut);margin:0;cursor:pointer;text-align:center">+ Foto<input id="ph" type="file" accept="image/*" multiple style="display:none"></label>':'')+'</div>'}
+function ppsDraw(){var e=$('pphs');if(!e)return;e.innerHTML=ppsHtml();e.onclick=function(ev){var r=ev.target.closest&&ev.target.closest('[data-rmp]');if(r){ev.preventDefault();PPS.splice(+r.dataset.rmp,1);ppsDraw()}}}
+function addMovs(list,pr){var b=writeBatch(db);
+var b0=list.length?key(list[0].s||list[0].p):'',fs=(pr&&pr.fotos||[]).slice(),hasMain=!!photoOf(b0),nx0=fieldOf(b0,'nx')||0,ex=[],nx1=nx0;
+if(pr&&fs.length){if(!hasMain){var m0=fs.shift();pr.img=m0.t;pr.hd=m0.hd||''}ex=fs.slice(0,Math.max(0,XMAX-nx0));
+if(fs.length>ex.length)alert('Cada producto puede tener '+(XMAX+1)+' fotos: se guardaron las primeras.');
+ex.forEach(function(x,i){b.set(xref(b0,nx0+i+1),{f:x.hd||x.t,t:x.t,at:Date.now()})});nx1=nx0+ex.length;
+if(ex.length)baseDocs(b0).forEach(function(d){b.set(doc(db,'stores',SID,'stock',d.id),{nx:nx1},{merge:true})})}
+list.forEach(function(mv){b.set(mref(mv.id),mv);
 var o={n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(mv.t=='c'?mv.q:-mv.q)};
 if(pr&&pr.pm)o.pm=pr.pm;if(pr&&pr.pn)o.pn=pr.pn;if(pr&&pr.mm)o.mm=pr.mm;if(pr&&pr.cat)o.cat=pr.cat;
 if(pr&&pr.img&&mv===list[0]&&!photoOf(key(mv.s||mv.p))){o.img=pr.img;if(pr.hd){o.hd=1;b.set(fref(key(mv.s||mv.p)),{f:pr.hd,at:Date.now()})}}
+if(ex.length&&key(mv.s||mv.p)==b0)o.nx=nx1;
 b.set(sref(pk(mv)),o,{merge:true})});b.commit().catch(fail)}
 // Qué vende la tienda (cfg/servicios.rub): cambia los ejemplos de los formularios y las categorías sugeridas,
 // para que alguien que vende ropa no vea "Zapatillas Duramo" como ejemplo.
@@ -478,6 +490,9 @@ function fieldOf(b,f){var r=0;baseDocs(b).forEach(function(d){if(d[f])r=d[f]});r
 function photoOf(b){var r='';baseDocs(b).forEach(function(d){if(d.img)r=d.img});return r}
 // Foto en dos versiones: chica (va en el producto) y grande (documento aparte para el catálogo). Ver fotos.js.
 function readPhoto(file,cb){makePhotos(file).then(function(r){cb(r.thumb,r.hd)})}
+// Varias fotos de una vez, de a una y en el orden en que se eligieron.
+function readSeq(files,cb){var i=0,bad=0;(function next(){if(i>=files.length){if(bad)alert(bad==1?'No pude leer una de las fotos. Probá con otra.':'No pude leer '+bad+' fotos. Probá con otras.');return}
+readPhoto(files[i++],function(o,hd){if(o)cb(o,hd);else bad++;next()})})()}
 function fref(b){return doc(db,'stores',SID,'public',fotoId(b))}
 // Fotos extra del producto (hasta 4): una por documento público foto_<clave>~1 … ~4. El producto guarda cuántas tiene (nx).
 var XMAX=4,XPH=null,XCH=false;
@@ -523,7 +538,7 @@ $('s-add').innerHTML='<div class="card">'+(biz()=='servicios'?'<b>Compré insumo
 (type=='c'?'<label>Categoría (opcional)</label><input id="ac" list="rcats" placeholder="Ej: '+esc(EX('cat'))+'" autocomplete="off" maxlength="30"><datalist id="rcats">'+catOpts()+'</datalist>':'')+
 '<div class="row"><div><label>Cantidad</label><input id="q" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="u" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 (type=='c'?'<div class="row"><div><label>Venta por mayor (opcional)</label><input id="pm" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Venta por menor (opcional)</label><input id="pn" type="number" inputmode="decimal" min="0" placeholder="0"></div></div><label>Mínimo de unidades para precio mayorista (opcional)</label><input id="mmq" type="number" inputmode="numeric" min="0" placeholder="Ej: 4">':'')+
-(type=='c'?'<label>Foto (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="phv" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:12px;display:none"><input id="ph" type="file" accept="image/*" style="flex:1"></div>':'')+
+(type=='c'?'<label>Fotos (opcional, hasta '+(XMAX+1)+')</label><div class="k" style="margin-top:2px">La primera es la principal. Podés elegir varias juntas.</div><div id="pphs">'+ppsHtml()+'</div>':'')+
 '<div id="szbox"></div>'+
 (type=='v'?'<label>Tipo de venta</label><select id="k"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>':'')+
 '<label>Fecha</label><input id="d" type="date" value="'+today()+'">'+
@@ -545,7 +560,7 @@ var ac=$('ac');if(ac&&!ac.value){var vc=fieldOf(b,'cat');if(vc)ac.value=vc}}}
 ['p','s'].forEach(function(i){$(i).addEventListener('input',autoU)});
 ['u','pm','pn'].forEach(function(i){var e=$(i);if(e)e.addEventListener('input',function(){e.dataset.auto=''})});
 if(type=='v')$('k').onchange=autoU;
-PPH='';PPHD='';if($('ph'))$('ph').onchange=function(){var f=this.files&&this.files[0];if(!f)return;readPhoto(f,function(o,hd){PPH=o;PPHD=hd||'';var v=$('phv');if(o){v.src=o;v.style.display=''}else alert('No pude leer esa foto. Probá con otra.')})};
+PPS=[];ppsDraw();
 $('ok').onclick=function(){
 var p=$('p').value.trim(),q=+$('q').value,u=+$('u').value;
 if(!p||!q||q<=0||isNaN(u)||$('u').value===''){alert('Completá producto, cantidad y precio.');return}
@@ -560,7 +575,7 @@ if(rows.some(function(r){return r.z.length>50})){alert('El talle y el color junt
 var base=Date.now(),list=rows.map(function(r,i){return {id:base+i,t:type,d:d,p:p,s:sku,z:r.z,q:r.q,u:u,k:k,by:U.uid,bn:nm()}});
 if(type=='v'){var low=list.filter(function(m){return m.q>stock(pk(m))});
 if(low.length&&!confirm('Hay menos stock del que querés vender ('+low.map(function(m){return (m.z?'talle '+m.z:'total')+': '+stock(pk(m))}).join(', ')+'). ¿Guardar igual?'))return}
-addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0,mm:Math.floor(+$('mmq').value)||0,img:PPH,hd:PPHD,cat:($('ac')&&$('ac').value.trim().slice(0,30))||''}:null);month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
+addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0,mm:Math.floor(+$('mmq').value)||0,fotos:PPS.slice(),cat:($('ac')&&$('ac').value.trim().slice(0,30))||''}:null);month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
 function sumSizes(){var e=$('szsum');if(!e)return;var t=0;SZ.forEach(function(r){t+=+r.q||0});var q=+$('q').value||0;e.textContent='Repartidos '+t+' de '+q;e.style.color=t==q?'var(--sell)':'var(--buy)'}
 function drawSizes(){
 var b=$('szbox');if(!b)return;var q=+$('q').value||0,h='';
@@ -1376,8 +1391,10 @@ if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
 if(e.target.id=='cat_logo'){var f0=e.target.files&&e.target.files[0];if(f0)readLogo(f0,function(o){if(!o){alert('No pude leer ese logo. Probá con otra imagen.');return}CLOGO=o;var v=$('cat_lgv');v.src=o;v.style.display=''})}
+if(e.target.id=='ph'&&$('pphs')){var pf=Array.prototype.slice.call(e.target.files||[]),pr0=XMAX+1-PPS.length;if(pf.length>pr0)alert('Entran hasta '+(XMAX+1)+' fotos: se agregan las primeras '+pr0+'.');
+readSeq(pf.slice(0,Math.max(0,pr0)),function(o,hd){if(PPS.length>XMAX)return;PPS.push({t:o,hd:hd||''});ppsDraw()});e.target.value='';return}
 if(e.target.id=='xpf'){var fs=Array.prototype.slice.call(e.target.files||[]),room=XMAX-((XPH||[]).length);if(fs.length>room)alert('Entran '+XMAX+' fotos extra: se agregan las primeras '+room+'.');
-fs.slice(0,Math.max(0,room)).forEach(function(f){readPhoto(f,function(o,hd){if(!o){alert('No pude leer una de las fotos. Probá con otra.');return}if(!XPH||XPH.length>=XMAX)return;XPH.push({t:o,f:hd||o});XCH=true;xDraw()})});e.target.value='';return}
+readSeq(fs.slice(0,Math.max(0,room)),function(o,hd){if(!XPH||XPH.length>=XMAX)return;XPH.push({t:o,f:hd||o});XCH=true;xDraw()});e.target.value='';return}
 if(e.target.id=='eph'){var f=e.target.files&&e.target.files[0];if(f)readPhoto(f,function(o,hd){if(!o){alert('No pude leer esa foto. Probá con otra.');return}EPH=o;EPHD=hd||'';var v=$('epv');v.src=o;v.style.display=''})}
 if(e.target.dataset&&e.target.dataset.ms){month=e.target.value;redrawData()}if(e.target.id=='gt')togglePlat()});
 
