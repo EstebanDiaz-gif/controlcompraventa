@@ -770,6 +770,14 @@ if(!confirm('¿Eliminar "'+nm0+'" por completo? Se borran sus '+ml.length+' movi
 var ops=[fref(b)];for(var xi=1;xi<=XMAX;xi++)ops.push(xref(b,xi));ml.forEach(function(x){ops.push(mref(x.id))});ds.forEach(function(d){ops.push(doc(db,'stores',SID,'stock',d.id))});
 var chunks=[];for(var i=0;i<ops.length;i+=400)chunks.push(ops.slice(i,i+400));
 Promise.all(chunks.map(function(c){var bt=writeBatch(db);c.forEach(function(r){bt.delete(r)});return bt.commit()})).then(function(){closeEdit()}).catch(fail)}
+// En "Corregir venta": el precio de compra se corrige en la compra. Mostramos las compras de ese producto para ir directo.
+function emCompras(mv){var b=key(mv.s||mv.p),l=M.filter(function(x){return x.t=='c'&&key(x.s||x.p)==b}).sort(function(a,c){return (c.d||'').localeCompare(a.d||'')||c.id-a.id});
+var h='<div style="margin-top:16px;padding:12px 14px;border-radius:14px;background:var(--line)"><b style="font-size:15px">¿Lo que está mal es el precio de compra?</b>';
+if(!l.length)return h+'<div class="k" style="margin-top:4px">Este producto no tiene compras cargadas. Cargá la compra en <b>Cargar</b> para que la ganancia salga bien.</div></div>';
+h+='<div class="k" style="margin-top:2px">Se corrige en la compra. Tocá la que querés corregir:</div>';
+l.slice(0,6).forEach(function(c){var same=(c.z||'')==(mv.z||'');h+='<button class="pl" data-emc="'+esc(String(c.id))+'" style="margin-top:6px'+(same?';outline:2px solid var(--btn)':'')+'"><span><b>Compra del '+esc((c.d||'').split('-').reverse().join('/'))+'</b><small>'+(c.z?'talle '+esc(c.z)+' · ':'')+c.q+' × '+money(c.u)+'</small></span><b>Corregir</b></button>'});
+if(l.length>6)h+='<div class="k" style="margin-top:6px">Hay '+l.length+' compras: las demás están en Stock → Editar.</div>';
+return h+'</div>'}
 function editMov(id){
 if(!canWrite()){alert('El acceso venció: por ahora no se pueden modificar movimientos.');return}
 var mv=null;M.forEach(function(x){if(String(x.id)==String(id))mv=x});if(!mv)return;
@@ -781,9 +789,11 @@ o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:2
 (isC?'':'<label>Tipo de venta</label><select id="em_k"><option value="mayor"'+(mv.k=='mayor'?' selected':'')+'>Por mayor</option><option value="menor"'+(mv.k=='menor'?' selected':'')+'>Por menor</option>'+(mv.k=='online'?'<option value="online" selected>Online</option>':'')+'</select>')+
 '<label>Fecha</label><input id="em_d" type="date" value="'+esc(mv.d)+'">'+
 '<div class="k" style="margin-top:10px">El stock, los costos y las ganancias se recalculan solos.</div>'+
+(isC?'':emCompras(mv))+
 '<button class="go" id="em_ok">Guardar corrección</button><button class="x" id="em_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
 document.body.appendChild(o);
 $('em_x').onclick=function(){o.remove()};
+Array.prototype.forEach.call(o.querySelectorAll('[data-emc]'),function(bt){bt.onclick=function(){o.remove();editMov(bt.dataset.emc)}});
 $('em_ok').onclick=function(){
 var q=Math.floor(+$('em_q').value),u=+$('em_u').value,z=$('em_z').value.trim(),d=$('em_d').value;
 if(!(q>=1)){alert('La cantidad tiene que ser 1 o más.');return}
