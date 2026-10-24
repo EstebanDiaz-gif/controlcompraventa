@@ -667,7 +667,8 @@ export function createAlmacen(X) {
     if (!n) { alert('Escribí el nombre del producto.'); return; }
     if (isNaN(q) || isNaN(min) || min < 0) { alert('Revisá el stock (usá números, por ejemplo 12 o 1,5).'); return; }
     if (!ns && !E.w && q !== Math.floor(q)) { alert('Este producto se vende por unidad: el stock tiene que ser un número entero.'); return; }
-    const d = $('fdsc').value.trim().replace(/\s+/g, ' ').slice(0, 160), pa = +$('fpa').value || 0, dt = $('fdt').checked;
+    const dtOk = (v) => typeof v === 'number' && v > 0 && v < 999;
+    const d = $('fdsc').value.trim().replace(/\s+/g, ' ').slice(0, 160), pa = +$('fpa').value || 0, dt = $('fdt').checked ? (p && dtOk(p.dt) ? p.dt : 1 + Math.max(0, ...P().map((x) => (dtOk(x.dt) ? x.dt : 0)))) : false;
     if (pn < 0 || co < 0 || pa < 0) { alert('Los precios no pueden ser negativos.'); return; }
     if (pa > 0 && pa <= pn) { alert('El precio anterior tiene que ser mayor que el precio de venta (' + money(pn) + '). Si no hay descuento, dejalo vacío.'); return; }
     if (s && P().some((x) => x.id !== E.id && x.s && x.s.toLowerCase() === s.toLowerCase())) { alert('Ya hay otro producto con el código ' + s + '.'); return; }

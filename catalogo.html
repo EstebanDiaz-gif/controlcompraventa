@@ -331,7 +331,7 @@ return (ALM?loadLista():Promise.resolve(false)).then(function(ok){if(ok)return;
 if(ALM){fail('El catálogo se está preparando. Probá de nuevo en unos minutos.');return}
 return getDocs(collection(db,'stores',sid,'stock')).then(function(sn){
 var m={};sn.forEach(function(d){var x=d.data(),k=ALM?d.id:key(x.s||x.n);var g=m[k]||(m[k]={k:k,n:x.n||'',s:x.s||'',pm:0,pn:0,mm:0,img:'',oh:false,sz:[],q:0,w:!!x.w,cat:x.cat||''});
-g.n=x.n||g.n;if(x.cat)g.cat=x.cat;if(x.d)g.d=x.d;if(x.pa)g.pa=x.pa;if(x.dt)g.dt=true;if(x.pm)g.pm=x.pm;if(x.pn)g.pn=x.pn;if(x.mm)g.mm=x.mm;if(x.img){g.img=x.img;g.hd=!!x.hd}if(x.nx)g.nx=Math.max(g.nx||0,x.nx);if(x.oh)g.oh=true;
+g.n=x.n||g.n;if(x.cat)g.cat=x.cat;if(x.d)g.d=x.d;if(x.pa)g.pa=x.pa;if(x.dt)g.dt=(typeof x.dt=='number'&&x.dt>0)?Math.min(g.dt&&g.dt!==true?g.dt:999,x.dt):(g.dt||999);if(x.pm)g.pm=x.pm;if(x.pn)g.pn=x.pn;if(x.mm)g.mm=x.mm;if(x.img){g.img=x.img;g.hd=!!x.hd}if(x.nx)g.nx=Math.max(g.nx||0,x.nx);if(x.oh)g.oh=true;
 g.q+=Math.max(x.q||0,0);if(x.z&&(x.q||0)>0)g.sz.push({z:x.z,q:x.q})});
 G=Object.keys(m).map(function(k){return m[k]}).filter(function(g){return !g.oh&&g.q>0&&(g.pn||g.pm)});
 G.forEach(function(g){g.sz.sort(function(a,b){return sizeSort(a.z,b.z)})});draw()})})}).catch(function(e){fail(e&&e.nf?'No encontramos ese catálogo. Revisá que el link esté bien escrito.':'No pude cargar el catálogo. Probá de nuevo.')})}
@@ -339,7 +339,7 @@ G.forEach(function(g){g.sz.sort(function(a,b){return sizeSort(a.z,b.z)})});draw(
 function loadLista(){return getDoc(doc(db,'stores',sid,'public','lista')).then(function(s){
 if(!s.exists()||!s.data().n)return false;var L=s.data(),ps=[];
 for(var i=0;i<L.n;i++)ps.push(getDoc(doc(db,'stores',sid,'public','lista_d'+i)));
-return Promise.all(ps).then(function(r){G=[];r.forEach(function(d){((d.exists()&&d.data().p)||[]).forEach(function(x){G.push({k:x.i,n:x.n,s:'',pm:0,pn:x.p,mm:0,img:'',hasImg:!!x.f,hd:x.f==2,oh:false,sz:[],q:x.q,w:!!x.w,cat:x.c||'',d:x.d||'',pa:x.a||0,dt:!!x.t})})});
+return Promise.all(ps).then(function(r){G=[];r.forEach(function(d){((d.exists()&&d.data().p)||[]).forEach(function(x){G.push({k:x.i,n:x.n,s:'',pm:0,pn:x.p,mm:0,img:'',hasImg:!!x.f,hd:x.f==2,oh:false,sz:[],q:x.q,w:!!x.w,cat:x.c||'',d:x.d||'',pa:x.a||0,dt:x.t||0})})});
 draw();loadImgs(L);return true})}).catch(function(){return false})}
 function loadImgs(L){var ps=[];for(var i=0;i<(L.ni||0);i++)ps.push(getDoc(doc(db,'stores',sid,'public','lista_i'+i)).catch(function(){return null}));
 Promise.all(ps).then(function(r){var by={};r.forEach(function(d){if(d&&d.exists())(d.data().f||[]).forEach(function(x){by[x.i]=x.f})});G.forEach(function(g){if(by[g.k])g.img=by[g.k]});draw();if(OPEN)prod(OPEN)})}
@@ -376,15 +376,24 @@ return g.mm>0?'Mayorista '+money(g.pm)+' desde '+g.mm+' unidades':''}
 var PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 function imgHtml(g,lazy){return g.img?'<img'+(lazy?' loading="lazy"':'')+' decoding="async" alt="" src="'+esc(g.img)+'">'+(g.nx?'<span class="nfo">'+(g.nx+1)+' fotos</span>':''):'<span class="ph0">'+esc((g.n||'?')[0].toUpperCase())+'</span>'}
 function priceHtml(g){var o=oldP(g);return ptxt(g)+(o?'<s>'+money(o)+'</s>':'')}
-function drawDest(){var l=G.filter(function(g){return g.dt}).sort(function(a,b){return a.n.localeCompare(b.n)}),e=$('dest'),hr=$('hero');
+function drawDest(){var l=G.filter(function(g){return g.dt}).sort(function(a,b){return (+a.dt||999)-(+b.dt||999)||a.n.localeCompare(b.n)}),e=$('dest'),hr=$('hero');
 hr.classList.toggle('dst',!!l.length);e.hidden=!l.length;if(!l.length)return;
-$('drow').innerHTML=l.map(function(g){var p=pct(g);return '<div class="dc" data-k="'+esc(g.k)+'"><div class="im">'+imgHtml(g)+'<span class="badge">'+(p?p+'% OFF':'Destacado')+'</span></div><div class="nm">'+esc(g.n)+'</div>'+(g.d?'<div class="ds">'+esc(g.d)+'</div>':'')+'<div class="pb"><span class="pr">'+priceHtml(g)+'</span><span class="go">'+ARROW+'</span></div></div>'}).join('')}
+$('drow').innerHTML=l.map(function(g){var p=pct(g);return '<div class="dc" data-k="'+esc(g.k)+'"><div class="im">'+imgHtml(g)+'<span class="badge">'+(p?p+'% OFF':'Destacado')+'</span></div><div class="nm">'+esc(g.n)+'</div>'+(g.d?'<div class="ds">'+esc(g.d)+'</div>':'')+'<div class="pb"><span class="pr">'+priceHtml(g)+'</span><span class="go">'+ARROW+'</span></div></div>'}).join('');destAuto()}
+// Los destacados pasan solos cada 3,5 s. Si el cliente los toca o los mueve, esperan unos segundos.
+var DTI=null,DTP=0;
+function destAuto(){var r=$('drow');if(!r)return;clearInterval(DTI);
+try{if(matchMedia('(prefers-reduced-motion: reduce)').matches)return}catch(e){}
+if(!r.dataset.auto){r.dataset.auto=1;['pointerdown','touchstart','wheel','mouseenter','focusin'].forEach(function(ev){r.addEventListener(ev,function(){DTP=Date.now()+7000},{passive:true})})}
+DTI=setInterval(function(){if(document.hidden||Date.now()<DTP||!$('sh').hidden||$('dest').hidden)return;
+var c=r.querySelectorAll('.dc');if(c.length<2||r.scrollWidth<=r.clientWidth+4)return;
+var step=c[1].offsetLeft-c[0].offsetLeft;
+if(r.scrollLeft+r.clientWidth>=r.scrollWidth-8)r.scrollTo({left:0,behavior:'smooth'});else r.scrollBy({left:step,behavior:'smooth'})},3500)}
 function draw(){
 var t=key(Q).split(/\s+/).filter(Boolean);
 drawCats();drawPromos();drawDest();favUI();
 $('tools').hidden=!G.length&&!$('promos').hidden;
 var l=G.filter(function(g){if(FAVM&&!isFav(g.k))return false;if(CAT&&g.cat!=CAT)return false;var h=key(g.n+' '+g.s+' '+g.cat+' '+(g.d||'')+' '+g.sz.map(function(s){return s.z+' t'+s.z}).join(' '));return t.every(function(w){return h.indexOf(w)>=0})});
-l.sort(function(a,b){return ORD=='menor'?base(a)-base(b):ORD=='mayor'?base(b)-base(a):ORD=='dest'?((b.dt?1:0)-(a.dt?1:0)||a.n.localeCompare(b.n)):a.n.localeCompare(b.n)});
+l.sort(function(a,b){return ORD=='menor'?base(a)-base(b):ORD=='mayor'?base(b)-base(a):ORD=='dest'?(((+a.dt||(a.dt?999:1e4))-(+b.dt||(b.dt?999:1e4)))||a.n.localeCompare(b.n)):a.n.localeCompare(b.n)});
 $('sect').textContent=FAVM?'Tus favoritos':CAT||'Productos';
 $('cnt').textContent=G.length?l.length+' producto'+(l.length==1?'':'s'):'';
 $('grid').className='grid'+(VIEW=='list'?' list':'');

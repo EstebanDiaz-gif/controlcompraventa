@@ -64,7 +64,7 @@ export function buildLista(products, max = 700000) {
     if (p.cat) o.c = p.cat; if (p.w) o.w = 1; if (p.img) o.f = p.hd ? 2 : 1;
     if (p.d) o.d = p.d;                 // descripción
     if (p.pa > p.pn) o.a = p.pa;        // precio anterior (tachado)
-    if (p.dt) o.t = 1;                  // destacado
+    if (p.dt) o.t = typeof p.dt === 'number' && p.dt > 0 && p.dt < 999 ? p.dt : 999;   // destacado (número = orden)
     return o;
   });
   const imgs = vis.filter((p) => p.img).map((p) => ({ i: p.id, f: p.img }));
