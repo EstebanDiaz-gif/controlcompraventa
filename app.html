@@ -89,6 +89,16 @@ td small{color:var(--mut)}
 .bn{background:var(--card);border-radius:16px;padding:12px 16px;margin-bottom:14px;font-size:14px}
 .bn.warn{box-shadow:inset 0 0 0 2px var(--buy)}
 .bn.bad{background:var(--buy);color:var(--onc)}
+.fcl{padding:4px 16px}.fic{border-top:1px solid var(--line)}.fic:first-child{border-top:0}
+.fic>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 0;cursor:pointer}
+.fic>summary::-webkit-details-marker{display:none}
+.fic>summary:after{content:'';width:8px;height:8px;border-right:2px solid var(--mut);border-bottom:2px solid var(--mut);transform:rotate(45deg);flex:none;margin:-4px 2px 0 0;transition:transform .2s}
+.fic[open]>summary:after{transform:rotate(225deg);margin-top:4px}
+.fsn{min-width:0;flex:1}.fsn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fsn small{display:block;color:var(--mut);font-size:12px;margin-top:3px}
+.fsm{font-size:17px;white-space:nowrap}.fib{padding:0 0 14px}
+.fch{display:inline-block;font-size:11.5px;font-weight:800;border-radius:99px;padding:3px 9px;margin:5px 5px 0 0}
+.fch.ok{background:#dff3e6;color:#16703c}.fch.no{background:#fde7e4;color:#a4271d}
+.flt{font-weight:900;font-size:13px;color:var(--mut);margin:14px 4px 6px;letter-spacing:.05em}
 /* almacén */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .ch{border:0;border-radius:99px;padding:8px 13px;background:var(--line);color:var(--ink);font:inherit;font-size:13px;font-weight:700}
@@ -642,33 +652,61 @@ CLIENTES_FIADOS=Object.keys(clientes).map(function(k){return clientes[k]}).sort(
 // Ventas viejas (sin ent): la entrega se había anotado también como pago, así que se descuenta de mtoPagado.
 function fiaCalc(x){var f=x.fia||{},tot=x.q*x.u,fiado=f.mtoFiado!=null?f.mtoFiado:tot,nuevo=f.ent!=null,ent=nuevo?(+f.ent||0):Math.max(0,tot-fiado),pag=nuevo?(f.mtoPagado||0):Math.max(0,(f.mtoPagado||0)-ent);
 return {tot:tot,ent:ent,fiado:fiado,pag:pag,saldo:Math.max(0,fiado-pag)}}
-function drawFia(){
-loadClientesFiados();
-var fiados=M.filter(function(x){return x.t=='v'&&x.fia});
-var byClient={};
+var FIA={q:'',f:'all',o:{}};
+function lunes(){var d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fiaNorm(s){return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim()}
+function fiaFecha(d){var p=String(d).split('-');return p.length==3?p[2]+'/'+p[1]:d}
+function fiaClientes(){var fiados=M.filter(function(x){return x.t=='v'&&x.fia}),by={},lu=lunes();
 fiados.forEach(function(x){var cli=x.fia.cli,k=fiaCalc(x);
-if(!byClient[cli])byClient[cli]={tot:0,ent:0,fiado:0,pagado:0,saldo:0,items:[],vto:null,int:0,tel:x.fia.tel||''};
-var B=byClient[cli];B.tot+=k.tot;B.ent+=k.ent;B.fiado+=k.fiado;B.pagado+=k.pag;B.saldo+=k.saldo;
+if(!by[cli])by[cli]={tot:0,ent:0,fiado:0,pagado:0,saldo:0,items:[],pgs:[],sem:0,ult:'',vto:null,int:0,tel:x.fia.tel||''};
+var B=by[cli];B.tot+=k.tot;B.ent+=k.ent;B.fiado+=k.fiado;B.pagado+=k.pag;B.saldo+=k.saldo;
 B.items.push({d:x.d,p:x.p,z:x.z,q:x.q,u:x.u,k:k});
-if(x.fia.vto&&(!byClient[cli].vto||x.fia.vto>byClient[cli].vto))byClient[cli].vto=x.fia.vto;
-if(x.fia.int)byClient[cli].int=Math.max(byClient[cli].int,x.fia.int);
-if(!byClient[cli].tel&&x.fia.tel)byClient[cli].tel=x.fia.tel});
-var now=new Date(),clients=Object.keys(byClient).sort();
-var h='<div class="card"><b>Control de fiados</b><div class="k" style="margin:4px 0 0">Ventas pendientes de cobro por cliente.</div></div>';
-if(!clients.length){h+='<div class="card"><div class="empty">No hay ventas de fiado registradas.</div></div>'}
-else{clients.forEach(function(cli){var c=byClient[cli],saldo=c.saldo,vencida=c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null;
-h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b>'+esc(cli)+'</b><small style="display:block;margin-top:2px">'+c.items.length+' transacción(es)</small></div><b style="font-size:19px;color:'+(saldo<=0?'#1a8f4c':'#b3261e')+'">'+money(Math.max(0,saldo))+'</b></div>'+
-'<div class="rows" style="margin:10px 0 0">'+
+(x.fia.pg||[]).forEach(function(p){B.pgs.push(p);if(p.d>=lu)B.sem+=p.m;if(p.d>B.ult)B.ult=p.d});
+if(x.fia.vto&&(!B.vto||x.fia.vto>B.vto))B.vto=x.fia.vto;
+if(x.fia.int)B.int=Math.max(B.int,x.fia.int);
+if(!B.tel&&x.fia.tel)B.tel=x.fia.tel});
+return by}
+function fiaPgList(c){var g={};c.pgs.forEach(function(p){var k=p.ts||p.d;if(!g[k])g[k]={d:p.d,m:0};g[k].m+=p.m});
+return Object.keys(g).map(function(k){return g[k]}).sort(function(a,b){return a.d<b.d?1:-1})}
+function sinF(pl){return pl.reduce(function(a,p){return a+p.m},0)}
+function fiaChip(c){if(c.saldo<=0)return '<span class="fch ok">Al día ✓</span>';
+if(c.sem>0)return '<span class="fch ok">✓ Pagó esta semana '+money(c.sem)+'</span>';
+return '<span class="fch no">Sin pagos esta semana</span>'}
+function fiaCard(cli,c){var saldo=c.saldo,now=new Date(),vencida=saldo>0&&c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null,pl=fiaPgList(c);
+return '<details class="fic" data-n="'+esc(fiaNorm(cli))+'" data-k="'+esc(cli)+'" data-sal="'+(saldo>0?1:0)+'" data-sem="'+(c.sem>0?1:0)+'"'+(FIA.o[cli]?' open':'')+'><summary>'+
+'<span class="fsn"><b>'+esc(cli)+'</b>'+fiaChip(c)+(vencida?'<span class="fch no">Vencido</span>':'')+'<small>'+c.items.length+' compra'+(c.items.length==1?'':'s')+(c.ult?' · último pago '+fiaFecha(c.ult):'')+'</small></span>'+
+'<b class="fsm" style="color:'+(saldo<=0?'#1a8f4c':'#b3261e')+'">'+money(Math.max(0,saldo))+'</b></summary><div class="fib">'+
+'<div class="rows" style="margin:4px 0 0">'+
 '<div class="r2" style="border:0;padding:6px 0"><span>Total de las compras</span><b style="font-size:16px">'+money(c.tot)+'</b></div>'+
 (c.ent?'<div class="r2" style="border:0;padding:6px 0"><span>Entregó al llevarlo</span><b style="font-size:16px;color:var(--sell)">'+money(c.ent)+'</b></div>':'')+
 '<div class="r2" style="border:0;padding:6px 0"><span>Quedó fiado</span><b style="font-size:16px">'+money(c.fiado)+'</b></div>'+
 '<div class="r2" style="border:0;padding:6px 0"><span>Pagó después</span><b style="font-size:16px;color:var(--sell)">'+money(c.pagado)+'</b></div>'+
 '<div class="r2" style="border:0;padding:6px 0"><span>Saldo actual</span><b style="font-size:16px;color:'+(saldo<=0?'#1a8f4c':'#b3261e')+'">'+money(Math.max(0,saldo))+'</b></div>'+
 '</div>'+
-(c.vto?'<div class="r2" style="border:0;padding:8px 0;margin-top:8px"><span>Vencimiento</span><b style="'+(vencida?'color:#b3261e':'')+'">'+c.vto+(vencida?' ('+Math.abs(dias)+' día'+(Math.abs(dias)==1?'':'s')+' de atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+
+(c.vto?'<div class="r2" style="border:0;padding:8px 0;margin-top:8px"><span>Vencimiento</span><b style="font-size:15px;text-align:right;'+(vencida?'color:#b3261e':'')+'">'+c.vto.split('-').reverse().join('/')+(vencida?' ('+Math.abs(dias)+' día'+(Math.abs(dias)==1?'':'s')+' de atraso)':dias>0&&saldo>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+
+(c.pagado?'<div style="margin-top:10px"><b style="font-size:13px;color:var(--mut)">Pagos</b>'+pl.map(function(p){return '<div class="it" style="padding:4px 0;font-size:13px"><small>'+fiaFecha(p.d)+(p.d>=lunes()?' · esta semana':'')+'</small><small style="font-weight:700;color:var(--sell)">'+money(p.m)+'</small></div>'}).join('')+(c.pagado-sinF(pl)>0?'<div class="it" style="padding:4px 0;font-size:13px"><small style="color:var(--mut)">Pagos anteriores (sin fecha)</small><small style="font-weight:700;color:var(--sell)">'+money(c.pagado-sinF(pl))+'</small></div>':'')+'</div>':'')+
 '<div style="margin-top:10px;max-height:180px;overflow-y:auto"><b style="font-size:13px;color:var(--mut)">Historial</b>'+c.items.map(function(x){return '<div class="it" style="padding:4px 0;font-size:13px"><div><small>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div><small style="text-align:right;line-height:1.4">'+(x.k.ent?'<span style="display:block;color:var(--sell)">Entrega: '+money(x.k.ent)+'</span>':'')+(x.k.pag?'<span style="display:block;color:var(--sell)">Pagos: '+money(x.k.pag)+'</span>':'')+'<span style="display:block;font-weight:700;color:'+(x.k.saldo?'#b3261e':'var(--sell)')+'">'+(x.k.saldo?'Debe: '+money(x.k.saldo):'Pagado ✓')+'</span></small></div>'}).join('')+'</div>'+
-'<div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-fia="regpago" data-cli="'+esc(cli)+'">Registrar pago</button><button class="go alt" data-fia="pdf" data-cli="'+esc(cli)+'" style="background:#1D3FAF;color:#fff">PDF</button><button class="go alt" data-fia="wa" data-cli="'+esc(cli)+'" style="background:#3156E8;color:#fff">WhatsApp</button></div></div>'})};
-$('s-fia').innerHTML=h}
+'<div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-fia="regpago" data-cli="'+esc(cli)+'">Registrar pago</button><button class="go alt" data-fia="pdf" data-cli="'+esc(cli)+'" style="background:#1D3FAF;color:#fff">PDF</button><button class="go alt" data-fia="wa" data-cli="'+esc(cli)+'" style="background:#3156E8;color:#fff">WhatsApp</button></div></div></details>'}
+function fiaFilter(){var q=fiaNorm(FIA.q),f=FIA.f,vis=0;
+document.querySelectorAll('#fialist .flg').forEach(function(g){var any=0;g.querySelectorAll('.fic').forEach(function(e){var ok=(!q||e.dataset.n.indexOf(q)>=0)&&(f=='all'||(f=='deben'&&e.dataset.sal=='1')||(f=='nopag'&&e.dataset.sal=='1'&&e.dataset.sem=='0'));e.hidden=!ok;if(ok){any=1;vis++}});g.hidden=!any});
+var em=$('fiaem');if(em)em.hidden=!!vis||!document.querySelector('#fialist .fic')}
+function drawFia(){
+loadClientesFiados();
+var box=$('s-fia');
+if(!$('fiaq')){box.innerHTML='<div class="card hero"><div class="k">Total que te deben</div><div class="big" id="fiatot"></div><div class="k" id="fiacnt"></div></div>'+
+'<input id="fiaq" type="search" placeholder="Buscar cliente" autocomplete="off" style="margin-bottom:10px">'+
+'<div class="chips" id="fiaf" style="margin:0 0 14px"></div><div id="fialist"></div>';
+$('fiaq').value=FIA.q;$('fiaq').oninput=function(){FIA.q=this.value;fiaFilter()};
+if(!box._fiaT){box._fiaT=1;box.addEventListener('toggle',function(e){var t=e.target;if(t.classList&&t.classList.contains('fic'))FIA.o[t.dataset.k]=t.open},true)}}
+var by=fiaClientes(),clients=Object.keys(by).sort(function(a,b){return a.localeCompare(b,'es',{sensitivity:'base'})});
+var deben=0,total=0,sem=0,nopag=0;clients.forEach(function(k){var c=by[k];if(c.saldo>0){deben++;total+=c.saldo;if(c.sem>0)sem++;else nopag++}});
+$('fiatot').textContent=money(total);
+$('fiacnt').textContent=deben?deben+' cliente'+(deben==1?'':'s')+' con deuda · '+sem+(sem==1?' pagó':' pagaron')+' esta semana':'Nadie te debe ✓';
+$('fiaf').innerHTML=[['all','Todos ('+clients.length+')'],['deben','Deben ('+deben+')'],['nopag','No pagaron esta semana ('+nopag+')']].map(function(x){return '<button class="ch'+(FIA.f==x[0]?' on':'')+'" data-fia="flt" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('');
+if(!clients.length){$('fialist').innerHTML='<div class="card"><div class="empty">No hay ventas de fiado registradas.</div></div>';return}
+var grp={},ord=[];clients.forEach(function(k){var l=fiaNorm(k).charAt(0).toUpperCase();if(!/[A-ZÑ]/.test(l))l='#';if(!grp[l]){grp[l]=[];ord.push(l)}grp[l].push(k)});
+$('fialist').innerHTML=ord.map(function(l){return '<div class="flg"><div class="flt">'+l+'</div><div class="card fcl">'+grp[l].map(function(k){return fiaCard(k,by[k])}).join('')+'</div></div>'}).join('')+'<div class="card" id="fiaem" hidden><div class="empty">No hay clientes con ese filtro.</div></div>';
+fiaFilter()}
 function fiaGenerarPDF(cli,mvs){
 var total=0,html='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px;font-size:14px}h1{font-size:24px;margin:0 0 5px}h2{font-size:16px;margin:20px 0 10px;border-bottom:2px solid #333;padding-bottom:5px}.due{color:#FFD6AA;font-weight:bold}.amount{text-align:right}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #ddd}th{background:#f0f0f0;font-weight:bold}.total-row{font-weight:bold;background:#f9f9f9}.total-amount{font-size:18px;color:#FFD6AA}footer{margin-top:30px;padding-top:20px;border-top:2px solid #333;color:#666;font-size:12px}</style></head><body>';
 html+='<h1>Detalle de Deuda</h1><p><strong>Cliente:</strong> '+esc(cli)+'</p><p><strong>Fecha:</strong> '+today()+'</p><p><strong>Negocio:</strong> '+esc(SNAME)+'</p>';
@@ -1391,11 +1429,12 @@ if(d.cat){catAction(d.cat,d.i);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
+if(d.fia=='flt'){FIA.f=d.v;drawFia();return}
 if(d.fia){var cli=d.cli,mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});
 if(d.fia=='regpago'){var saldo=0;mvs.forEach(function(x){saldo+=fiaCalc(x).saldo});
 var mto=prompt('¿Cuánto pagó '+cli+'? (Saldo: '+money(saldo)+')');if(!mto)return;mto=+mto;if(isNaN(mto)||mto<=0){alert('Monto inválido');return}
 if(mto>saldo&&!confirm('Pagó '+money(mto)+' y debe '+money(saldo)+'. Se anota '+money(saldo)+' (lo que debe). ¿Seguir?'))return;
-var pago=mto,idx=0;for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=fiaCalc(x).saldo;if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
+var pago=mto,idx=0,TS=Date.now();for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=fiaCalc(x).saldo;if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;upd.pg=(upd.pg||[]).concat([{d:today(),m:aplica,ts:TS}]);x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
 drawFia();return}
 if(d.fia=='pdf'){fiaGenerarPDF(cli,mvs);return}
 if(d.fia=='wa'){fiaEnviarWA(cli,mvs);return}

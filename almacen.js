@@ -64,7 +64,7 @@ export function createAlmacen(X) {
     if (un.cli) return;
     un.cli = onSnapshot(col('clientes'), (sn) => {
       S.cl = []; S.clErr = false;
-      sn.forEach((d) => { const x = d.data(); S.cl.push({ id: d.id, n: x.n || '', tel: x.tel || '', s: r2(x.s || 0), u: x.u || 0 }); });
+      sn.forEach((d) => { const x = d.data(); S.cl.push({ id: d.id, n: x.n || '', tel: x.tel || '', s: r2(x.s || 0), u: x.u || 0, up: x.up || '' }); });
       redraw();
     }, () => { S.clErr = true; redraw(); });
     listenHoy(); listenCaja();
@@ -501,11 +501,12 @@ export function createAlmacen(X) {
     }
     renderFiList();
   }
+  function lunes() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function renderFiList() {
     let t = 0, n = 0; S.cl.forEach((c) => { if (c.s > 0) { t += c.s; n++; } });
     $('fitot').textContent = money(t); $('ficnt').textContent = n + ' cliente' + (n === 1 ? '' : 's') + ' con deuda';
-    const l = S.cl.filter((c) => match(c.n + ' ' + c.tel, S.fq)).sort((a, b) => (b.s > 0) - (a.s > 0) || b.s - a.s || a.n.localeCompare(b.n));
-    $('filist').innerHTML = '<div class="card">' + (l.length ? l.map((c) => '<button class="pl" data-al="opencli" data-id="' + esc(c.id) + '"><span><b>' + esc(c.n) + '</b><small>' + (c.tel ? esc(c.tel) + ' · ' : '') + (c.u ? 'último movimiento ' + new Date(c.u).toLocaleDateString('es-AR') : 'sin movimientos') + '</small></span><b class="' + (c.s > 0 ? 'neg' : 'pos') + '">' + (c.s > 0 ? money(c.s) : (c.s < 0 ? 'a favor ' + money(-c.s) : 'al día')) + '</b></button>').join('') :
+    const lu = lunes(), l = S.cl.filter((c) => match(c.n + ' ' + c.tel, S.fq)).sort((a, b) => a.n.localeCompare(b.n, 'es', { sensitivity: 'base' }));
+    $('filist').innerHTML = '<div class="card">' + (l.length ? l.map((c) => '<button class="pl" data-al="opencli" data-id="' + esc(c.id) + '"><span><b>' + esc(c.n) + '</b>' + (c.s > 0 ? (c.up && c.up >= lu ? '<span class="fch ok">✓ Pagó esta semana</span>' : '<span class="fch no">Sin pagos esta semana</span>') : '') + '<small>' + (c.tel ? esc(c.tel) + ' · ' : '') + (c.up ? 'último pago ' + c.up.split('-').reverse().slice(0, 2).join('/') : c.u ? 'último movimiento ' + new Date(c.u).toLocaleDateString('es-AR') : 'sin movimientos') + '</small></span><b class="' + (c.s > 0 ? 'neg' : 'pos') + '">' + (c.s > 0 ? money(c.s) : (c.s < 0 ? 'a favor ' + money(-c.s) : 'al día')) + '</b></button>').join('') :
       '<div class="empty">' + (S.cl.length ? 'No encontré ese cliente.' : 'Todavía no anotaste clientes. Se crean acá o al cobrar con Fiado.') + '</div>') + '</div>';
   }
   function openCli(id) {
@@ -561,7 +562,7 @@ export function createAlmacen(X) {
       if (isP) f.pay = o.querySelector('#mp').value; else f.det = o.querySelector('#md').value.trim().slice(0, 120) || 'Deuda anotada';
       if (isP && S.caja && d === X.today()) f.cj = S.caja.id;
       b.set(doc(db, 'stores', sid, 'fiado', id), f);
-      b.update(doc(db, 'stores', sid, 'clientes', c.id), { s: increment(isP ? -a : a), u: Date.now() });
+      b.update(doc(db, 'stores', sid, 'clientes', c.id), Object.assign({ s: increment(isP ? -a : a), u: Date.now() }, isP && !(c.up > d) ? { up: d } : {}));
       if (isP) b.set(doc(db, 'stores', sid, 'totales', f.m), { cob: increment(a), cobp: { [f.pay]: increment(a) } }, { merge: true });
       if (f.cj) setDoc(doc(db, 'stores', sid, 'cajas', f.cj), { c: { [f.pay]: increment(a) } }, { merge: true }).catch(() => {});
       b.commit().catch(failW);
