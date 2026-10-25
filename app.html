@@ -626,7 +626,7 @@ CLIENTES_FIADOS.push({n:cli,t:tel||undefined})}
 else if(cliIdx){cli=CLIENTES_FIADOS[cliIdx].n;tel=CLIENTES_FIADOS[cliIdx].t||''}
 else{alert('Selecciona un cliente o agrega uno nuevo.');return}
 if(mtoFiado<=0){alert('El monto a fiar debe ser mayor a 0.');return}
-mov.fia={cli:cli,mtoFiado:mtoFiado};if(pagaHoy)mov.fia.mtoPagado=pagaHoy;if(tel)mov.fia.tel=tel;if(($('efiaVto')||{value:''}).value)mov.fia.vto=$('efiaVto').value;if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
+mov.fia={cli:cli,mtoFiado:mtoFiado,ent:pagaHoy||0};if(tel)mov.fia.tel=tel;if(($('efiaVto')||{value:''}).value)mov.fia.vto=$('efiaVto').value;if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
 sellMov(mov,d.id);
 if(adm)month=$('ed').value.slice(0,7)||month;drawSell();$('etot').textContent='Venta guardada ✓'}}
 
@@ -637,46 +637,52 @@ M.filter(function(x){return x.t=='v'&&x.fia}).forEach(function(x){var cli=x.fia.
 if(!clientes[cli])clientes[cli]={n:cli,t:x.fia.tel||undefined};
 else if(x.fia.tel&&!clientes[cli].t)clientes[cli].t=x.fia.tel});
 CLIENTES_FIADOS=Object.keys(clientes).map(function(k){return clientes[k]}).sort(function(a,b){return a.n.localeCompare(b.n)})}
+// Cuentas de una venta fiada. tot = precio de la venta; ent = lo que pagó al llevarlo (entrega);
+// fiado = lo que quedó debiendo (tot - ent); pag = lo que fue pagando después; saldo = lo que debe hoy.
+// Ventas viejas (sin ent): la entrega se había anotado también como pago, así que se descuenta de mtoPagado.
+function fiaCalc(x){var f=x.fia||{},tot=x.q*x.u,fiado=f.mtoFiado!=null?f.mtoFiado:tot,nuevo=f.ent!=null,ent=nuevo?(+f.ent||0):Math.max(0,tot-fiado),pag=nuevo?(f.mtoPagado||0):Math.max(0,(f.mtoPagado||0)-ent);
+return {tot:tot,ent:ent,fiado:fiado,pag:pag,saldo:Math.max(0,fiado-pag)}}
 function drawFia(){
 loadClientesFiados();
 var fiados=M.filter(function(x){return x.t=='v'&&x.fia});
 var byClient={};
-fiados.forEach(function(x){var cli=x.fia.cli,mtoFiado=x.fia.mtoFiado||x.q*x.u,mtoPago=x.fia.mtoPagado||0;
-if(!byClient[cli])byClient[cli]={fiado:0,pagado:0,items:[],vto:null,int:0,tel:x.fia.tel||''};
-byClient[cli].fiado+=mtoFiado;
-byClient[cli].pagado+=mtoPago;
-byClient[cli].items.push({d:x.d,p:x.p,z:x.z,q:x.q,u:x.u,mtoFiado:mtoFiado,mtoPago:mtoPago});
+fiados.forEach(function(x){var cli=x.fia.cli,k=fiaCalc(x);
+if(!byClient[cli])byClient[cli]={tot:0,ent:0,fiado:0,pagado:0,saldo:0,items:[],vto:null,int:0,tel:x.fia.tel||''};
+var B=byClient[cli];B.tot+=k.tot;B.ent+=k.ent;B.fiado+=k.fiado;B.pagado+=k.pag;B.saldo+=k.saldo;
+B.items.push({d:x.d,p:x.p,z:x.z,q:x.q,u:x.u,k:k});
 if(x.fia.vto&&(!byClient[cli].vto||x.fia.vto>byClient[cli].vto))byClient[cli].vto=x.fia.vto;
 if(x.fia.int)byClient[cli].int=Math.max(byClient[cli].int,x.fia.int);
 if(!byClient[cli].tel&&x.fia.tel)byClient[cli].tel=x.fia.tel});
 var now=new Date(),clients=Object.keys(byClient).sort();
 var h='<div class="card"><b>Control de fiados</b><div class="k" style="margin:4px 0 0">Ventas pendientes de cobro por cliente.</div></div>';
 if(!clients.length){h+='<div class="card"><div class="empty">No hay ventas de fiado registradas.</div></div>'}
-else{clients.forEach(function(cli){var c=byClient[cli],saldo=c.fiado-c.pagado,vencida=c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null;
-h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b>'+esc(cli)+'</b><small style="display:block;margin-top:2px">'+c.items.length+' transacción(es)</small></div><b style="font-size:19px" class="'+(saldo<=0?'pos':'neg')+'">'+money(Math.max(0,saldo))+'</b></div>'+
+else{clients.forEach(function(cli){var c=byClient[cli],saldo=c.saldo,vencida=c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null;
+h+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><b>'+esc(cli)+'</b><small style="display:block;margin-top:2px">'+c.items.length+' transacción(es)</small></div><b style="font-size:19px;color:'+(saldo<=0?'#1a8f4c':'#b3261e')+'">'+money(Math.max(0,saldo))+'</b></div>'+
 '<div class="rows" style="margin:10px 0 0">'+
-'<div class="r2" style="border:0;padding:6px 0"><span>Fiado total</span><b style="font-size:16px">'+money(c.fiado)+'</b></div>'+
-'<div class="r2" style="border:0;padding:6px 0"><span>Pagado</span><b style="font-size:16px;color:var(--sell)">'+money(c.pagado)+'</b></div>'+
-'<div class="r2" style="border:0;padding:6px 0"><span>Saldo actual</span><b style="font-size:16px" class="'+(saldo<=0?'pos':'neg')+'">'+money(Math.max(0,saldo))+'</b></div>'+
+'<div class="r2" style="border:0;padding:6px 0"><span>Total de las compras</span><b style="font-size:16px">'+money(c.tot)+'</b></div>'+
+(c.ent?'<div class="r2" style="border:0;padding:6px 0"><span>Entregó al llevarlo</span><b style="font-size:16px;color:var(--sell)">'+money(c.ent)+'</b></div>':'')+
+'<div class="r2" style="border:0;padding:6px 0"><span>Quedó fiado</span><b style="font-size:16px">'+money(c.fiado)+'</b></div>'+
+'<div class="r2" style="border:0;padding:6px 0"><span>Pagó después</span><b style="font-size:16px;color:var(--sell)">'+money(c.pagado)+'</b></div>'+
+'<div class="r2" style="border:0;padding:6px 0"><span>Saldo actual</span><b style="font-size:16px;color:'+(saldo<=0?'#1a8f4c':'#b3261e')+'">'+money(Math.max(0,saldo))+'</b></div>'+
 '</div>'+
-(c.vto?'<div class="r2" style="border:0;padding:8px 0;margin-top:8px"><span>Vencimiento</span><b style="'+(vencida?'color:var(--buy)':'')+'">'+c.vto+(vencida?' ('+dias+' días atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+
-'<div style="margin-top:10px;max-height:180px;overflow-y:auto"><b style="font-size:13px;color:var(--mut)">Historial</b>'+c.items.map(function(x){return '<div class="it" style="padding:4px 0;font-size:13px"><div><small>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div><small style="text-align:right"><span style="color:var(--buy)">Fiado: '+money(x.mtoFiado)+'</span>'+(x.mtoPago?' <span style="color:var(--sell)">Pago: '+money(x.mtoPago)+'</span>':'')+'</small></div>'}).join('')+'</div>'+
+(c.vto?'<div class="r2" style="border:0;padding:8px 0;margin-top:8px"><span>Vencimiento</span><b style="'+(vencida?'color:#b3261e':'')+'">'+c.vto+(vencida?' ('+Math.abs(dias)+' día'+(Math.abs(dias)==1?'':'s')+' de atraso)':dias>0?' (vence en '+dias+' días)':'')+'</b></div>':'')+(c.int?'<div class="r2" style="border:0;padding:8px 0"><span>Mora</span><b>'+c.int+'% si pasa la fecha</b></div>':'')+
+'<div style="margin-top:10px;max-height:180px;overflow-y:auto"><b style="font-size:13px;color:var(--mut)">Historial</b>'+c.items.map(function(x){return '<div class="it" style="padding:4px 0;font-size:13px"><div><small>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+'</small><small style="display:block;color:var(--mut)">'+x.d+' · '+x.q+' × '+money(x.u)+'</small></div><small style="text-align:right;line-height:1.4">'+(x.k.ent?'<span style="display:block;color:var(--sell)">Entrega: '+money(x.k.ent)+'</span>':'')+(x.k.pag?'<span style="display:block;color:var(--sell)">Pagos: '+money(x.k.pag)+'</span>':'')+'<span style="display:block;font-weight:700;color:'+(x.k.saldo?'#b3261e':'var(--sell)')+'">'+(x.k.saldo?'Debe: '+money(x.k.saldo):'Pagado ✓')+'</span></small></div>'}).join('')+'</div>'+
 '<div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-fia="regpago" data-cli="'+esc(cli)+'">Registrar pago</button><button class="go alt" data-fia="pdf" data-cli="'+esc(cli)+'" style="background:#1D3FAF;color:#fff">PDF</button><button class="go alt" data-fia="wa" data-cli="'+esc(cli)+'" style="background:#3156E8;color:#fff">WhatsApp</button></div></div>'})};
 $('s-fia').innerHTML=h}
 function fiaGenerarPDF(cli,mvs){
 var total=0,html='<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;padding:20px;font-size:14px}h1{font-size:24px;margin:0 0 5px}h2{font-size:16px;margin:20px 0 10px;border-bottom:2px solid #333;padding-bottom:5px}.due{color:#FFD6AA;font-weight:bold}.amount{text-align:right}table{width:100%;border-collapse:collapse}td,th{padding:8px;text-align:left;border-bottom:1px solid #ddd}th{background:#f0f0f0;font-weight:bold}.total-row{font-weight:bold;background:#f9f9f9}.total-amount{font-size:18px;color:#FFD6AA}footer{margin-top:30px;padding-top:20px;border-top:2px solid #333;color:#666;font-size:12px}</style></head><body>';
 html+='<h1>Detalle de Deuda</h1><p><strong>Cliente:</strong> '+esc(cli)+'</p><p><strong>Fecha:</strong> '+today()+'</p><p><strong>Negocio:</strong> '+esc(SNAME)+'</p>';
-html+='<h2>Compras registradas de fiado</h2><table><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Precio Unitario</th><th class="amount">Subtotal</th></tr>';
-mvs.forEach(function(x){var sub=x.q*x.u;total+=sub;html+='<tr><td>'+x.d+'</td><td>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+'</td><td>'+x.q+'</td><td>'+money(x.u)+'</td><td class="amount">'+money(sub)+'</td></tr>'});
-html+='<tr class="total-row"><td colspan="4">TOTAL ADEUDADO</td><td class="amount total-amount">'+money(total)+'</td></tr></table>';
-if(mvs.some(function(x){return x.fia.vto})){html+='<h2>Fechas de vencimiento</h2>';mvs.forEach(function(x){if(x.fia.vto){var now=new Date(),vto=new Date(x.fia.vto),dias=Math.ceil((vto-now)/86400000);html+='<p>'+x.d+': <strong>'+x.fia.vto+'</strong> '+((dias<0&&!x.fia.int)?'<span class="due">('+Math.abs(dias)+' días de atraso)</span>':'')+' → '+money(x.q*x.u)+'</p>'}})}
+html+='<h2>Compras registradas de fiado</h2><table><tr><th>Fecha</th><th>Producto</th><th>Precio</th><th>Entrega</th><th>Pagos</th><th class="amount">Debe</th></tr>';
+mvs.forEach(function(x){var k=fiaCalc(x);total+=k.saldo;html+='<tr><td>'+x.d+'</td><td>'+esc(x.p)+(x.z?' ('+esc(x.z)+')':'')+(x.q>1?' × '+x.q:'')+'</td><td>'+money(k.tot)+'</td><td>'+money(k.ent)+'</td><td>'+money(k.pag)+'</td><td class="amount">'+money(k.saldo)+'</td></tr>'});
+html+='<tr class="total-row"><td colspan="5">TOTAL ADEUDADO</td><td class="amount total-amount">'+money(total)+'</td></tr></table>';
+if(mvs.some(function(x){return x.fia.vto})){html+='<h2>Fechas de vencimiento</h2>';mvs.forEach(function(x){if(x.fia.vto){var now=new Date(),vto=new Date(x.fia.vto),dias=Math.ceil((vto-now)/86400000);html+='<p>'+x.d+': <strong>'+x.fia.vto+'</strong> '+((dias<0&&!x.fia.int)?'<span class="due">('+Math.abs(dias)+' días de atraso)</span>':'')+' → '+money(fiaCalc(x).saldo)+'</p>'}})}
 if(mvs.some(function(x){return x.fia.int})){html+='<h2>Mora por atraso</h2>';mvs.forEach(function(x){if(x.fia.int)html+='<p>'+x.fia.int+'% de interés si no paga a tiempo</p>'})}
 html+='<footer><p>Este documento fue generado automáticamente. Para consultas, escribinos a través de WhatsApp.</p></footer></body></html>';
 var blob=new Blob([html],{type:'text/html'}),url=window.URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Deuda_'+esc(cli)+'_'+today()+'.html';a.click();window.URL.revokeObjectURL(url)}
 function fiaEnviarWA(cli,mvs){
-var total=0;mvs.forEach(function(x){total+=x.q*x.u});
+var total=0,tot=0,pg=0;mvs.forEach(function(x){var k=fiaCalc(x);total+=k.saldo;tot+=k.tot;pg+=k.ent+k.pag});
 var vto=mvs.filter(function(x){return x.fia.vto}).map(function(x){return x.fia.vto}).sort().pop(),mora=mvs.filter(function(x){return x.fia.int}).map(function(x){return x.fia.int}).pop();
-var msg='Hola '+cli+'! 👋\n\nDetalle de tu deuda en '+SNAME+':\n\n💰 Total adeudado: '+money(total);
+var msg='Hola '+cli+'! 👋\n\nDetalle de tu cuenta en '+SNAME+':\n\n🛍️ Compras: '+money(tot)+'\n✅ Ya pagaste: '+money(pg)+'\n💰 Te queda por pagar: '+money(total);
 if(vto)msg+='\n📅 Vencimiento: '+vto;
 if(mora)msg+='\n⚠️ Mora: '+mora+'% si no pagas a tiempo';
 msg+='\n\n📋 Para ver el detalle completo, descargá el PDF desde la app.\n\nPuede pagar cuando quieras. ¡Gracias!';
@@ -1386,9 +1392,10 @@ if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
 if(d.fia){var cli=d.cli,mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});
-if(d.fia=='regpago'){var saldo=0;mvs.forEach(function(x){saldo+=Math.max(0,(x.fia.mtoFiado||x.q*x.u)-(x.fia.mtoPagado||0))});
+if(d.fia=='regpago'){var saldo=0;mvs.forEach(function(x){saldo+=fiaCalc(x).saldo});
 var mto=prompt('¿Cuánto pagó '+cli+'? (Saldo: '+money(saldo)+')');if(!mto)return;mto=+mto;if(isNaN(mto)||mto<=0){alert('Monto inválido');return}
-var pago=mto,idx=0;for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=(x.fia.mtoFiado||x.q*x.u)-(x.fia.mtoPagado||0);if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
+if(mto>saldo&&!confirm('Pagó '+money(mto)+' y debe '+money(saldo)+'. Se anota '+money(saldo)+' (lo que debe). ¿Seguir?'))return;
+var pago=mto,idx=0;for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=fiaCalc(x).saldo;if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
 drawFia();return}
 if(d.fia=='pdf'){fiaGenerarPDF(cli,mvs);return}
 if(d.fia=='wa'){fiaEnviarWA(cli,mvs);return}
