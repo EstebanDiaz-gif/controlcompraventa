@@ -97,7 +97,7 @@ td small{color:var(--mut)}
 .fsn{min-width:0;flex:1}.fsn b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fsn small{display:block;color:var(--mut);font-size:12px;margin-top:3px}
 .fsm{font-size:17px;white-space:nowrap}.fib{padding:0 0 14px}
 .fch{display:inline-block;font-size:11.5px;font-weight:800;border-radius:99px;padding:3px 9px;margin:5px 5px 0 0}
-.fch.ok{background:#dff3e6;color:#16703c}.fch.no{background:#fde7e4;color:#a4271d}
+.fch.ok{background:#dff3e6;color:#16703c}.fch.nv{background:#e3eaff;color:#1D3FAF}.fch.no{background:#fde7e4;color:#a4271d}
 .flt{font-weight:900;font-size:13px;color:var(--mut);margin:14px 4px 6px;letter-spacing:.05em}
 /* almacén */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
@@ -659,21 +659,23 @@ function fiaFecha(d){var p=String(d).split('-');return p.length==3?p[2]+'/'+p[1]
 function fiaClientes(){var fiados=M.filter(function(x){return x.t=='v'&&x.fia}),by={},lu=lunes();
 fiados.forEach(function(x){var cli=x.fia.cli,k=fiaCalc(x);
 if(!by[cli])by[cli]={tot:0,ent:0,fiado:0,pagado:0,saldo:0,items:[],pgs:[],sem:0,ult:'',vto:null,int:0,tel:x.fia.tel||''};
-var B=by[cli];B.tot+=k.tot;B.ent+=k.ent;B.fiado+=k.fiado;B.pagado+=k.pag;B.saldo+=k.saldo;
+var B=by[cli];if(k.saldo>0&&(!B.desde||x.d<B.desde))B.desde=x.d;B.tot+=k.tot;B.ent+=k.ent;B.fiado+=k.fiado;B.pagado+=k.pag;B.saldo+=k.saldo;
 B.items.push({d:x.d,p:x.p,z:x.z,q:x.q,u:x.u,k:k});
 (x.fia.pg||[]).forEach(function(p){B.pgs.push(p);if(p.d>=lu)B.sem+=p.m;if(p.d>B.ult)B.ult=p.d});
 if(x.fia.vto&&(!B.vto||x.fia.vto>B.vto))B.vto=x.fia.vto;
 if(x.fia.int)B.int=Math.max(B.int,x.fia.int);
 if(!B.tel&&x.fia.tel)B.tel=x.fia.tel});
+Object.keys(by).forEach(function(k){var B=by[k];B.nuevo=B.saldo>0&&B.sem<=0&&!!B.desde&&B.desde>=lu});
 return by}
 function fiaPgList(c){var g={};c.pgs.forEach(function(p){var k=p.ts||p.d;if(!g[k])g[k]={d:p.d,m:0};g[k].m+=p.m});
 return Object.keys(g).map(function(k){return g[k]}).sort(function(a,b){return a.d<b.d?1:-1})}
 function sinF(pl){return pl.reduce(function(a,p){return a+p.m},0)}
 function fiaChip(c){if(c.saldo<=0)return '<span class="fch ok">Al día ✓</span>';
 if(c.sem>0)return '<span class="fch ok">✓ Pagó esta semana '+money(c.sem)+'</span>';
+if(c.nuevo)return '<span class="fch nv">Compró esta semana · paga desde la próxima</span>';
 return '<span class="fch no">Sin pagos esta semana</span>'}
 function fiaCard(cli,c){var saldo=c.saldo,now=new Date(),vencida=saldo>0&&c.vto&&new Date(c.vto)<now,dias=c.vto?Math.ceil((new Date(c.vto)-now)/86400000):null,pl=fiaPgList(c);
-return '<details class="fic" data-n="'+esc(fiaNorm(cli))+'" data-k="'+esc(cli)+'" data-sal="'+(saldo>0?1:0)+'" data-sem="'+(c.sem>0?1:0)+'"'+(FIA.o[cli]?' open':'')+'><summary>'+
+return '<details class="fic" data-n="'+esc(fiaNorm(cli))+'" data-k="'+esc(cli)+'" data-sal="'+(saldo>0?1:0)+'" data-sem="'+(c.sem>0||c.nuevo?1:0)+'"'+(FIA.o[cli]?' open':'')+'><summary>'+
 '<span class="fsn"><b>'+esc(cli)+'</b>'+fiaChip(c)+(vencida?'<span class="fch no">Vencido</span>':'')+'<small>'+c.items.length+' compra'+(c.items.length==1?'':'s')+(c.ult?' · último pago '+fiaFecha(c.ult):'')+'</small></span>'+
 '<b class="fsm" style="color:'+(saldo<=0?'#1a8f4c':'#b3261e')+'">'+money(Math.max(0,saldo))+'</b></summary><div class="fib">'+
 '<div class="rows" style="margin:4px 0 0">'+
@@ -699,7 +701,7 @@ if(!$('fiaq')){box.innerHTML='<div class="card hero"><div class="k">Total que te
 $('fiaq').value=FIA.q;$('fiaq').oninput=function(){FIA.q=this.value;fiaFilter()};
 if(!box._fiaT){box._fiaT=1;box.addEventListener('toggle',function(e){var t=e.target;if(t.classList&&t.classList.contains('fic'))FIA.o[t.dataset.k]=t.open},true)}}
 var by=fiaClientes(),clients=Object.keys(by).sort(function(a,b){return a.localeCompare(b,'es',{sensitivity:'base'})});
-var deben=0,total=0,sem=0,nopag=0;clients.forEach(function(k){var c=by[k];if(c.saldo>0){deben++;total+=c.saldo;if(c.sem>0)sem++;else nopag++}});
+var deben=0,total=0,sem=0,nopag=0;clients.forEach(function(k){var c=by[k];if(c.saldo>0){deben++;total+=c.saldo;if(c.sem>0)sem++;else if(!c.nuevo)nopag++}});
 $('fiatot').textContent=money(total);
 $('fiacnt').textContent=deben?deben+' cliente'+(deben==1?'':'s')+' con deuda · '+sem+(sem==1?' pagó':' pagaron')+' esta semana':'Nadie te debe ✓';
 $('fiaf').innerHTML=[['all','Todos ('+clients.length+')'],['deben','Deben ('+deben+')'],['nopag','No pagaron esta semana ('+nopag+')']].map(function(x){return '<button class="ch'+(FIA.f==x[0]?' on':'')+'" data-fia="flt" data-v="'+x[0]+'">'+x[1]+'</button>'}).join('');

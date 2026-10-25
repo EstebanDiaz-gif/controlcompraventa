@@ -64,7 +64,7 @@ export function createAlmacen(X) {
     if (un.cli) return;
     un.cli = onSnapshot(col('clientes'), (sn) => {
       S.cl = []; S.clErr = false;
-      sn.forEach((d) => { const x = d.data(); S.cl.push({ id: d.id, n: x.n || '', tel: x.tel || '', s: r2(x.s || 0), u: x.u || 0, up: x.up || '' }); });
+      sn.forEach((d) => { const x = d.data(); S.cl.push({ id: d.id, n: x.n || '', tel: x.tel || '', s: r2(x.s || 0), u: x.u || 0, up: x.up || '', fd: x.fd || '' }); });
       redraw();
     }, () => { S.clErr = true; redraw(); });
     listenHoy(); listenCaja();
@@ -443,7 +443,7 @@ export function createAlmacen(X) {
       const c = cli(S.cli), fid = uid();
       v.cli = c.id; v.cn = c.n; v.fid = fid;
       b.set(doc(db, 'stores', sid, 'fiado', fid), { id: fid, cid: c.id, t: 'f', a: tot, d, m, vid: id, det: it.map((x) => x.n + (x.w ? ' ' + fq(x.q, 1) : (x.q > 1 ? ' x' + n3(x.q) : ''))).join(', ').slice(0, 300), by: u.uid, bn: X.nm() });
-      b.update(doc(db, 'stores', sid, 'clientes', c.id), { s: increment(tot), u: Date.now() });
+      b.update(doc(db, 'stores', sid, 'clientes', c.id), Object.assign({ s: increment(tot), u: Date.now() }, c.s <= 0 ? { fd: X.today() } : {}));
     }
     b.set(doc(db, 'stores', sid, 'ventas', id), v);
     it.forEach((x) => { if (ctl(x.id)) b.update(doc(db, 'stores', sid, 'stock', x.id), { q: increment(-x.q) }); });
@@ -506,7 +506,7 @@ export function createAlmacen(X) {
     let t = 0, n = 0; S.cl.forEach((c) => { if (c.s > 0) { t += c.s; n++; } });
     $('fitot').textContent = money(t); $('ficnt').textContent = n + ' cliente' + (n === 1 ? '' : 's') + ' con deuda';
     const lu = lunes(), l = S.cl.filter((c) => match(c.n + ' ' + c.tel, S.fq)).sort((a, b) => a.n.localeCompare(b.n, 'es', { sensitivity: 'base' }));
-    $('filist').innerHTML = '<div class="card">' + (l.length ? l.map((c) => '<button class="pl" data-al="opencli" data-id="' + esc(c.id) + '"><span><b>' + esc(c.n) + '</b>' + (c.s > 0 ? (c.up && c.up >= lu ? '<span class="fch ok">✓ Pagó esta semana</span>' : '<span class="fch no">Sin pagos esta semana</span>') : '') + '<small>' + (c.tel ? esc(c.tel) + ' · ' : '') + (c.up ? 'último pago ' + c.up.split('-').reverse().slice(0, 2).join('/') : c.u ? 'último movimiento ' + new Date(c.u).toLocaleDateString('es-AR') : 'sin movimientos') + '</small></span><b class="' + (c.s > 0 ? 'neg' : 'pos') + '">' + (c.s > 0 ? money(c.s) : (c.s < 0 ? 'a favor ' + money(-c.s) : 'al día')) + '</b></button>').join('') :
+    $('filist').innerHTML = '<div class="card">' + (l.length ? l.map((c) => '<button class="pl" data-al="opencli" data-id="' + esc(c.id) + '"><span><b>' + esc(c.n) + '</b>' + (c.s > 0 ? (c.up && c.up >= lu ? '<span class="fch ok">✓ Pagó esta semana</span>' : c.fd && c.fd >= lu ? '<span class="fch nv">Compró esta semana · paga desde la próxima</span>' : '<span class="fch no">Sin pagos esta semana</span>') : '') + '<small>' + (c.tel ? esc(c.tel) + ' · ' : '') + (c.up ? 'último pago ' + c.up.split('-').reverse().slice(0, 2).join('/') : c.u ? 'último movimiento ' + new Date(c.u).toLocaleDateString('es-AR') : 'sin movimientos') + '</small></span><b class="' + (c.s > 0 ? 'neg' : 'pos') + '">' + (c.s > 0 ? money(c.s) : (c.s < 0 ? 'a favor ' + money(-c.s) : 'al día')) + '</b></button>').join('') :
       '<div class="empty">' + (S.cl.length ? 'No encontré ese cliente.' : 'Todavía no anotaste clientes. Se crean acá o al cobrar con Fiado.') + '</div>') + '</div>';
   }
   function openCli(id) {
@@ -562,7 +562,7 @@ export function createAlmacen(X) {
       if (isP) f.pay = o.querySelector('#mp').value; else f.det = o.querySelector('#md').value.trim().slice(0, 120) || 'Deuda anotada';
       if (isP && S.caja && d === X.today()) f.cj = S.caja.id;
       b.set(doc(db, 'stores', sid, 'fiado', id), f);
-      b.update(doc(db, 'stores', sid, 'clientes', c.id), Object.assign({ s: increment(isP ? -a : a), u: Date.now() }, isP && !(c.up > d) ? { up: d } : {}));
+      b.update(doc(db, 'stores', sid, 'clientes', c.id), Object.assign({ s: increment(isP ? -a : a), u: Date.now() }, isP && !(c.up > d) ? { up: d } : {}, !isP && c.s <= 0 ? { fd: d } : {}));
       if (isP) b.set(doc(db, 'stores', sid, 'totales', f.m), { cob: increment(a), cobp: { [f.pay]: increment(a) } }, { merge: true });
       if (f.cj) setDoc(doc(db, 'stores', sid, 'cajas', f.cj), { c: { [f.pay]: increment(a) } }, { merge: true }).catch(() => {});
       b.commit().catch(failW);
