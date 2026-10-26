@@ -199,7 +199,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop();CJ.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -272,27 +272,44 @@ var x=root.querySelector('#tgx');x.innerHTML='<b>'+t[2]+' '+t[1]+'</b><span>'+TI
 root.querySelectorAll('.tgb').forEach(function(b){b.onclick=function(){root._tipo=b.dataset.tipo;show(b.dataset.tipo)}});var on=root.querySelector('.tgb.on');if(on){root._tipo=on.dataset.tipo;show(on.dataset.tipo)}}
 function tipoCfg(id,amb){var t=tipoDe(id),o={tipo:id,biz:t[3]};if(t[3]=='servicios'&&amb)o.biz='ambos';if(t[4])o.rub=t[4];else if(o.biz=='ambos')o.rub='perf';return o}
 
+/* ---------- país y moneda del plan ---------- */
+var PAISES=[['AR','Argentina','🇦🇷'],['UY','Uruguay','🇺🇾'],['CL','Chile','🇨🇱'],['PY','Paraguay','🇵🇾'],['BO','Bolivia','🇧🇴'],['PE','Perú','🇵🇪'],['CO','Colombia','🇨🇴'],['EC','Ecuador','🇪🇨'],['VE','Venezuela','🇻🇪'],['MX','México','🇲🇽'],['ES','España','🇪🇸'],['US','Estados Unidos','🇺🇸'],['OT','Otro país','🌎']];
+function paisDetect(){var z='';try{z=Intl.DateTimeFormat().resolvedOptions().timeZone||''}catch(e){}
+var m={'America/Argentina':'AR','America/Buenos_Aires':'AR','America/Cordoba':'AR','America/Montevideo':'UY','America/Santiago':'CL','America/Asuncion':'PY','America/La_Paz':'BO','America/Lima':'PE','America/Bogota':'CO','America/Guayaquil':'EC','America/Caracas':'VE','America/Mexico_City':'MX','America/Monterrey':'MX','America/Cancun':'MX','America/Tijuana':'MX','Europe/Madrid':'ES','America/New_York':'US','America/Chicago':'US','America/Denver':'US','America/Los_Angeles':'US'};
+for(var k in m)if(z.indexOf(k)==0)return m[k];return 'OT'}
+function monDe(pais){return pais=='AR'?'ARS':'USD'}
+function precioPlan(p,mon){return mon=='USD'?'US$ '+(p.priceUSD!=null?p.priceUSD:'—'):money(p.priceARS)}
+function payNote(mon){return mon=='USD'?'Los planes en dólares se pagan con un link internacional (tarjeta o PayPal). Escribinos y te lo pasamos; cuando se acredite el pago, activamos tu plan.':'Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.'}
+function payBtn(p,mon){var st='flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)';
+if(mon=='USD')return '<a href="https://wa.me/'+SOPORTE_WA+'?text='+encodeURIComponent('Hola, quiero contratar el plan '+p.name+' (US$ '+p.priceUSD+' por mes) de Pekeron App para "'+SNAME+'".')+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>';
+return p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>':''}
+
 /* ---------- tiendas ---------- */
 function newStore(){
 var o=document.createElement('div');o.id='sdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto';
-var pc=PLAN_IDS.map(function(id,i){var p=CFG.plans[id];return '<label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--line);border-radius:14px;margin-top:8px;cursor:pointer;font-weight:400"><input type="radio" name="sp" value="'+id+'"'+(i==0?' checked':'')+' style="width:auto;margin-top:4px"><span style="flex:1"><b>'+esc(p.name)+'</b> · '+money(p.priceARS)+' por mes<small style="display:block;color:var(--mut)">'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></span></label>'}).join('');
+var pc=PLAN_IDS.map(function(id,i){var p=CFG.plans[id];return '<label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--line);border-radius:14px;margin-top:8px;cursor:pointer;font-weight:400"><input type="radio" name="sp" value="'+id+'"'+(i==0?' checked':'')+' style="width:auto;margin-top:4px"><span style="flex:1"><b>'+esc(p.name)+'</b> · <span class="spp" data-id="'+id+'">'+money(p.priceARS)+'</span> por mes<small style="display:block;color:var(--mut)">'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></span></label>'}).join('');
 o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:20px;max-width:620px;width:100%;margin:auto"><b style="font-size:20px">Crear tu tienda</b>'+
 '<div class="note" style="background:var(--bg);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px"><b>'+CFG.trialDays+' días de prueba gratis.</b> Hoy no se te cobra nada. Elegí el plan que te conviene: cuando termine la prueba, para seguir usando la app se paga ese plan (con '+CFG.graceDays+' días de cortesía).</div>'+
 '<label>Nombre de la tienda</label><input id="sn_n" placeholder="Ej: Pekeron" autocomplete="off">'+
 '<label>¿Qué tipo de negocio es?</label><div class="k" style="margin:2px 0 4px">Así preparamos la app con las funciones de tu rubro.</div>'+tipoGrid('',false)+
+'<label style="margin-top:14px">¿En qué país está tu negocio?</label><select id="sn_pais">'+PAISES.map(function(x){return '<option value="'+x[0]+'">'+x[2]+' '+x[1]+'</option>'}).join('')+'</select><div class="k" id="sn_mon" style="margin-top:4px"></div>'+
 '<label style="margin-top:14px">Elegí tu plan</label>'+pc+
 '<button class="go" id="sn_ok">Empezar mi prueba gratis</button><button class="x" id="sn_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
 document.body.appendChild(o);
 tipoWire(o);
+var pz=$('sn_pais');try{pz.value=localStorage.getItem('pk_pais')||paisDetect()}catch(e){pz.value=paisDetect()}
+function monUpd(){var mon=monDe(pz.value);o.querySelectorAll('.spp').forEach(function(e){e.textContent=precioPlan(CFG.plans[e.dataset.id],mon)});$('sn_mon').textContent=mon=='USD'?'Los precios para tu país están en dólares estadounidenses (US$).':'Los precios están en pesos argentinos.'}
+pz.onchange=monUpd;monUpd();
 $('sn_x').onclick=function(){o.remove()};
 $('sn_ok').onclick=function(){
 var n=$('sn_n').value.trim();if(!n){alert('Escribí el nombre de la tienda.');return}
 if(!o._tipo){alert('Elegí qué tipo de negocio es.');o.querySelector('.tg').scrollIntoView({behavior:'smooth',block:'center'});return}
+var pais=$('sn_pais').value,mon=monDe(pais);try{localStorage.setItem('pk_pais',pais)}catch(e){}
 var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',TC=tipoCfg(o._tipo,o.querySelector('#tgamb').checked),bz=TC.biz,rb=TC.rub||'';
 $('sn_ok').disabled=true;
 if(!SERVER_MODE){
 var sid=rnd(10),b=writeBatch(db);
-b.set(doc(db,'stores',sid),{name:n,owner:U.uid,created:Date.now()});
+b.set(doc(db,'stores',sid),{name:n,owner:U.uid,created:Date.now(),pais:pais,mon:mon});
 b.set(doc(db,'stores',sid,'members',U.uid),{role:'admin',email:U.email,name:nm()});
 b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
@@ -300,7 +317,7 @@ try{localStorage.setItem('cv_sid',sid)}catch(e){}
 b.commit().then(function(){o.remove();
 var c0=TC;if(Object.keys(c0).length)setDoc(doc(db,'stores',sid,'cfg','servicios'),c0,{merge:true}).catch(function(){});
 alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita del plan '+CFG.plans[plan].name+'.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)});return}
-callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz}).then(function(r){o.remove();
+callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz,pais:pais}).then(function(r){o.remove();
 if(r.sid)setDoc(doc(db,'stores',r.sid,'cfg','servicios'),TC,{merge:true}).catch(function(){});
 try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
 if(r.trial)alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)})}}
@@ -340,7 +357,7 @@ var MECP=false; // permiso "puede cargar productos" de este empleado (members/{u
 function openStore(sid){
 stopStore();SID=sid;ROLE=null;MECP=false;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
-un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';if(ROLE)drawHdr()}},function(){});
+un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
 if(!s.exists()){if(!s.metadata.fromCache){deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}return}
 var r=s.data().role,cp=!!s.data().cp,chg=cp!=MECP;MECP=cp;if(r!=ROLE){ROLE=r;startData()}else if(chg&&biz()=='almacen'){ALM.resetView();ALM.redraw()}},function(){})}
@@ -1259,8 +1276,8 @@ var h='<div class="card"><b style="display:flex;justify-content:space-between;al
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
 if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+='<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+money(p.priceARS)+'</b><small>por mes</small></div>'+(p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)">Contratar '+esc(p.name)+'</a>':'')+'</div>'});
-h+='<div class="k" style="margin-top:8px">Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.</div>'}
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+payBtn(p,STMON)+'</div>'});
+h+='<div class="k" style="margin-top:8px">'+payNote(STMON)+'</div>'}
 h+='</div></div>';
 return h}
 // ---------- Orden de los destacados del catálogo ----------
@@ -1310,8 +1327,8 @@ var h='<div class="card"><b>Plan y límites</b><div class="rows" style="margin:6
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
 if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+='<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+money(p.priceARS)+'</b><small>por mes</small></div>'+(p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)">Contratar '+esc(p.name)+'</a>':'')+'</div>'});
-h+='<div class="k" style="margin-top:8px">Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.</div>'}
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+payBtn(p,STMON)+'</div>'});
+h+='<div class="k" style="margin-top:8px">'+payNote(STMON)+'</div>'}
 return h+'</div>'}
 function shareCode(c){
 var appLink=catBase()+'app.html?t='+SID;
@@ -1377,7 +1394,7 @@ getDocs(collection(db,'stores')).then(function(sn){
 var ps=[];sn.forEach(function(d){var st=d.data();
 ps.push(Promise.all([getDoc(doc(db,'stores',d.id,'billing','access')),getDocs(collection(db,'stores',d.id,'members'))]).then(function(r){
 var ad=[];r[1].forEach(function(m){var x=m.data();if(x.role=='admin')ad.push(x.email||x.name||m.id)});
-return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null}}))});
+return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,mon:st.mon||'ARS',pais:st.pais||'',admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null}}))});
 return Promise.all(ps)}).then(function(l){PLL.list=l.sort(function(a,b){return a.name.localeCompare(b.name)});PLL.busy=false;drawPlatLite()}).catch(function(e){PLL.busy=false;PLL.list=[];fail(e)})}
 function drawPlatLite(){
 if(!PLL.list){$('s-plat').innerHTML='<div class="card"><div class="empty">Cargando empresas…</div></div>';loadLite();return}
@@ -1402,7 +1419,7 @@ var h='<div class="card"><b>Empresas inscriptas ('+cnt.all+')</b><div class="k" 
 if(!list.length)h+='<div class="card"><div class="empty">No hay empresas en esta vista.</div></div>';
 list.forEach(function(r){var x=r.x,a=r.a,st=r.st;
 var pl=a&&a.paidPlan&&(CFG.plans[a.paidPlan]||{}).name,ch=a&&a.chosenPlan&&(CFG.plans[a.chosenPlan]||{}).name,paused=r.k=='paused';
-h+='<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>'+esc(x.name)+'</b><span class="tag">'+esc(r.lbl)+'</span></div><div class="k">'+esc(x.admins.join(', ')||'sin administrador')+'</div><div class="k">'+x.n+' persona(s)'+(x.created?' · creada el '+fdate(x.created):'')+' · código '+esc(x.sid)+'</div>'+
+h+='<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>'+esc(x.name)+'</b><span class="tag">'+esc(r.lbl)+'</span></div><div class="k">'+esc(x.admins.join(', ')||'sin administrador')+'</div><div class="k">'+x.n+' persona(s)'+(x.created?' · creada el '+fdate(x.created):'')+' · código '+esc(x.sid)+'</div><div class="k">'+((PAISES.filter(function(p){return p[0]==x.pais})[0]||['','Argentina','🇦🇷']).slice(1).reverse().join(' '))+' · paga en '+(x.mon=='USD'?'dólares':'pesos')+(ch&&CFG.plans[a.chosenPlan]?' ('+precioPlan(CFG.plans[a.chosenPlan],x.mon)+' por mes)':'')+'</div>'+
 '<div class="rows" style="margin:8px 0 0">'+(r.k=='life'?'<div class="r2"><span>Licencia de por vida</span><b style="font-size:16px">desde el '+fdate(a.life.at)+(a.life.amt?'<small style="font-weight:400">pagó '+money(a.life.amt)+'</small>':'')+'</b></div>':'')+(st.untilMs&&r.k!='life'?'<div class="r2"><span>'+(st.state=='trial'?'La prueba termina':'Activa hasta')+'</span><b style="font-size:16px">'+fdate(st.untilMs)+'</b></div>':'')+(ch?'<div class="r2"><span>Plan que eligió</span><b>'+esc(ch)+'</b></div>':'')+(pl?'<div class="r2"><span>Plan pagado</span><b>'+esc(pl)+'</b></div>':'')+'</div>'+
 '<div class="row" style="margin-top:10px"><div><select id="lp_'+esc(x.sid)+'">'+PLAN_IDS.map(function(k){return '<option value="'+k+'"'+((a&&(a.chosenPlan==k))?' selected':'')+'>'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select></div><div><input id="lm_'+esc(x.sid)+'" type="number" min="1" max="24" value="1" inputmode="numeric" placeholder="Meses"></div></div>'+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+
@@ -1459,7 +1476,7 @@ return h+'</div>'}
 function cfgHtml(){
 var h='<div class="card"><b>Planes y precios</b><div class="k" style="margin:4px 0 0">Los cambios valen para las altas y controles nuevos. No borran nada.</div>';
 PLAN_IDS.forEach(function(id){var p=CFG.plans[id];
-h+='<div style="margin-top:14px"><b>'+esc(p.name)+'</b></div><div class="row"><div><label>Precio (ARS/mes)</label><input id="c_'+id+'_p" type="number" min="0" value="'+p.priceARS+'"></div></div>'+
+h+='<div style="margin-top:14px"><b>'+esc(p.name)+'</b></div><div class="row"><div><label>Precio (ARS/mes)</label><input id="c_'+id+'_p" type="number" min="0" value="'+p.priceARS+'"></div><div><label>Precio (US$/mes)</label><input id="c_'+id+'_u" type="number" min="0" value="'+(p.priceUSD!=null?p.priceUSD:'')+'"></div></div>'+
 '<div class="row"><div><label>Admins</label><input id="c_'+id+'_a" type="number" min="0" value="'+p.admins+'"></div><div><label>Empleados</label><input id="c_'+id+'_e" type="number" min="0" value="'+p.empleados+'"></div><div><label>Sucursales</label><input id="c_'+id+'_s" type="number" min="0" value="'+p.sucursales+'"></div></div>'});
 h+='<div style="margin-top:14px"><b>Prueba gratuita</b></div><div class="row"><div><label>Días</label><input id="c_td" type="number" min="0" value="'+CFG.trialDays+'"></div><div><label>Límites de la prueba</label><select id="c_tp">'+PLAN_IDS.map(function(k){return '<option value="'+k+'"'+(CFG.trialPlan==k?' selected':'')+'>'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select></div></div>'+
 '<button class="go" data-pa="cfg">Guardar planes y precios</button></div>';
@@ -1483,7 +1500,7 @@ if(a=='pay'){var pm=parseInt($('pym').value,10),pp=$('pyp').value;if(!(pm>=1)){a
 if(!confirm('¿Registrar '+pm+' mes(es) del plan '+CFG.plans[pp].name+' para '+PL.detail.name+'?'))return;
 callFn('ownerRegisterPayment',{sid:PL.detail.sid,plan:pp,months:pm,reason:'Pago por Mercado Pago'}).then(function(){alert('Pago registrado.');openDetail(PL.detail.sid)}).catch(fail);return}
 if(a=='cfg'){var num=function(i){return parseInt($(i).value,10)},c={trialDays:num('c_td'),trialPlan:$('c_tp').value,plans:{}};
-PLAN_IDS.forEach(function(id){c.plans[id]={priceARS:num('c_'+id+'_p'),admins:num('c_'+id+'_a'),empleados:num('c_'+id+'_e'),sucursales:num('c_'+id+'_s')}});
+PLAN_IDS.forEach(function(id){c.plans[id]={priceARS:num('c_'+id+'_p'),priceUSD:num('c_'+id+'_u'),admins:num('c_'+id+'_a'),empleados:num('c_'+id+'_e'),sucursales:num('c_'+id+'_s')}});
 if(!confirm('¿Guardar los nuevos planes y precios?'))return;
 callFn('ownerSetPlanConfig',{config:c}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(a=='migrate'){if(!confirm('¿Inicializar el plan de las tiendas creadas antes de los planes?'))return;

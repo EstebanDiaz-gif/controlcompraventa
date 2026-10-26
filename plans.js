@@ -7,16 +7,16 @@ export const DEFAULT_CONFIG = {
   trialPlan: 'inicial', // plan cuyos límites rigen durante la prueba (decisión pendiente de confirmar)
   plans: {
     inicial: {
-      name: 'Inicial', payUrl: 'https://mpago.la/11tidko', priceARS: 14999, admins: 2, empleados: 4, sucursales: 1,
+      name: 'Inicial', payUrl: 'https://mpago.la/11tidko', priceARS: 14999, priceUSD: 20, admins: 2, empleados: 4, sucursales: 1,
       features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos']
     },
     profesional: {
-      name: 'Profesional', payUrl: 'https://mpago.la/19EF6QE', priceARS: 24999, admins: 4, empleados: 10, sucursales: 3,
+      name: 'Profesional', payUrl: 'https://mpago.la/19EF6QE', priceARS: 24999, priceUSD: 50, admins: 4, empleados: 10, sucursales: 3,
       features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos',
         'transferencias', 'informes_avanzados', 'filtros', 'analisis_gastos', 'pdf']
     },
     empresarial: {
-      name: 'Empresarial', payUrl: 'https://mpago.la/1Dncr9a', priceARS: 55999, admins: 10, empleados: 30, sucursales: 10,
+      name: 'Empresarial', payUrl: 'https://mpago.la/1Dncr9a', priceARS: 55999, priceUSD: 80, admins: 10, empleados: 30, sucursales: 10,
       features: ['productos', 'compras_ventas', 'stock', 'mayor_menor', 'movimientos', 'historial', 'informes_basicos', 'gastos',
         'transferencias', 'informes_avanzados', 'filtros', 'analisis_gastos', 'pdf',
         'informes_consolidados', 'comparar_sucursales', 'finanzas_centralizadas', 'permisos_detallados', 'soporte_prioritario_preparado']
@@ -37,7 +37,7 @@ export function mergeConfig(stored) {
   for (const id of PLAN_IDS) {
     const s = stored.plans && stored.plans[id];
     if (!s) continue;
-    for (const k of ['priceARS', 'admins', 'empleados', 'sucursales']) if (Number.isInteger(s[k]) && s[k] >= 0) c.plans[id][k] = s[k];
+    for (const k of ['priceARS', 'priceUSD', 'admins', 'empleados', 'sucursales']) if (Number.isInteger(s[k]) && s[k] >= 0) c.plans[id][k] = s[k];
     if (Array.isArray(s.features)) c.plans[id].features = s.features.filter(f => typeof f === 'string').slice(0, 60);
   }
   return c;
@@ -57,6 +57,7 @@ export function validateConfigInput(input) {
       if (!Number.isInteger(p[k]) || p[k] < 0 || p[k] > 100000000) throw new Error('Valor inválido en ' + id + ' / ' + k + '.');
       o[k] = p[k];
     }
+    if (p.priceUSD !== undefined) { if (!Number.isInteger(p.priceUSD) || p.priceUSD < 0 || p.priceUSD > 1000000) throw new Error('Valor inválido en ' + id + ' / priceUSD.'); o.priceUSD = p.priceUSD; }
     out.plans[id] = o;
   }
   return out;
