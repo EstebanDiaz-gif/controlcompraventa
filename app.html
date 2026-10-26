@@ -111,6 +111,9 @@ td small{color:var(--mut)}
 .lki{width:68px;height:68px;border-radius:22px;margin:0 auto;display:grid;place-items:center;background:#fde7e4;color:#a4271d}.lki.p{background:#fff0d6;color:#8a4b00}.lki svg{width:34px;height:34px}
 .lkw{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-sizing:border-box}.lkw svg{width:20px;height:20px}
 .lkf{margin-top:22px;padding-top:14px;border-top:1px solid var(--line);font-size:12px;color:var(--mut)}
+.cjb{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px}.cjb small{display:block;color:var(--mut);font-size:13px}.cjo{display:block}
+.cjt{display:flex;justify-content:space-between;align-items:center;gap:10px}.cjg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.cjg .go{margin:0}
+.cjs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 6px}.cjs div{background:var(--bg);border-radius:14px;padding:10px 12px}.cjs small{display:block;color:var(--mut);font-size:12px}.cjs b{font-size:17px}
 /* almacén */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .ch{border:0;border-radius:99px;padding:8px 13px;background:var(--line);color:var(--ink);font:inherit;font-size:13px;font-weight:700}
@@ -169,6 +172,7 @@ import {firebaseConfig} from './firebase-config.js';
 import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
+import {createCaja,PAGOS} from './caja.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
 import {createAgenda,DURS} from './agenda.js';
@@ -197,12 +201,16 @@ var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
 var GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
-function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop()}
+function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop();CJ.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
 function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return r.data})}
 var CLIENTES_FIADOS=[]; // clientes frecuentes de fiado: [{n: nombre, t: teléfono}]
+var CJ=createCaja({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
+adm:function(){return ROLE=='admin'},canWrite:function(){return canWrite()},on:function(){return !!ROLE&&biz()!='almacen'&&!(CS&&CS.caja===false)},
+changed:function(w){if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
+function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
@@ -346,7 +354,7 @@ if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs')
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
 un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
-un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(){syncBiz()});
+un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(){syncBiz()});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},function(){});
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(){ACC=null;drawBanner()});
@@ -570,7 +578,7 @@ function xDraw(){var e=$('xph');if(e)e.innerHTML=xHtml()}
 function baseDocs(b){return ST.filter(function(d){return key(d.s||d.n)==b})}
 function priceOf(b,k){var v=0;baseDocs(b).forEach(function(d){var x=k=='mayor'?d.pm:d.pn;if(x)v=x});return v}
 function addMov(mv){addMovs([mv])}
-function delMov(mv){var b=writeBatch(db);b.delete(mref(mv.id));
+function delMov(mv){if(mv.t=='v'&&mv.cj)CJ.anular(mv.fia?{tot:mv.q*mv.u,hoy:mv.fia.ent||0,fi:mv.fia.mtoFiado,pay:mv.pay}:{tot:mv.q*mv.u,pay:mv.pay},mv.cj);var b=writeBatch(db);b.delete(mref(mv.id));
 b.set(sref(pk(mv)),{q:increment(mv.t=='c'?-mv.q:mv.q)},{merge:true});b.commit().catch(fail)}
 function sellMov(mv,stockId){var b=writeBatch(db);b.set(mref(mv.id),mv);b.update(doc(db,'stores',SID,'stock',stockId),{q:increment(-mv.q)});b.commit().catch(fail)}
 
@@ -603,7 +611,7 @@ $('s-add').innerHTML='<div class="card">'+(biz()=='servicios'?'<b>Compré insumo
 (type=='c'?'<div class="row"><div><label>Venta por mayor (opcional)</label><input id="pm" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Venta por menor (opcional)</label><input id="pn" type="number" inputmode="decimal" min="0" placeholder="0"></div></div><label>Mínimo de unidades para precio mayorista (opcional)</label><input id="mmq" type="number" inputmode="numeric" min="0" placeholder="Ej: 4">':'')+
 (type=='c'?'<label>Fotos (opcional, hasta '+(XMAX+1)+')</label><div class="k" style="margin-top:2px">La primera es la principal. Podés elegir varias juntas.</div><div id="pphs">'+ppsHtml()+'</div>':'')+
 '<div id="szbox"></div>'+
-(type=='v'?'<label>Tipo de venta</label><select id="k"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>':'')+
+(type=='v'?'<label>Tipo de venta</label><select id="k"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select><label>¿Cómo pagó?</label><select id="mpay">'+payOpts()+'</select>':'')+
 '<label>Fecha</label><input id="d" type="date" value="'+today()+'">'+
 '<div class="tot" id="tot"></div><button class="go" id="ok">Guardar '+(type=='c'?'compra':'venta')+'</button></div>';
 fillList();
@@ -635,10 +643,10 @@ if(!rows.length){alert('Escribí el talle y la cantidad de cada uno, o tocá "Si
 var tot=rows.reduce(function(a,r){return a+r.q},0);
 if(tot!=q){alert('Los talles suman '+tot+' y la cantidad es '+q+'. Revisalos.');return}
 if(rows.some(function(r){return r.z.length>50})){alert('El talle y el color juntos son demasiado largos (máximo 50 letras). Abreviá el color.');return}}
-var base=Date.now(),list=rows.map(function(r,i){return {id:base+i,t:type,d:d,p:p,s:sku,z:r.z,q:r.q,u:u,k:k,by:U.uid,bn:nm()}});
+var base=Date.now(),cjo=type=='v'?CJ.abierta():null,list=rows.map(function(r,i){var m={id:base+i,t:type,d:d,p:p,s:sku,z:r.z,q:r.q,u:u,k:k,by:U.uid,bn:nm()};if(type=='v'){m.pay=$('mpay').value;if(cjo)m.cj=cjo.id}return m});
 if(type=='v'){var low=list.filter(function(m){return m.q>stock(pk(m))});
 if(low.length&&!confirm('Hay menos stock del que querés vender ('+low.map(function(m){return (m.z?'talle '+m.z:'total')+': '+stock(pk(m))}).join(', ')+'). ¿Guardar igual?'))return}
-addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0,mm:Math.floor(+$('mmq').value)||0,fotos:PPS.slice(),cat:($('ac')&&$('ac').value.trim().slice(0,30))||''}:null);month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
+if(type=='v')CJ.venta({tot:list.reduce(function(a,m){return a+m.q*m.u},0),pay:$('mpay').value});addMovs(list,type=='c'?{pm:+$('pm').value||0,pn:+$('pn').value||0,mm:Math.floor(+$('mmq').value)||0,fotos:PPS.slice(),cat:($('ac')&&$('ac').value.trim().slice(0,30))||''}:null);month=d.slice(0,7);drawAdd();$('tot').textContent='Guardado ✓'}}
 function sumSizes(){var e=$('szsum');if(!e)return;var t=0;SZ.forEach(function(r){t+=+r.q||0});var q=+$('q').value||0;e.textContent='Repartidos '+t+' de '+q;e.style.color=t==q?'var(--sell)':'var(--buy)'}
 function drawSizes(){
 var b=$('szbox');if(!b)return;var q=+$('q').value||0,h='';
@@ -664,25 +672,26 @@ function drawSell(){
 var adm=ROLE=='admin',box=adm?$('s-add'):$('s-sell');
 if(!canWrite()){box.innerHTML=blockedCard();return}
 if(!ST.length){box.innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
-box.innerHTML='<div class="card">'+(adm?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'')+'<label>Buscar producto</label><input id="esq" type="search" placeholder="Nombre, código o talle" autocomplete="off" value="'+esc(SELQ)+'"><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
+CJ.listen();box.innerHTML=CJ.bar()+'<div class="card">'+(adm?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'')+'<label>Buscar producto</label><input id="esq" type="search" placeholder="Nombre, código o talle" autocomplete="off" value="'+esc(SELQ)+'"><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
+'<label id="epayl">¿Cómo pagó?</label><select id="epay">'+payOpts()+'</select>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="efia" type="checkbox" style="width:auto"> Venta de fiado</label>'+
 '<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><select id="efiaCli" style="margin-bottom:8px"><option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option></select><div id="efiaNewBox" style="display:none"><label>Nombre del cliente</label><input id="efiaCliN" placeholder="Nombre" autocomplete="off"><label>Teléfono WhatsApp (opcional)</label><input id="efiaCliT" inputmode="tel" placeholder="381 614 5326" autocomplete="off"></div><label>Monto que paga ahora (opcional)</label><input id="efiaPagaHoy" type="number" inputmode="decimal" min="0" placeholder="Deja en blanco si fia todo"><div class="k" id="efiaPagaMsg" style="margin:4px 0 0;display:none"></div><label>¿En cuántas cuotas semanales paga lo fiado?</label><select id="efiaCq"><option value="1">1 cuota</option><option value="2" selected>2 cuotas</option><option value="3">3 cuotas</option><option value="4">4 cuotas</option><option value="5">5 cuotas</option><option value="6">6 cuotas</option><option value="f">Una fecha que elijo</option></select><div class="k" id="efiaCqMsg" style="margin:4px 0 0"></div><div id="efiaVtoBox" style="display:none"><label>Fecha en que paga todo</label><input id="efiaVto" type="date"></div><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
 '<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>';
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};
 function upd(){var q=+$('eq').value,u=+$('eu').value,tot=q*u;$('etot').textContent=q&&u?'Total: '+money(tot):'';if($('efiaPagaHoy')){var paga=+($('efiaPagaHoy').value||0),fia=Math.max(0,tot-paga),msg=$('efiaPagaMsg');if(paga||$('efiaPagaHoy').value){msg.style.display='block';msg.textContent=paga?'Paga hoy: '+money(paga)+' → Queda fiado: '+money(fia):'Sin pagar ahora → Todo queda fiado: '+money(tot)}else{msg.style.display='none'}
-var cq=$('efiaCq').value;$('efiaVtoBox').style.display=cq=='f'?'block':'none';$('efiaCqMsg').textContent=cq!='f'&&fia>0?fiaPlan({d:$('ed').value||today(),fia:{cq:+cq}},{fiado:fia}).map(function(c){return money(c.m)+' el sáb '+fiaFecha(c.d)}).join(' · '):''}}
+if($('epayl'))$('epayl').textContent=$('efia').checked?(paga?'¿Cómo pagó la entrega?':'¿Cómo pagó? (no paga nada ahora)'):'¿Cómo pagó?';var cq=$('efiaCq').value;$('efiaVtoBox').style.display=cq=='f'?'block':'none';$('efiaCqMsg').textContent=cq!='f'&&fia>0?fiaPlan({d:$('ed').value||today(),fia:{cq:+cq}},{fiado:fia}).map(function(c){return money(c.m)+' el sáb '+fiaFecha(c.d)}).join(' · '):''}}
 $('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};if($('efiaPagaHoy')){$('efiaPagaHoy').oninput=upd;$('efiaCq').onchange=upd;$('ed').addEventListener('change',upd)}$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
 function refreshCliClientes(){if(!$('efiaCli'))return;var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c,i){h+='<option value="'+i+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
-if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes()}}
+if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes();upd()}}
 if($('efiaCli')){$('efiaCli').onchange=function(){var v=this.value;if(v=='*nuevo*'){$('efiaNewBox').style.display='block';$('efiaCliN').focus()}else{$('efiaNewBox').style.display='none'}}}
 $('eok').onclick=function(){var d=null,id=$('es').value;ST.forEach(function(x){if(x.id==id)d=x});
 var q=+$('eq').value,u=$('eu').value;
 if(!d){alert('Elegí un producto.');return}
 if(!q||q<=0||u===''||isNaN(+u)){alert('Completá cantidad y precio.');return}
 if(q>d.q&&!confirm('Hay '+d.q+' en stock y estás vendiendo '+q+'. ¿Guardar igual?'))return;
-var mov={id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,z:d.z||'',q:q,u:+u,k:$('ek').value,by:U.uid,bn:nm()};
+var mov={id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,z:d.z||'',q:q,u:+u,k:$('ek').value,by:U.uid,bn:nm(),pay:$('epay').value};
 if($('efia')&&$('efia').checked){var cliIdx=$('efiaCli').value,cli,tel='',pagaHoy=+($('efiaPagaHoy').value||0),totalVta=q*u,mtoFiado=Math.max(0,totalVta-pagaHoy);
 if(cliIdx=='*nuevo*'){cli=($('efiaCliN')||{value:''}).value.trim();tel=($('efiaCliT')||{value:''}).value.trim();if(!cli){alert('Escribí el nombre del cliente.');return}
 CLIENTES_FIADOS.push({n:cli,t:tel||undefined})}
@@ -690,7 +699,8 @@ else if(cliIdx){cli=CLIENTES_FIADOS[cliIdx].n;tel=CLIENTES_FIADOS[cliIdx].t||''}
 else{alert('Selecciona un cliente o agrega uno nuevo.');return}
 if(mtoFiado<=0){alert('El monto a fiar debe ser mayor a 0.');return}
 mov.fia={cli:cli,mtoFiado:mtoFiado,ent:pagaHoy||0};if(tel)mov.fia.tel=tel;var cqv=($('efiaCq')||{value:'2'}).value;if(cqv=='f'){if(!$('efiaVto').value){alert('Elegí la fecha en que paga.');return}mov.fia.vto=$('efiaVto').value}else{mov.fia.cq=+cqv;var pl=fiaPlan({d:mov.d,fia:{cq:+cqv}},{fiado:mtoFiado});mov.fia.vto=pl[pl.length-1].d}if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
-sellMov(mov,d.id);
+var cjo=CJ.abierta(),fz=mov.fia?{tot:q*u,hoy:mov.fia.ent||0,fi:mov.fia.mtoFiado,pay:mov.pay}:{tot:q*u,pay:mov.pay};if(cjo)mov.cj=cjo.id;
+sellMov(mov,d.id);CJ.venta(fz);
 if(adm)month=$('ed').value.slice(0,7)||month;drawSell();$('etot').textContent='Venta guardada ✓'}}
 
 /* ---------- Fiados / Deudas ---------- */
@@ -823,7 +833,7 @@ $('s-res').innerHTML='<div class="card hero">'+mselect()+
 '<div class="r2"><span>Ganancia de las ventas<small>antes de gastos</small></span><b class="'+(gross>=0?'pos':'neg')+'">'+money(gross)+'</b></div>'+
 '<div class="r2"><span>Gastos del mes<small>alquiler, sueldos, etc.</small></span><b class="neg">'+money(gas)+'</b></div></div>'+
 (sv&&Object.keys(sv.by).length?'<div class="card"><b>Comisiones del mes</b>'+Object.keys(sv.by).map(function(k){var e=sv.by[k];return '<div class="it"><div><b>'+esc(e.name)+'</b><small>'+e.n+' atenciones · cobrado '+money(e.cob)+'</small></div><div class="amt"><b>'+money(e.cm)+'</b></div></div>'}).join('')+'</div>':'')+
-'<button class="go alt" id="pdfb">Descargar resumen en PDF</button>'+
+(CJ.listenMes(month),CJ.card())+'<button class="go alt" id="pdfb">Descargar resumen en PDF</button>'+
 '<div class="note">El costo de cada venta es el precio promedio al que habías comprado ese producto hasta ese día.</div>';
 $('pdfb').onclick=function(){pdf({sv:sv,gross:gross,gas:gas,cost:cost,buy:buy,sell:sell,gain:gain,my:my,mm:mm,on:on,units:units,ub:ub})}}
 function drawHist(){
@@ -1001,7 +1011,7 @@ if($('atok')){var li=$('atlist');if(li)li.innerHTML=attListHtml();return}
 var adm=ROLE=='admin',act=SV.filter(function(x){return x.a!==false}).sort(function(a,b){return a.n.localeCompare(b.n)});
 if(!act.length){box.innerHTML='<div class="card"><div class="empty">'+(adm?'Todavía no cargaste servicios.':'Todavía no hay servicios cargados. Un administrador tiene que cargarlos.')+'</div>'+(adm?'<button class="go" data-t="svc">Cargar servicios</button>':'')+'</div>';return}
 var emps=adm?MEM.slice().sort(function(a,b){return (a.name||a.email||'').localeCompare(b.name||b.email||'')}):[];
-box.innerHTML='<div class="card">'+(ATPRE?'<div class="bn" style="margin:0 0 6px;background:var(--line)">Atendiendo el turno de las <b>'+esc(ATPRE.txt)+'</b><br><button class="x" id="atpx" style="font-size:13px;text-decoration:underline">No es de un turno</button></div>':'')+'<label>Servicio</label><select id="asv">'+act.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.n)+' · '+money(x.p)+'</option>'}).join('')+'</select>'+
+CJ.listen();box.innerHTML=CJ.bar()+'<div class="card">'+(ATPRE?'<div class="bn" style="margin:0 0 6px;background:var(--line)">Atendiendo el turno de las <b>'+esc(ATPRE.txt)+'</b><br><button class="x" id="atpx" style="font-size:13px;text-decoration:underline">No es de un turno</button></div>':'')+'<label>Servicio</label><select id="asv">'+act.map(function(x){return '<option value="'+esc(x.id)+'">'+esc(x.n)+' · '+money(x.p)+'</option>'}).join('')+'</select>'+
 (adm?'<label>Quién atendió</label><select id="aemp">'+emps.map(function(m){return '<option value="'+esc(m.id)+'"'+(m.id==U.uid?' selected':'')+'>'+esc(m.name||m.email)+'</option>'}).join('')+'</select>':'')+
 '<label>Cliente (opcional)</label><input id="acl" placeholder="Nombre" autocomplete="off">'+
 '<label>Forma de pago</label><select id="apm"></select>'+
@@ -1029,13 +1039,14 @@ var emp=adm?$('aemp').value:U.uid,en=nm();
 if(adm)MEM.forEach(function(m){if(m.id==emp)en=m.name||m.email});
 var cp=commOf(emp),a={id:Date.now(),d:$('ad').value||today(),sv:sv.id,sn:sv.n,emp:emp,en:en,cl:$('acl').value.trim().slice(0,60),pm:$('apm').value,lp:sv.p,cob:cob,cp:cp,cm:Math.round(cob*cp)/100,
 ins:(sv.ins||[]).filter(function(i){return ST.some(function(x){return x.id==i.id})}).map(function(i){return {id:i.id,n:i.n,q:i.q}}),by:U.uid,bn:nm()};
+var cja=CJ.abierta();if(cja)a.cj=cja.id;CJ.venta({tot:cob,pay:a.pm});
 var b=writeBatch(db);b.set(doc(db,'stores',SID,'atenciones',String(a.id)),a);
 a.ins.forEach(function(i){b.update(doc(db,'stores',SID,'stock',i.id),{q:increment(-i.q)})});
 var tid=ATPRE&&ATPRE.tid;if(tid)b.update(doc(db,'stores',SID,'turnos',tid),{st:'done',aid:String(a.id)});
 b.commit().catch(fail);month=a.d.slice(0,7);
 if(tid){ATPRE=null;box.innerHTML='';show('agd');return}
 $('acl').value='';$('apr').dataset.auto='1';upd(true);$('atot').textContent='Guardado ✓'}}
-function delAtt(id){var a=null;AT.forEach(function(x){if(String(x.id)==id)a=x});if(!a||!confirm('¿Borrar esta atención? Los insumos vuelven al stock.'))return;
+function delAtt(id){var a=null;AT.forEach(function(x){if(String(x.id)==id)a=x});if(!a||!confirm('¿Borrar esta atención? Los insumos vuelven al stock.'))return;if(a.cj)CJ.anular({tot:a.cob,pay:a.pm},a.cj);
 var b=writeBatch(db);b.delete(doc(db,'stores',SID,'atenciones',String(a.id)));
 (a.ins||[]).forEach(function(i){if(ST.some(function(x){return x.id==i.id}))b.update(doc(db,'stores',SID,'stock',i.id),{q:increment(i.q)})});b.commit().catch(fail)}
 /* configuración: servicios, formas de pago y comisiones (administrador) */
@@ -1092,6 +1103,9 @@ bt.commit().then(function(){newSvd();drawSvc()}).catch(fail);return}
 if(a=='cfg'){var num=function(i){var v=+$(i).value;return isNaN(v)?0:v},cm={};
 Array.prototype.forEach.call(document.querySelectorAll('#s-svc .cf-u'),function(e){cm[e.dataset.uid]=e.value===''?deleteField():Math.max(0,Math.min(100,+e.value||0))});
 setDoc(doc(db,'stores',SID,'cfg','servicios'),{pay:{ef:num('cf_ef'),tr:num('cf_tr'),tj:num('cf_tj')},commDefault:Math.max(0,Math.min(100,num('cf_cd'))),comm:cm},{merge:true}).then(function(){alert('Guardado.')}).catch(fail)}}
+function cajaCfgCard(){if(biz()=='almacen')return '';var on=!(CS&&CS.caja===false);
+return '<div class="card"><b>Cierre de caja</b><div class="k" style="margin:4px 0 0">Abrís la caja con el efectivo del día, cada '+(biz()=='servicios'?'cobro':'venta')+' suma según cómo pagó, y al cerrar contás la plata y ves si falta o sobra. Los cierres quedan en el Resumen.</div>'+
+'<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" id="cjon" style="width:auto"'+(on?' checked':'')+'> Usar cierre de caja</label></div>'}
 function bizCard(){
 return '<div class="card" id="bzc"><b>Tipo de negocio</b><div class="k" style="margin:4px 0 0">Elegí qué tipo de negocio es. Los datos que ya cargaste se conservan.</div>'+tipoGrid(tipoActual(),biz()=='ambos')+
 '<button class="go alt" data-bz="save">Guardar</button></div>'}
@@ -1135,7 +1149,7 @@ h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin
 if(INV.length){h+='<div class="card"><b>Códigos activos</b>';
 INV.forEach(function(v){var c=SID+v.id;h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Anulá el código cuando la persona ya haya entrado.</div></div>'}
-h+=planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+catCard();
+h+=planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+catCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'))}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
@@ -1477,7 +1491,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -1500,13 +1514,21 @@ if(d.cat){catAction(d.cat,d.i);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
+if(d.cj){CJ.action(d.cj,d.id);return}
 if(d.fia=='flt'){FIA.f=d.v;drawFia();return}
 if(d.fia){var cli=d.cli,mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});
 if(d.fia=='regpago'){var saldo=0;mvs.forEach(function(x){saldo+=fiaCalc(x).saldo});
-var mto=prompt('¿Cuánto pagó '+cli+'? (Saldo: '+money(saldo)+')');if(!mto)return;mto=+mto;if(isNaN(mto)||mto<=0){alert('Monto inválido');return}
-if(mto>saldo&&!confirm('Pagó '+money(mto)+' y debe '+money(saldo)+'. Se anota '+money(saldo)+' (lo que debe). ¿Seguir?'))return;
-var pago=mto,idx=0,TS=Date.now();for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=fiaCalc(x).saldo;if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;upd.pg=(upd.pg||[]).concat([{d:today(),m:aplica,ts:TS}]);x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
-drawFia();return}
+var Cq=fiaClientes()[cli]||{},sug=Cq.atr+Cq.psem>0?Cq.atr+Cq.psem:(Cq.prox?Cq.prox.falta:saldo);
+var o=CJ.modal('<b style="font-size:19px">Pago de '+esc(cli)+'</b><div class="k" style="margin-top:4px">Debe '+money(saldo)+(Cq.atr+Cq.psem>0?' · le toca pagar '+money(Cq.atr+Cq.psem):'')+'</div>'+
+'<label>Monto que pagó</label><input id="rpm" type="number" inputmode="decimal" min="0" value="'+Math.min(saldo,Math.max(0,Math.round(sug)))+'">'+
+'<label>¿Cómo pagó?</label><select id="rpp">'+payOpts()+'</select>'+
+'<button class="go" id="rpok">Registrar pago</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+setTimeout(function(){var i=o.querySelector('#rpm');i.focus();i.select()},50);
+o.querySelector('#rpok').onclick=function(){var mto=Math.round(+o.querySelector('#rpm').value||0),pay=o.querySelector('#rpp').value;
+if(!(mto>0)){alert('Escribí el monto.');return}
+if(mto>saldo){if(!confirm('Pagó '+money(mto)+' y debe '+money(saldo)+'. Se anota '+money(saldo)+' (lo que debe). ¿Seguir?'))return;mto=saldo}
+var pago=mto,TS=Date.now(),cjo=CJ.abierta();for(var i=0;i<mvs.length&&pago>0;i++){var x=mvs[i],deuda=fiaCalc(x).saldo;if(deuda>0){var aplica=Math.min(deuda,pago);var upd=JSON.parse(JSON.stringify(x.fia));upd.mtoPagado=(upd.mtoPagado||0)+aplica;var pe={d:today(),m:aplica,ts:TS,pay:pay};if(cjo)pe.cj=cjo.id;upd.pg=(upd.pg||[]).concat([pe]);x.fia=upd;setDoc(mref(x.id),{fia:upd},{merge:true}).catch(fail);pago-=aplica}}
+CJ.cobro(pay,mto);o.remove();drawFia()};return}
 if(d.fia=='pdf'){fiaGenerarPDF(cli,mvs);return}
 if(d.fia=='wa'){fiaEnviarWA(cli,mvs);return}
 return}
@@ -1532,7 +1554,7 @@ else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.id=='sv_d'&&SVD)SVD.d=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
-document.addEventListener('change',function(e){if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+document.addEventListener('change',function(e){if(e.target.id=='cjon'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{caja:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
 if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores',SID,'members',mt.dataset.mcp),{cp:mt.checked},{merge:true}).catch(function(er){mt.checked=!mt.checked;fail(er)})}
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
