@@ -99,6 +99,14 @@ td small{color:var(--mut)}
 .fch{display:inline-block;font-size:11.5px;font-weight:800;border-radius:99px;padding:3px 9px;margin:5px 5px 0 0}
 .fch.ok{background:#dff3e6;color:#16703c}.fch.nv{background:#e3eaff;color:#1D3FAF}.fch.wk{background:#fff0d6;color:#8a4b00}.fch.no{background:#fde7e4;color:#a4271d}
 .flt{font-weight:900;font-size:13px;color:var(--mut);margin:14px 4px 6px;letter-spacing:.05em}
+.tg{margin-top:6px}.tgh{font-size:12px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.06em;margin:12px 2px 6px}
+.tgr{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tgb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;padding:10px 6px;border:1.5px solid var(--line);border-radius:16px;background:var(--bg);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;line-height:1.15;text-align:center;cursor:pointer;transition:transform .1s,border-color .15s,background .15s}
+.tgb:active{transform:scale(.97)}.tgi{font-size:26px;line-height:1}
+.tgb.on{border-color:var(--btn);background:color-mix(in srgb,var(--btn) 12%,var(--bg));box-shadow:0 0 0 1.5px var(--btn) inset}
+.tgx{display:none;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--bg);font-size:13.5px;line-height:1.4}.tgx b{display:block;margin-bottom:2px}.tgx span{color:var(--mut)}
+.tga{display:flex;gap:10px;align-items:center;margin-top:10px;font-weight:600;font-size:14px}
+@media (min-width:560px){.tgr{grid-template-columns:repeat(6,1fr)}}
 /* almacén */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .ch{border:0;border-radius:99px;padding:8px 13px;background:var(--line);color:var(--ink);font:inherit;font-size:13px;font-weight:700}
@@ -235,23 +243,39 @@ $('lo0').onclick=function(){signOut(auth)};
 $('mk').onclick=function(){newStore()};
 $('jn').onclick=function(){joinStore()};
 
+
+/* ---------- tipo de negocio (grilla) ---------- */
+var TIPOS=[
+['Almacén y comercio',[['almacen','Almacén','🛒','almacen'],['kiosco','Kiosco / drugstore','🍫','almacen'],['super','Minimercado','🧺','almacen'],['carne','Carnicería / verdulería','🥩','almacen'],['farmacia','Farmacia','💊','almacen'],['ferre','Ferretería','🔧','almacen']]],
+['Tiendas',[['ropa','Indumentaria','👕','productos','ropa'],['calzado','Calzado','👟','productos','calzado'],['ropaycalz','Ropa y calzado','🛍️','productos','ropaycalz'],['celus','Celulares y tecnología','📱','productos','celus'],['acc','Accesorios y bijou','👜','productos','acc'],['perf','Perfumería y cosmética','🧴','productos','perf']]],
+['Servicios y otros',[['barber','Barbería','💈','servicios','','barber'],['pelu','Peluquería','💇‍♀️','servicios','','rosa'],['estetica','Estética y belleza','💆‍♀️','servicios','','rosa'],['unas','Uñas y pestañas','💅','servicios','','lila'],['spa','Spa y masajes','🧖‍♀️','servicios','','verde'],['otro','Otro','✨','productos','otro']]]];
+function tipoDe(id){var r=null;TIPOS.forEach(function(g){g[1].forEach(function(t){if(t[0]==id)r=t})});return r}
+var TIPO_TXT={almacen:'Caja rápida con lector de códigos y balanza, fiado en libreta, cierre de caja y catálogo estilo supermercado.',productos:'Talles y colores, varias fotos por producto, fiado en cuotas semanales y catálogo con vidriera de destacados.',servicios:'Agenda de turnos, atenciones con comisión por empleado y catálogo para que tus clientes reserven.'};
+function tipoActual(){if(CS&&CS.tipo&&tipoDe(CS.tipo))return CS.tipo;var b=biz();if(b=='almacen')return 'almacen';if(b=='servicios'||b=='ambos'){var v=(PUB&&PUB.svs)||'';return v=='barber'?'barber':v=='lila'?'unas':v=='verde'?'spa':b=='servicios'?'estetica':(rub()||'ropa')}return rub()||'ropa'}
+function tipoGrid(sel,amb){return '<div class="tg">'+TIPOS.map(function(g){return '<div class="tgh">'+g[0]+'</div><div class="tgr">'+g[1].map(function(t){return '<button type="button" class="tgb'+(t[0]==sel?' on':'')+'" data-tipo="'+t[0]+'"><span class="tgi">'+t[2]+'</span><span>'+t[1]+'</span></button>'}).join('')+'</div>'}).join('')+'</div>'+
+'<div class="tgx" id="tgx"></div><label class="tga" id="tga" hidden><input type="checkbox" id="tgamb" style="width:auto"'+(amb?' checked':'')+'> También vendo productos (shampoo, cremas, accesorios…)</label>'}
+function tipoWire(root,cb){function show(id){var t=tipoDe(id);if(!t)return;root.querySelectorAll('.tgb').forEach(function(b){b.classList.toggle('on',b.dataset.tipo==id)});
+var x=root.querySelector('#tgx');x.innerHTML='<b>'+t[2]+' '+t[1]+'</b><span>'+TIPO_TXT[t[3]]+'</span>';x.style.display='block';root.querySelector('#tga').hidden=t[3]!='servicios';if(cb)cb(id)}
+root.querySelectorAll('.tgb').forEach(function(b){b.onclick=function(){root._tipo=b.dataset.tipo;show(b.dataset.tipo)}});var on=root.querySelector('.tgb.on');if(on){root._tipo=on.dataset.tipo;show(on.dataset.tipo)}}
+function tipoCfg(id,amb){var t=tipoDe(id),o={tipo:id,biz:t[3]};if(t[3]=='servicios'&&amb)o.biz='ambos';if(t[4])o.rub=t[4];else if(o.biz=='ambos')o.rub='perf';return o}
+
 /* ---------- tiendas ---------- */
 function newStore(){
 var o=document.createElement('div');o.id='sdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto';
 var pc=PLAN_IDS.map(function(id,i){var p=CFG.plans[id];return '<label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--line);border-radius:14px;margin-top:8px;cursor:pointer;font-weight:400"><input type="radio" name="sp" value="'+id+'"'+(i==0?' checked':'')+' style="width:auto;margin-top:4px"><span style="flex:1"><b>'+esc(p.name)+'</b> · '+money(p.priceARS)+' por mes<small style="display:block;color:var(--mut)">'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></span></label>'}).join('');
-o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:20px;max-width:440px;width:100%;margin:auto"><b style="font-size:20px">Crear tu tienda</b>'+
+o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:20px;max-width:620px;width:100%;margin:auto"><b style="font-size:20px">Crear tu tienda</b>'+
 '<div class="note" style="background:var(--bg);border-radius:12px;padding:10px 12px;margin:10px 0;font-size:14px"><b>'+CFG.trialDays+' días de prueba gratis.</b> Hoy no se te cobra nada. Elegí el plan que te conviene: cuando termine la prueba, para seguir usando la app se paga ese plan (con '+CFG.graceDays+' días de cortesía).</div>'+
 '<label>Nombre de la tienda</label><input id="sn_n" placeholder="Ej: Pekeron" autocomplete="off">'+
-'<label>¿Qué hace tu negocio?</label><select id="sn_b"><option value="productos">Vendo productos (ropa, calzado, etc.)</option><option value="servicios">Presto servicios (maquillaje, peluquería, barbería)</option><option value="ambos">Ambos</option><option value="almacen">Almacén, despensa o minimercado</option></select>'+
-'<div id="sn_rw"><label>¿Qué vendés principalmente?</label><select id="sn_r">'+rubOpts('ropa')+'</select></div>'+
+'<label>¿Qué tipo de negocio es?</label><div class="k" style="margin:2px 0 4px">Así preparamos la app con las funciones de tu rubro.</div>'+tipoGrid('',false)+
 '<label style="margin-top:14px">Elegí tu plan</label>'+pc+
 '<button class="go" id="sn_ok">Empezar mi prueba gratis</button><button class="x" id="sn_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
 document.body.appendChild(o);
-$('sn_b').onchange=function(){$('sn_rw').hidden=['productos','ambos'].indexOf(this.value)<0};
+tipoWire(o);
 $('sn_x').onclick=function(){o.remove()};
 $('sn_ok').onclick=function(){
 var n=$('sn_n').value.trim();if(!n){alert('Escribí el nombre de la tienda.');return}
-var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',bz=$('sn_b').value,rb=['productos','ambos'].indexOf(bz)>=0?$('sn_r').value:'';
+if(!o._tipo){alert('Elegí qué tipo de negocio es.');o.querySelector('.tg').scrollIntoView({behavior:'smooth',block:'center'});return}
+var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',TC=tipoCfg(o._tipo,o.querySelector('#tgamb').checked),bz=TC.biz,rb=TC.rub||'';
 $('sn_ok').disabled=true;
 if(!SERVER_MODE){
 var sid=rnd(10),b=writeBatch(db);
@@ -261,10 +285,10 @@ b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 b.commit().then(function(){o.remove();
-var c0={};if(bz!='productos')c0.biz=bz;if(rb)c0.rub=rb;if(Object.keys(c0).length)setDoc(doc(db,'stores',sid,'cfg','servicios'),c0,{merge:true}).catch(function(){});
+var c0=TC;if(Object.keys(c0).length)setDoc(doc(db,'stores',sid,'cfg','servicios'),c0,{merge:true}).catch(function(){});
 alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita del plan '+CFG.plans[plan].name+'.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)});return}
 callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz}).then(function(r){o.remove();
-if(rb&&r.sid)setDoc(doc(db,'stores',r.sid,'cfg','servicios'),{rub:rb},{merge:true}).catch(function(){});
+if(r.sid)setDoc(doc(db,'stores',r.sid,'cfg','servicios'),TC,{merge:true}).catch(function(){});
 try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
 if(r.trial)alert('Listo. Tenés '+CFG.trialDays+' días de prueba gratuita.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)})}}
 function joinStore(){
@@ -1041,9 +1065,7 @@ if(a=='cfg'){var num=function(i){var v=+$(i).value;return isNaN(v)?0:v},cm={};
 Array.prototype.forEach.call(document.querySelectorAll('#s-svc .cf-u'),function(e){cm[e.dataset.uid]=e.value===''?deleteField():Math.max(0,Math.min(100,+e.value||0))});
 setDoc(doc(db,'stores',SID,'cfg','servicios'),{pay:{ef:num('cf_ef'),tr:num('cf_tr'),tj:num('cf_tj')},commDefault:Math.max(0,Math.min(100,num('cf_cd'))),comm:cm},{merge:true}).then(function(){alert('Guardado.')}).catch(fail)}}
 function bizCard(){
-return '<div class="card"><b>Tipo de negocio</b><div class="k" style="margin:4px 0 0">Elegí qué vende o hace tu negocio. Los datos que ya cargaste se conservan.</div>'+
-'<select id="bz" style="margin-top:10px"><option value="productos"'+(biz()=='productos'?' selected':'')+'>Vendo productos (ropa, calzado, etc.)</option><option value="servicios"'+(biz()=='servicios'?' selected':'')+'>Presto servicios (maquillaje, peluquería, barbería)</option><option value="ambos"'+(biz()=='ambos'?' selected':'')+'>Ambos</option><option value="almacen"'+(biz()=='almacen'?' selected':'')+'>Almacén, despensa o minimercado</option></select>'+
-'<div id="bzrw"'+(['productos','ambos'].indexOf(biz())<0?' hidden':'')+'><label>¿Qué vendés principalmente?</label><select id="bzr">'+rubOpts(rub())+'</select><div class="k" style="margin-top:4px">Sirve para que los ejemplos y las categorías sugeridas sean de tu rubro.</div></div>'+
+return '<div class="card" id="bzc"><b>Tipo de negocio</b><div class="k" style="margin:4px 0 0">Elegí qué tipo de negocio es. Los datos que ya cargaste se conservan.</div>'+tipoGrid(tipoActual(),biz()=='ambos')+
 '<button class="go alt" data-bz="save">Guardar</button></div>'}
 
 /* ---------- Gastos (administrador) ---------- */
@@ -1087,7 +1109,7 @@ INV.forEach(function(v){var c=SID+v.id;h+='<div class="it"><div><span class="cod
 h+='<div class="k" style="margin-top:6px">Anulá el código cuando la persona ya haya entrado.</div></div>'}
 h+=planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+catCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
-$('s-team').innerHTML=h}
+$('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'))}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
 function catLink(){var sl=PUB&&PUB.slug;return catBase()+(sl?sl:'catalogo.html?t='+SID)}
 // Link con el nombre de la tienda (pekeronapp.com/minombre). El nombre se reserva en slugs/{nombre}.
@@ -1125,7 +1147,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
-(isAgBiz()?'<label>Estilo del catálogo</label><select id="cat_svs">'+[['','Automático (según el nombre del negocio)'],['barber','Barbería · oscuro y dorado'],['rosa','Estética y peluquería · rosa claro'],['lila','Uñas y pestañas · lila suave'],['verde','Spa y masajes · verde suave'],['claro','Neutro claro']].map(function(o){return '<option value="'+o[0]+'"'+((p.svs||'')==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>':'')+
+(isAgBiz()?'<label>Estilo del catálogo</label><select id="cat_svs">'+[['','Automático (según el nombre del negocio)'],['barber','Barbería · oscuro y dorado'],['rosa','Estética y peluquería · rosa claro'],['lila','Uñas y pestañas · lila suave'],['verde','Spa y masajes · verde suave'],['claro','Neutro claro']].map(function(o){return '<option value="'+o[0]+'"'+((p.svs!=null?p.svs:((tipoDe(tipoActual())||[])[5]||''))==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>':'')+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
@@ -1463,7 +1485,7 @@ return}
 if(d.tmoff!==undefined){if(ROLE=='admin')setDoc(doc(db,'stores',SID,'public','info'),{temaOff:d.tmoff=='1'?true:deleteField()},{merge:true}).catch(fail);return}
 if(d.gtema!==undefined){gTema(d.gtema);return}
 if(d.tmall){TMALL=true;drawTeam();var tc=$('tmcard');if(tc)tc.scrollIntoView({block:'start'});return}
-if(d.bz){var bzv=$('bz').value,bzo={biz:bzv};if(['productos','ambos'].indexOf(bzv)>=0)bzo.rub=$('bzr').value;setDoc(doc(db,'stores',SID,'cfg','servicios'),bzo,{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
+if(d.bz){var bzE=$('bzc');if(!bzE||!bzE._tipo){alert('Elegí el tipo de negocio.');return}var bzo=tipoCfg(bzE._tipo,bzE.querySelector('#tgamb').checked);setDoc(doc(db,'stores',SID,'cfg','servicios'),bzo,{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
 if(d.ed){startEdit(d.ed);return}
 if(d.edx){editAction(d.edx,d.i);return}
