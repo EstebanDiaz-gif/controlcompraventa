@@ -186,5 +186,21 @@ export function createCaja(X) {
     if (a === 'open') abrir(); else if (a === 'mov') mover(); else if (a === 'close') cerrar();
     else if (a === 'ver') { const c = (S.mes || []).find((x) => x.id === id); if (c) ver(c); }
   }
-  return { listen, listenMes, stop, bar, paint, action, venta, anular, cobro, card, modal, abierta: () => S.caja, enUso };
+  // Pestaña Caja (ropa, servicios): barra para abrir/cerrar, detalle de la caja abierta e historial del mes (admin).
+  function vista() {
+    if (!enUso()) return '<div class="card"><div class="empty">El cierre de caja está desactivado. Se activa en Equipo.</div></div>';
+    const c = S.caja, A = X.adm();
+    let h = bar();
+    if (c) {
+      const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(b.h).localeCompare(String(a.h)));
+      h += '<div class="card"><b>Caja de hoy</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' por ' + esc(c.bn || '') + ' · ' + ventasTxt(c) + '</div>' +
+        (A ? filas(c) : (mv.length ? '<div class="k" style="margin-top:12px"><b>Plata que se sacó o se puso</b></div>' + mv.map((m) => '<div class="it"><div><b>' + (m.t === 'r' ? 'Sacó' : 'Puso') + ' ' + money(m.a) + '</b><small>' + esc(m.h || '') + ' · ' + esc(m.r || '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>').join('') : '<div class="k" style="margin-top:10px">Todavía no se sacó ni se puso plata. Si sacás para pagar algo, anotalo con "Sacar / poner" así el cierre da justo.</div>')) +
+        '</div>';
+    } else if (!S.err) {
+      h += '<div class="card"><b>¿Cómo funciona?</b><div class="k" style="margin-top:6px;line-height:1.5">1. Al empezar el día abrís la caja con el efectivo que hay (el cambio).<br>2. Cada ' + X.palabra(1) + ' suma sola según cómo pagó.<br>3. Si sacás o ponés plata (un flete, cambio), lo anotás con el motivo.<br>4. Al terminar, contás el efectivo y cerrás: ' + (A ? 'te dice si falta o sobra.' : 'el dueño ve si falta o sobra.') + '</div></div>';
+    }
+    if (A) h += card();
+    return h;
+  }
+  return { listen, listenMes, stop, bar, paint, action, venta, anular, cobro, card, vista, modal, abierta: () => S.caja, enUso };
 }

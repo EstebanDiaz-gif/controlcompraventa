@@ -214,7 +214,8 @@ function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return 
 var CLIENTES_FIADOS=[]; // clientes frecuentes de fiado: [{n: nombre, t: teléfono}]
 var CJ=createCaja({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 adm:function(){return ROLE=='admin'},canWrite:function(){return canWrite()},on:function(){return !!ROLE&&biz()!='almacen'&&!(CS&&CS.caja===false)},
-changed:function(w){if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
+changed:function(w){if(TAB=='caja'&&biz()!='almacen'){drawCajaTab();return}if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
+function drawCajaTab(){var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
@@ -423,7 +424,7 @@ function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
 un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo})});if(biz()=='almacen')ALM.publishSoon();redrawData()},sdErr);
-un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
+un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(e){ACC=null;drawBanner();sdErr(e)});
@@ -550,6 +551,7 @@ if(b=='productos')t=[['add','Cargar'],['res','Resumen'],['hist','Historial'],['f
 else if(b=='servicios')t=[['agd','Agenda'],['att','Atender'],['res','Resumen'],['add','Compras'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
 else t=[['agd','Agenda'],['att','Atender'],['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']]}
 else t=b=='productos'?[['sell','Vender'],['fia','Fiado'],['stk','Stock']]:b=='servicios'?[['agd','Agenda'],['att','Atender'],['fia','Fiado'],['stk','Stock']]:[['agd','Agenda'],['att','Atender'],['sell','Vender'],['fia','Fiado'],['stk','Stock']];
+if(b!='almacen'&&!(CS&&CS.caja===false)){var ip=0;t.forEach(function(x,i){if(['add','sell','att'].indexOf(x[0])>=0)ip=i+1});t.splice(ip,0,['caja','Caja'])}
 if(IS_OWNER)t.push(['plat','Empresas']);return t}
 function show(t){if(t=='promo'&&TAB!='promo')PREVTAB=TAB;TAB=t;Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.t==t)});
 ['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd'].forEach(function(i){$('s-'+i).hidden=i!=t});
@@ -557,6 +559,7 @@ if(lockState()){drawLock();return}
 if(t=='agd'){AG.draw();return}
 if(t=='promo'){window.scrollTo(0,0);PRO.draw();return}
 if(t=='fia'&&biz()!='almacen'){drawFia();return}
+if(t=='caja'&&biz()!='almacen'){drawCajaTab();return}
 if(biz()=='almacen'&&['caja','fia','stk','res'].indexOf(t)>=0){ALM.redraw();return}
 if(t=='add')drawAdd();else if(t=='sell')drawSell();else if(t=='att')drawAtt();else if(t=='svc')drawSvc();else if(t=='plat')drawPlat();else redrawData()}
 function redrawData(){
