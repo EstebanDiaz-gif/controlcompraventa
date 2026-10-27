@@ -379,10 +379,13 @@ export function createAlmacen(X) {
     }
     return { lines, dsc, cerca: d.cerca };
   }
+  // Envío a domicilio (módulo de repartos): se cobra como una línea más de la venta.
+  const RPm = () => (X.rp && X.rp()) || null;
+  const envCob = () => (S.env && S.env.cob) || 0;
   function renderCart() {
     const e = $('cjcart'); if (!e) return;
     if (!S.cart.length) { e.innerHTML = S.last ? '<div class="card"><div class="tot" style="color:var(--sell);font-size:16px;margin:0">' + S.last + '</div></div>' : ''; return; }
-    const EF = efectivo(), { tot } = cartTotals(EF.lines);
+    const EF = efectivo(), tot = cartTotals(EF.lines).tot + envCob();
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Venta en curso</b><button class="x" data-al="clear" style="font-size:14px;text-decoration:underline">Vaciar</button></div>';
     S.cart.forEach((l, i) => {
       h += '<div class="it"><div><b>' + esc(l.n) + '</b>' + (l.items && l.items.length ? '<small>' + l.items.map((x) => (x.q > 1 ? x.q + '× ' : '') + esc(x.n)).join(' + ') + '</small>' : '') + '<small>' + fq(l.q, l.w) + ' × ' + money(l.u) + (l.w ? '/kg' : '') + '</small></div>' +
@@ -392,6 +395,8 @@ export function createAlmacen(X) {
     });
     if (EF.dsc) h += '<div class="it" style="color:var(--buy);font-weight:800"><div>🏷️ ' + esc(EF.dsc.t) + '</div><div>−' + money(EF.dsc.m) + '</div></div>';
     else if (EF.cerca) h += '<div class="k" style="margin-top:8px">🏷️ Sumá ' + EF.cerca.faltan + ' más' + (EF.cerca.p.cat ? ' de ' + esc(EF.cerca.p.cat) : '') + ' y tiene ' + EF.cerca.p.pct + '% OFF.</div>';
+    if (S.env) h += '<div class="it"><div><b>🛵 Envío a domicilio</b><small>' + esc(S.env.rn || '') + (S.env.dir ? ' · ' + esc(S.env.dir) : '') + (S.env.pag ? ' · al repartidor ' + money(S.env.pag) : '') + '</small></div><div style="display:flex;align-items:center;gap:6px"><b style="min-width:76px;text-align:right">' + money(S.env.cob) + '</b><button class="x" data-al="envx" aria-label="Quitar envío">×</button></div></div>';
+    else if (RPm() && RPm().on()) h += '<button class="x" data-al="envadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:10px">🛵 Agregar envío a domicilio</button>';
     h += '<div class="big" style="font-size:40px;margin:14px 0 4px">' + money(tot) + '</div>';
     const PB = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / MP', fi: 'Fiado', mix: 'Dividido' };
     h += '<div class="seg" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + Object.keys(PB).map((k) => '<button class="pay' + (S.pay === k ? ' on' : '') + '" data-al="pay" data-v="' + k + '" style="margin:0">' + PB[k] + '</button>').join('') + '</div>';
@@ -447,8 +452,8 @@ export function createAlmacen(X) {
     if (!S.cart.length) return;
     if (!X.canWrite()) { alert('El acceso de la tienda venció.'); return; }
     if (S.pay === 'fi' && !cli(S.cli)) { alert('Elegí a quién le fiás.'); return; }
-    if (S.pay === 'ef' && +S.paga > 0 && +S.paga < cartTotals(efectivo().lines).tot && !confirm('Paga con ' + money(+S.paga) + ' y la venta es de ' + money(cartTotals(efectivo().lines).tot) + '. ¿Cobrar igual?')) return;
-    if (S.pay === 'mix') { const ef0 = Math.round(+S.mixEf || 0), t0 = cartTotals(efectivo().lines).tot; if (!(ef0 > 0 && ef0 < t0)) { alert(ef0 >= t0 ? 'El efectivo cubre todo: elegí Efectivo.' : 'Escribí cuánto paga en efectivo.'); return; } }
+    if (S.pay === 'ef' && +S.paga > 0 && +S.paga < cartTotals(efectivo().lines).tot + envCob() && !confirm('Paga con ' + money(+S.paga) + ' y la venta es de ' + money(cartTotals(efectivo().lines).tot + envCob()) + '. ¿Cobrar igual?')) return;
+    if (S.pay === 'mix') { const ef0 = Math.round(+S.mixEf || 0), t0 = cartTotals(efectivo().lines).tot + envCob(); if (!(ef0 > 0 && ef0 < t0)) { alert(ef0 >= t0 ? 'El efectivo cubre todo: elegí Efectivo.' : 'Escribí cuánto paga en efectivo.'); return; } }
     const sid = X.sid(), d = X.today(), m = d.slice(0, 7), dd = d.slice(8, 10), u = X.user();
     const EF = efectivo(), it = [];
     EF.lines.forEach((l) => {
@@ -459,12 +464,14 @@ export function createAlmacen(X) {
       const parts = repartir(total, ps.map((x) => ((prod(x.id) || {}).pn || 1) * x.q));
       ps.forEach((x, j) => { const p = prod(x.id) || {}, q = x.q * l.q; it.push({ id: x.id, n: x.n, q, u: parts[j] / q, c: p.c || 0, w: p.w ? 1 : 0, pr: l.n }); });
     });
+    const ENV = S.env; if (ENV && ENV.cob > 0) it.push({ id: '', n: 'Envío a domicilio', q: 1, u: ENV.cob, c: 0, w: 0, env: 1 });
     const { tot, cost } = cartTotals(it);
     const id = uid();
     const v = { id, d, m, h: now(), it, tot, cost, pay: S.pay, by: u.uid, bn: X.nm() };
     if (S.pay === 'mix') { const ef = Math.round(+S.mixEf); v.pp = { ef, [S.mixO]: tot - ef }; }
     if (S.caja) v.cj = S.caja.id;
     if (EF.dsc) v.dsc = EF.dsc;
+    if (ENV) v.env = ENV;
     const pp = partes(v), payInc = {}; Object.keys(pp).forEach((k) => { payInc[k] = increment(pp[k]); });
     // lo vendido por producto en el mes (para "Lo más vendido")
     const prInc = {}; it.forEach((x) => { if (!x.id || !prod(x.id)) return; const o = prInc[x.id] || (prInc[x.id] = { q: 0, v: 0, n: x.n }); o.q = r3(o.q + x.q); o.v += Math.round(x.q * x.u); });
@@ -482,9 +489,10 @@ export function createAlmacen(X) {
     b.commit().catch(failW);
     // La caja va aparte: si justo la cerraron en otro equipo, la venta igual se guarda.
     if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
+    if (ENV && RPm()) RPm().registrar(ENV, { det: it.filter((x) => !x.env).map((x) => x.n).join(', '), vid: id });
     const pg = +S.paga;
     S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
-    S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; renderCats();
+    S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; S.env = null; renderCats();
     renderCart(); clearSearch();
   }
   function renderHoy() {
@@ -1381,7 +1389,9 @@ export function createAlmacen(X) {
     else if (a === 'dec') { if (S.cart[i].q > 1) S.cart[i].q -= 1; else S.cart.splice(i, 1); renderCart(); }
     else if (a === 'rm') { S.cart.splice(i, 1); renderCart(); }
     else if (a === 'wedit') { const l = S.cart[i], p = prod(l.id) || { n: l.n, pn: l.u }; weightDlg(Object.assign({}, p, { pn: l.u }), i); }
-    else if (a === 'clear') { if (confirm('¿Vaciar la venta en curso?')) { S.cart = []; S.paga = ''; renderCart(); } }
+    else if (a === 'clear') { if (confirm('¿Vaciar la venta en curso?')) { S.cart = []; S.paga = ''; S.env = null; renderCart(); } }
+    else if (a === 'envadd') { if (RPm()) RPm().dlg((v) => { S.env = v; renderCart(); }); }
+    else if (a === 'envx') { S.env = null; renderCart(); }
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
     else if (a === 'paga') { S.paga = el.dataset.v; renderCart(); }
     else if (a === 'pickcli') { S.cli = id || ''; renderCart(); }

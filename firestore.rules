@@ -53,6 +53,15 @@ service cloud.firestore {
         && existsAfter(/databases/$(database)/documents/stores/$(sid)/ocupado/$(t.d + '_' + t.e + '_' + string(t.i)));
     }
 
+    // Sucursales: la "familia" de una tienda es su principal (stores/{sid}.main) o ella misma.
+    function famOf(s) { return get(/databases/$(database)/documents/stores/$(s)).data.get('main', s); }
+    function trPath(sid, tr) { return /databases/$(database)/documents/stores/$(sid)/traspasos/$(tr); }
+    // Un movimiento de stock ligado a un envío entre sucursales que queda registrado en la misma escritura.
+    function trOk(sid, tr) {
+      return tr is string && existsAfter(trPath(sid, tr))
+        && ((getAfter(trPath(sid, tr)).data.st == 'recibido' && getAfter(trPath(sid, tr)).data.to == sid)
+          || (getAfter(trPath(sid, tr)).data.st == 'cancelado' && getAfter(trPath(sid, tr)).data.from == sid));
+    }
     function accessOk(sid) {
       return !exists(accessPath(sid))
         || get(accessPath(sid)).data.unlimited == true
@@ -157,7 +166,13 @@ service cloud.firestore {
           || (isMember(sid)
               && request.resource.data.t == 'v'
               && request.resource.data.by == request.auth.uid
-              && request.resource.data.k in ['mayor', 'menor']));
+              && request.resource.data.k in ['mayor', 'menor'])
+          // Envíos entre sucursales: salida (ts) al despachar, entrada (te) al recibir o cancelar.
+          || (isMember(sid)
+              && request.resource.data.t in ['ts', 'te']
+              && request.resource.data.by == request.auth.uid
+              && request.resource.data.tr is string
+              && existsAfter(trPath(sid, request.resource.data.tr))));
         allow update, delete: if isAdmin(sid) && accessOk(sid);
       }
 
@@ -193,14 +208,45 @@ service cloud.firestore {
 
       // Stock: lo ven todos los de la tienda.
       // Un empleado solo puede bajar la cantidad, no cambiar nada más.
+      // Envíos de mercadería entre sucursales de la misma familia. La ficha se guarda en las dos sucursales.
+      match /traspasos/{id} {
+        allow read: if isMember(sid);
+        allow create: if signedIn()
+          && request.resource.data.id == id
+          && isMember(request.resource.data.from)
+          && request.resource.data.from != request.resource.data.to
+          && (sid == request.resource.data.from || sid == request.resource.data.to)
+          && famOf(request.resource.data.from) == famOf(request.resource.data.to)
+          && request.resource.data.st == 'enviado'
+          && request.resource.data.by == request.auth.uid;
+        allow update: if signedIn()
+          && resource.data.st == 'enviado'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['st', 'rat', 'rby', 'rbn', 'rec', 'cat', 'cby', 'cbn'])
+          && ((request.resource.data.st == 'recibido' && isMember(resource.data.to))
+            || (request.resource.data.st == 'cancelado' && isMember(resource.data.from)));
+        allow delete: if isAdmin(sid);
+      }
+
+      // Envíos a domicilio: cualquiera del equipo los anota al vender; lo que se le debe a cada repartidor lo ve y lo paga el administrador.
+      match /envios/{id} {
+        allow read: if isAdmin(sid);
+        allow create: if isMember(sid) && accessOk(sid) && request.resource.data.by == request.auth.uid;
+        allow update, delete: if isAdmin(sid);
+      }
+
       match /stock/{id} {
         allow read: if isMember(sid) || catalogReadsStock(sid);
-        allow create: if canLoad(sid) && accessOk(sid);
+        allow create: if accessOk(sid) && (canLoad(sid)
+          || (isMember(sid) && trOk(sid, request.resource.data.get('tr', ''))));
         allow delete: if isAdmin(sid) && accessOk(sid);
         allow update: if accessOk(sid) && (canLoad(sid)
           || (isMember(sid)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['q'])
-              && request.resource.data.q < resource.data.q));
+              && request.resource.data.q < resource.data.q)
+          || (isMember(sid)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['q', 'c', 'tr'])
+              && request.resource.data.get('tr', '') != resource.data.get('tr', '')
+              && trOk(sid, request.resource.data.get('tr', ''))));
       }
 
       // ---------------- Turnos (servicios con agenda) ----------------

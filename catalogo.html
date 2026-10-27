@@ -384,6 +384,8 @@ html[data-tema] .card .im[data-bd]::after{content:attr(data-bd);position:absolut
 .x{background:none;border:0;color:var(--mut);font:inherit;text-decoration:underline}
 /* Las opciones de los desplegables en la compu (Windows) no toman el tema: les damos el fondo y el color de la tarjeta */
 select option{background-color:var(--card);color:var(--ink)}
+.entr{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}.entr label{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line,#e5e5e5);border-radius:14px;font-weight:600;cursor:pointer}.entr input{width:auto;margin:0}
+.edir{width:100%;box-sizing:border-box;margin:8px 0 4px;padding:13px 14px;border-radius:14px;border:1.5px solid var(--line,#e5e5e5);font:inherit;background:transparent;color:inherit}
 </style></head><body>
 <header class="hdr" id="hdr"><div class="in"><div class="brand"><div id="lg2" class="logo ph">·</div><b id="ttl2">Catálogo</b></div>
 <button class="ib fav" data-nav="fav" aria-label="Favoritos"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.4 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z"/></svg></button><button class="ib" data-nav="sr" aria-label="Buscar"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div></header>
@@ -804,6 +806,8 @@ return {tot:tot,ls:ls,sub:sub,dsc:dsc,cerca:d.cerca,total:sub-(dsc?dsc.m:0)}}
 function bar(){almRefresh();var n=CART.reduce(function(a,l){return a+cnt(l)},0);$('bar').hidden=!n;$('cbn').hidden=!n;$('cbn').textContent=n;if(n){var r=lines();$('vc').textContent='Ver pedido ('+n+') · '+money(r.total)}}
 function hint(r){if(!ALM&&INFO.mode=='carrito'&&INFO.minCart>0){var f=INFO.minCart-r.tot;return f>0?'Sumá '+f+' prenda'+(f==1?'':'s')+' más y todo pasa a precio mayorista.':'Precio mayorista aplicado a todo el pedido.'}
 return ''}
+// Envío a domicilio (lo configura el negocio): el cliente elige retiro o envío y se suma el costo.
+var ENTREGA='ret',EDIR='';function envOn(){return !!(INFO.env&&INFO.env.on)}function envCosto(){return envOn()&&ENTREGA=='env'?(+INFO.env.precio||0):0}
 function sheet(){OPEN='';$('sh').className='sheet';var r=lines();
 if(!r.ls.length){$('sh').hidden=true;return}
 var total=r.total,h='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><b style="font-size:20px">Tu pedido</b>';
@@ -811,18 +815,24 @@ r.ls.forEach(function(x,i){h+='<div class="ln">'+(x.g.img?'<img alt="" src="'+es
 var hn=hint(r);
 if(r.dsc)h+='<div class="dsc"><span>🏷️ '+esc(r.dsc.t)+'</span><span>−'+money(r.dsc.m)+'</span></div>';
 if(!hn&&r.cerca)hn='Sumá '+r.cerca.faltan+' '+(r.cerca.faltan==1?(ALM?'producto':'prenda'):UNI())+(r.cerca.p.cat?' de '+r.cerca.p.cat:'')+' más y tenés '+r.cerca.p.pct+'% OFF.';
+if(envOn())h+='<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA=='ret'?' checked':'')+'> Retiro en el local</label><label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label></div>'+(ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="120" value="'+esc(EDIR)+'" autocomplete="street-address">':'');
+if(envCosto())h+='<div class="dsc"><span>🛵 Envío a domicilio</span><span>+'+money(envCosto())+'</span></div>';
+total+=envCosto();
 h+='<div class="tot"><span>Total</span><span>'+money(total)+'</span></div>'+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
 (TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
 (WAS.length>1?'<div class="lbl" style="text-align:center">¿A quién le mandás el pedido?</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
-$('shc').innerHTML=h;$('sh').hidden=false;var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})}}
+$('shc').innerHTML=h;$('sh').hidden=false;
+Array.prototype.forEach.call(document.querySelectorAll('input[name=entr]'),function(x){x.onchange=function(){ENTREGA=this.value;sheet()}});
+var ed=$('edir');if(ed)ed.oninput=function(){EDIR=this.value;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})};
+var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})}}
 function waUrl(w,m){return 'https://wa.me/'+String(w).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
 /* Varios WhatsApp: el cliente elige a quién escribirle */
 function waBtns(fn,pre){return WAS.map(function(x,i){return '<a class="wa" data-wai="'+i+'" target="_blank" rel="noopener" href="'+esc(fn(x.w))+'" style="margin-top:10px">'+esc(x.n?(pre||'Escribirle a ')+x.n:'WhatsApp '+(i+1))+'</a>'}).join('')}
 function elegirWa(){OPEN='';$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><b style="font-size:20px;display:block;margin:4px 44px 6px 0">¿A quién le querés escribir?</b>'+waBtns(function(w){return waUrl(w,'Hola! Vi tu catálogo y quería consultar.')})+'<button class="x" data-cl="1" style="display:block;margin:16px auto 0">Cancelar</button>';$('sh').hidden=false}
 function waLink(r,total,w){var m=TEMA&&TEMAS[TEMA].wa?'Hola! Quiero hacer este pedido '+TEMAS[TEMA].wa+'\n':'Hola! Quiero hacer este pedido:\n';
 r.ls.forEach(function(x){if(x.promo){m+='- '+x.l.q+' × '+x.g.n+(x.g.inc?' ('+x.g.inc+')':'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+'\n';return}m+=x.l.w?'- '+fq(x.l.q)+' de '+x.g.n+' — '+money(x.u*x.l.q)+'\n':'- '+x.l.q+' × '+x.g.n+(x.l.z?', talle '+x.l.z:'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+(x.may?' (mayorista)':'')+'\n'});
-if(r.dsc)m+='🏷️ '+r.dsc.t+': −'+money(r.dsc.m)+'\n';m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
+if(r.dsc)m+='🏷️ '+r.dsc.t+': −'+money(r.dsc.m)+'\n';if(envOn())m+=(ENTREGA=='env'?'🛵 Envío a domicilio'+(envCosto()?': +'+money(envCosto()):'')+(EDIR.trim()?'\n📍 Dirección: '+EDIR.trim():''):'🏪 Lo retiro en el local')+'\n';m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
 $('sq').oninput=function(){Q=this.value;draw()};
 $('arow').onclick=function(e){if(almClick(e))return;var f=e.target.closest('[data-fav]');if(f){e.stopPropagation();togFav(f.dataset.fav);f.classList.toggle('on',isFav(f.dataset.fav));return}var c=e.target.closest('.ac');if(c)prod(c.dataset.k)};
 $('cats').onclick=function(e){var b=e.target.closest('[data-c]');if(!b)return;CAT=b.dataset.c;draw()};
