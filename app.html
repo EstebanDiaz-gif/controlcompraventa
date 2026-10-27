@@ -249,11 +249,22 @@ var fin=function(){try{localStorage.setItem(k,'1')}catch(e){}o.remove()};
 o.querySelector('#novok').onclick=fin;o.addEventListener('click',function(e){if(e.target===o)fin()})}
 // El catálogo toma su estilo (supermercado, servicios o tienda) de public/info (alm, biz, svs). Si el rubro de la
 // tienda cambió y el catálogo quedó con el anterior, el dueño lo corrige solo al entrar (sin tocar nada más).
-function syncCatRubro(){if(ROLE!='admin'||!PUB||!CS||!SID||!canWrite())return;var b=biz(),o={};
+// public/info.tp = el tipo de negocio (barbería, kiosco, calzado…): el catálogo arma su estilo según ese rubro.
+// Si el dueño cambia el rubro, el estilo del catálogo pasa al del rubro nuevo (lo puede cambiar a mano en Catálogo).
+function catTp(){var b=biz();if(CS&&CS.tipo&&tipoDe(CS.tipo))return CS.tipo;if(b=='almacen')return 'almacen';if(b=='productos'&&CS&&CS.rub&&tipoDe(CS.rub))return CS.rub;return ''}
+function syncCatRubro(){if(ROLE!='admin'||!PUB||!CS||!SID||!canWrite())return;var b=biz(),o={},sv=b=='servicios'||b=='ambos',tp=catTp(),t=tipoDe(tp);
 if(PUB.biz!==b)o.biz=b;if(!!PUB.alm!==(b=='almacen'))o.alm=b=='almacen';
-if((b=='servicios'||b=='ambos')&&!PUB.svs){var t=tipoDe(tipoActual());if(t&&t[5])o.svs=t[5]}
+if(tp&&PUB.tp!==tp){o.tp=tp;if(sv){if(t&&t[5]&&PUB.svs!==t[5])o.svs=t[5]}else if(PUB.tp&&PUB.est)o.est=''}
+else if(sv&&!PUB.svs&&t&&t[5])o.svs=t[5];
 if(!Object.keys(o).length)return;var k=SID+JSON.stringify(o);if(syncCatRubro.k==k)return;syncCatRubro.k=k;
 setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(function(){})}
+// Estilos del catálogo que el dueño puede elegir a mano (vacío = el de su rubro)
+var ESTILOS={servicios:[['barber','Barbería · negro y dorado'],['nude','Peluquería · nude y caramelo'],['rosa','Estética y belleza · rosa'],['lila','Uñas y pestañas · lila'],['verde','Spa y masajes · verde'],['claro','Neutro claro']],
+almacen:[['almacen','Almacén · verde y lima'],['kiosco','Kiosco · violeta y amarillo'],['super','Minimercado · rojo y amarillo'],['carne','Carnicería / verdulería · bordó'],['farmacia','Farmacia · verde agua'],['ferre','Ferretería · gris y naranja']],
+productos:[['ropa','Indumentaria · negro clásico'],['calzado','Calzado · azul noche'],['ropaycalz','Ropa y calzado · café'],['celus','Tecnología · azul eléctrico'],['acc','Accesorios y bijou · dorado'],['perf','Perfumería · ciruela'],['otro','Neutro']]};
+function estiloSel(p){var b=biz(),fam=b=='servicios'||b=='ambos'?'servicios':b=='almacen'?'almacen':'productos',sv=fam=='servicios',cur=(sv?p.svs:p.est)||'',t=tipoDe(catTp());
+return '<label>Estilo del catálogo</label><select id="'+(sv?'cat_svs':'cat_est')+'"><option value="">Según el rubro'+(t?' ('+t[1]+')':'')+'</option>'+ESTILOS[fam].map(function(o){return '<option value="'+o[0]+'"'+(cur==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+
+'<div class="k" style="margin-top:6px">Colores y diseño pensados para cada rubro. Si cambiás el tipo de negocio, el catálogo toma el estilo del rubro nuevo.'+(fam!='servicios'?' Si elegiste un color de tu marca, ese color manda.':'')+'</div>'}
 function drawCajaTab(){if(ventaEnCaja()){if(MAN&&type=='v')drawAdd();else drawSell();return}var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 var TR=createTraspasos({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 role:function(){return ROLE},biz:function(){return biz()},st:function(){return ST},canWrite:function(){return canWrite()},mainSid:function(){return mainSid()},rnd:rnd,skey:skey,pk:pk,
@@ -317,10 +328,10 @@ $('jn').onclick=function(){joinStore()};
 var TIPOS=[
 ['Almacén y comercio',[['almacen','Almacén','🛒','almacen'],['kiosco','Kiosco / drugstore','🍫','almacen'],['super','Minimercado','🧺','almacen'],['carne','Carnicería / verdulería','🥩','almacen'],['farmacia','Farmacia','💊','almacen'],['ferre','Ferretería','🔧','almacen']]],
 ['Tiendas',[['ropa','Indumentaria','👕','productos','ropa'],['calzado','Calzado','👟','productos','calzado'],['ropaycalz','Ropa y calzado','🛍️','productos','ropaycalz'],['celus','Celulares y tecnología','📱','productos','celus'],['acc','Accesorios y bijou','👜','productos','acc'],['perf','Perfumería y cosmética','🧴','productos','perf']]],
-['Servicios y otros',[['barber','Barbería','💈','servicios','','barber'],['pelu','Peluquería','💇‍♀️','servicios','','rosa'],['estetica','Estética y belleza','💆‍♀️','servicios','','rosa'],['unas','Uñas y pestañas','💅','servicios','','lila'],['spa','Spa y masajes','🧖‍♀️','servicios','','verde'],['otro','Otro','✨','productos','otro']]]];
+['Servicios y otros',[['barber','Barbería','💈','servicios','','barber'],['pelu','Peluquería','💇‍♀️','servicios','','nude'],['estetica','Estética y belleza','💆‍♀️','servicios','','rosa'],['unas','Uñas y pestañas','💅','servicios','','lila'],['spa','Spa y masajes','🧖‍♀️','servicios','','verde'],['otro','Otro','✨','productos','otro']]]];
 function tipoDe(id){var r=null;TIPOS.forEach(function(g){g[1].forEach(function(t){if(t[0]==id)r=t})});return r}
 var TIPO_TXT={almacen:'Caja rápida con lector de códigos y balanza, fiado en libreta, cierre de caja y catálogo estilo supermercado.',productos:'Talles y colores, varias fotos por producto, fiado en cuotas semanales y catálogo con vidriera de destacados.',servicios:'Agenda de turnos, atenciones con comisión por empleado y catálogo para que tus clientes reserven.'};
-function tipoActual(){if(CS&&CS.tipo&&tipoDe(CS.tipo))return CS.tipo;var b=biz();if(b=='almacen')return 'almacen';if(b=='servicios'||b=='ambos'){var v=(PUB&&PUB.svs)||'';return v=='barber'?'barber':v=='lila'?'unas':v=='verde'?'spa':b=='servicios'?'estetica':(rub()||'ropa')}return rub()||'ropa'}
+function tipoActual(){if(CS&&CS.tipo&&tipoDe(CS.tipo))return CS.tipo;var b=biz();if(b=='almacen')return 'almacen';if(b=='servicios'||b=='ambos'){var v=(PUB&&PUB.svs)||'';return v=='barber'?'barber':v=='nude'?'pelu':v=='lila'?'unas':v=='verde'?'spa':b=='servicios'?'estetica':(rub()||'ropa')}return rub()||'ropa'}
 function tipoGrid(sel,amb){return '<div class="tg">'+TIPOS.map(function(g){return '<div class="tgh">'+g[0]+'</div><div class="tgr">'+g[1].map(function(t){return '<button type="button" class="tgb'+(t[0]==sel?' on':'')+'" data-tipo="'+t[0]+'"><span class="tgi">'+t[2]+'</span><span>'+t[1]+'</span></button>'}).join('')+'</div>'}).join('')+'</div>'+
 '<div class="tgx" id="tgx"></div><label class="tga" id="tga" hidden><input type="checkbox" id="tgamb" style="width:auto"'+(amb?' checked':'')+'> También vendo productos (shampoo, cremas, accesorios…)</label>'}
 function tipoWire(root,cb){function show(id){var t=tipoDe(id);if(!t)return;root.querySelectorAll('.tgb').forEach(function(b){b.classList.toggle('on',b.dataset.tipo==id)});
@@ -1388,7 +1399,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
-(isAgBiz()?'<label>Estilo del catálogo</label><select id="cat_svs">'+[['','Automático (según el nombre del negocio)'],['barber','Barbería · oscuro y dorado'],['rosa','Estética y peluquería · rosa claro'],['lila','Uñas y pestañas · lila suave'],['verde','Spa y masajes · verde suave'],['claro','Neutro claro']].map(function(o){return '<option value="'+o[0]+'"'+((p.svs!=null?p.svs:((tipoDe(tipoActual())||[])[5]||''))==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>':'')+
+estiloSel(p)+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
@@ -1440,7 +1451,7 @@ if($('cat_on').checked&&!was.length){alert('Escribí al menos un WhatsApp para r
 if(was.length>1&&was.some(function(x){return !x.n})){alert('Poné un nombre a cada número, así el cliente sabe a quién le escribe.');return}
 $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
 return}
 }
 function planCardCollapsible(){

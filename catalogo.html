@@ -121,7 +121,7 @@ main{max-width:1100px;margin:0 auto;padding:12px 16px 170px}
 .grid.list .body{padding:0}.grid.list .nm{min-height:0}
 .empty{color:var(--mut);text-align:center;padding:50px 0;grid-column:1/-1}
 /* ---------- Catálogo de almacén / kiosco / drugstore (estilo supermercado) ---------- */
-body.alm{--ap:#0E4D45;--al:#C8EE6E;--ad:#0E2E29;background:#F3F5F1}
+body.alm{--ap:#0E4D45;--al:#C8EE6E;--ad:#0E2E29;--abg:#F3F5F1;--c1:#FBE7C4;--c2:#E2F2D5;--c3:#FFE0E0;--c4:#DCEBFA;background:var(--abg)}
 body.alm #hero,body.alm #dest,body.alm #cats,body.alm #inf,body.alm .tools .sbox,body.alm .tools .vt{display:none!important}
 .ah{max-width:1100px;margin:0 auto}
 .ahb{background:var(--ap);color:#fff;padding:14px 16px 26px;border-radius:0 0 30px 30px;position:relative;overflow:hidden}
@@ -147,8 +147,8 @@ body.alm #hero,body.alm #dest,body.alm #cats,body.alm #inf,body.alm .tools .sbox
 .acats{display:flex;gap:10px;overflow-x:auto;padding:16px 14px 4px;scrollbar-width:none}
 .acats::-webkit-scrollbar{display:none}
 .acat{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;font:inherit;font-size:12.5px;font-weight:700;color:var(--ad);width:76px;cursor:pointer;text-align:center;line-height:1.15}
-.acat i{width:62px;height:62px;border-radius:50%;background:#FBE7C4;display:flex;align-items:center;justify-content:center;font-size:30px;font-style:normal;box-shadow:0 3px 10px rgba(0,0,0,.07);transition:transform .2s,background .2s}
-.acat:nth-child(4n+2) i{background:#E2F2D5}.acat:nth-child(4n+3) i{background:#FFE0E0}.acat:nth-child(4n) i{background:#DCEBFA}
+.acat i{width:62px;height:62px;border-radius:50%;background:var(--c1);display:flex;align-items:center;justify-content:center;font-size:30px;font-style:normal;box-shadow:0 3px 10px rgba(0,0,0,.07);transition:transform .2s,background .2s}
+.acat:nth-child(4n+2) i{background:var(--c2)}.acat:nth-child(4n+3) i{background:var(--c3)}.acat:nth-child(4n) i{background:var(--c4)}
 .acat.on i{background:var(--al);transform:translateY(-3px);box-shadow:0 6px 14px rgba(0,0,0,.12)}
 .acat.on{color:var(--ap)}
 .ahd{display:flex;justify-content:space-between;align-items:baseline;max-width:1100px;margin:0 auto;padding:18px 16px 8px}
@@ -184,7 +184,7 @@ body.alm .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 
 .ac .hf{position:absolute;right:8px;top:8px;z-index:1}
 body.alm .promos h2{color:var(--ad)}
 body.alm .promos .pc{border-radius:20px}
-body.alm .promos .pc:nth-child(odd){background:#FFF1CC}body.alm .promos .pc:nth-child(even){background:#FFE1E6}
+body.alm .promos .pc:nth-child(odd){background:var(--c1)}body.alm .promos .pc:nth-child(even){background:var(--c3)}
 body.alm .promos .pq{background:var(--ap);color:#fff;border-radius:20px}
 /* ---------- Catálogo de servicios (barbería, estética, uñas, spa) ---------- */
 body.svm{background:var(--sp)}
@@ -227,6 +227,11 @@ body.svm .grid.svg{display:block;max-width:760px;margin:0 auto;padding:0 16px}
 body.svm .sec{max-width:760px;border-top:1px solid rgba(0,0,0,.07);padding-top:22px}
 body.svm .sec h2{color:var(--sh)}
 html body.svm .hdr{background:var(--sp)}
+/* Estilos por rubro de las tiendas: accesorios y perfumería con títulos con serifa */
+body.serif .htag,body.serif .sec h2,body.serif .brand b,body.serif .brand h1,body.serif .svk h2,body.serif .ahban h2{font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:-.01em}
+body.est-celus .im,body.est-celus .rc{border-radius:14px}
+body[class*="est-"] .chip.on,body[class*="est-"] .plus{background:var(--b);color:var(--bi)}
+body.est-calzado .sec h2,body.est-celus .sec h2{text-transform:uppercase;letter-spacing:.04em;font-size:18px;font-weight:900}
 /* ---------- Pie de página ---------- */
 footer{position:relative;z-index:1;margin-top:34px;background:#141414;color:#d9d9d6;font-size:14px;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .fseas{position:relative;overflow:hidden;padding:18px 20px;display:flex;align-items:center;gap:14px}
@@ -453,7 +458,25 @@ function sizeSort(a,b){var x=parseFloat(a),y=parseFloat(b);if(!isNaN(x)&&!isNaN(
 function fail(m){$('grid').innerHTML='<div class="empty">'+esc(m)+'</div>'}
 function goodColor(c){return /^#[0-9a-f]{6}$/i.test(c||'')}
 function lum(c){var r=parseInt(c.substr(1,2),16),g=parseInt(c.substr(3,2),16),b=parseInt(c.substr(5,2),16);return (r*299+g*587+b*114)/1000}
-function theme(){var c=goodColor(INFO.color)?INFO.color:'#111111';document.documentElement.style.setProperty('--b',c);document.documentElement.style.setProperty('--bi',lum(c)>150?'#111':'#fff')}
+// ---------- Estilo según el rubro (public/info.tp = tipo de negocio; est = elegido a mano; vacío = según el rubro) ----------
+var TIPAL={ropa:{b:'#111111',bg:'#FFFFFF',soft:'#F1F1EF',line:'#EBEBE8'},
+calzado:{b:'#14213D',bg:'#F5F6F8',soft:'#E8EBF0',line:'#DFE3EA'},
+ropaycalz:{b:'#3B2F2A',bg:'#FBF8F4',soft:'#F1EBE3',line:'#E9E1D6'},
+celus:{b:'#1546D1',bg:'#F5F7FC',soft:'#E8EDF8',line:'#DEE5F3'},
+acc:{b:'#7A5C2E',bg:'#FCF9F4',soft:'#F3ECDF',line:'#EBE2D2',serif:1},
+perf:{b:'#8E3B63',bg:'#FDF8FA',soft:'#F5E8EE',line:'#EEDDE5',serif:1},
+otro:{b:'#2F3437',bg:'#FAFAF9',soft:'#F0F0EE',line:'#E7E7E4'}};
+var ALPAL={almacen:{ap:'#0E4D45',al:'#C8EE6E',ad:'#0E2E29',abg:'#F3F5F1',c:['#FBE7C4','#E2F2D5','#FFE0E0','#DCEBFA'],q:'Buscá yerba, gaseosa, galletitas…',h:'Hacé tu pedido y te lo preparamos'},
+kiosco:{ap:'#4A1F8C',al:'#FFD23F',ad:'#2A1252',abg:'#F6F3FB',c:['#FFE9A8','#EBDDFF','#FFD9E6','#D7ECFF'],q:'Buscá golosinas, bebidas, cargadores…',h:'Tu kiosco, a un mensaje de distancia'},
+super:{ap:'#B81D2E',al:'#FFE15A',ad:'#3A0D12',abg:'#F7F4F1',c:['#FFF0B3','#E3F1D6','#FFDCDC','#DCEAF8'],q:'Buscá yerba, lácteos, limpieza…',h:'Hacé las compras sin salir de casa'},
+carne:{ap:'#6B1424',al:'#F2C98A',ad:'#3B0B14',abg:'#F8F3EE',c:['#F7DCC7','#E3EED3','#FBE1D5','#EEE4D6'],q:'Buscá asado, vacío, pollo, verduras…',h:'Carne y verdura fresca, lista para vos'},
+farmacia:{ap:'#0A6B73',al:'#A8EBDD',ad:'#073C41',abg:'#F1F7F7',c:['#D6F1EA','#DCEBFA','#EFE3F7','#E6F3D9'],q:'Buscá perfumería, pañales, cuidado personal…',h:'Tu farmacia, cerca y online'},
+ferre:{ap:'#2B2D31',al:'#FF8A1F',ad:'#1A1B1E',abg:'#F3F2EF',c:['#FFE2C4','#E5E7EB','#FFF0B8','#DCE6F0'],q:'Buscá tornillos, pinturas, herramientas…',h:'Todo para tu obra y tu casa'}};
+function estilo(P){var e=INFO.est;if(P[e])return e;if(P[INFO.tp])return INFO.tp;return ''}
+function esDefault(c){return !goodColor(c)||/^#(1{6}|0{6})$/i.test(c)}
+function theme(){var r=document.documentElement,k=!INFO.alm&&!(INFO.biz=='servicios'||INFO.biz=='ambos')?estilo(TIPAL):'',P=TIPAL[k];
+if(P){['bg','soft','line'].forEach(function(x){r.style.setProperty('--'+x,P[x])});document.body.classList.toggle('serif',!!P.serif);document.body.classList.add('est-'+k)}
+var c=goodColor(INFO.color)&&!(P&&esDefault(INFO.color))?INFO.color:(P?P.b:'#111111');document.documentElement.style.setProperty('--b',c);document.documentElement.style.setProperty('--bi',lum(c)>150?'#111':'#fff')}
 /* tema de temporada (lo activa la tienda desde la app; se apaga solo después de la fecha) */
 function tema(g){TEMA=temaEfectivo(INFO,g,Date.now());if(!TEMA)return;introTema(TEMA,'cat');
 var T=TEMAS[TEMA],r=document.documentElement,c=T.cat;r.setAttribute('data-tema',TEMA);
@@ -469,10 +492,11 @@ var SVPAL={barber:{sp:'#F7F6F3',sk:'#1B1B1B',skt:'#FFFFFF',sa:'#D4B483',sat:'#1B
 rosa:{sp:'#FFF7F8',sk:'#F6D3DB',skt:'#4A2430',sa:'#C9577A',sat:'#FFFFFF',sh:'#4A2430',sm:'#8E6A74',lab:'ESTÉTICA & BELLEZA',h:'Tu momento de belleza'},
 lila:{sp:'#FAF7FF',sk:'#E6DDF7',skt:'#35265A',sa:'#7E5BC4',sat:'#FFFFFF',sh:'#35265A',sm:'#776C8C',lab:'UÑAS & PESTAÑAS',h:'Manos y mirada perfectas'},
 verde:{sp:'#F6FAF7',sk:'#D6E9DD',skt:'#1F3D2E',sa:'#3F7F5E',sat:'#FFFFFF',sh:'#1F3D2E',sm:'#64786B',lab:'SPA & BIENESTAR',h:'Tu momento de calma'},
+nude:{sp:'#FBF6F1',sk:'#E8D3C0',skt:'#3E2A1E',sa:'#A8673A',sat:'#FFFFFF',sh:'#3E2A1E',sm:'#86705F',lab:'PELUQUERÍA',h:'Tu pelo, como lo soñás'},
 claro:{sp:'#FAF8F5',sk:'#EFE8DD',skt:'#3A3027',sa:'#A9844F',sat:'#FFFFFF',sh:'#3A3027',sm:'#7A6F63',lab:'ESTÉTICA',h:'Reservá tu turno online'}};
-function svPal(){var k=INFO.svs;if(SVPAL[k])return k;var t=key((INFO.name||'')+' '+(INFO.tag||''));
+function svPal(){var k=INFO.svs;if(SVPAL[k])return k;var m={barber:'barber',pelu:'nude',estetica:'rosa',unas:'lila',spa:'verde'}[INFO.tp];if(m)return m;var t=key((INFO.name||'')+' '+(INFO.tag||''));
 if(/barber|barba|barbershop/.test(t))return 'barber';if(/uñas|unas|nails|pestañ|lashes|manicur/.test(t))return 'lila';if(/spa|masaj|relax|bienestar/.test(t))return 'verde';
-if(/estetic|estétic|belleza|beauty|peluquer|cejas|depil|maquill|cosmet/.test(t))return 'rosa';return 'claro'}
+if(/peluquer|hair/.test(t))return 'nude';if(/estetic|estétic|belleza|beauty|cejas|depil|maquill|cosmet/.test(t))return 'rosa';return 'claro'}
 var CALI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18M9 15l2 2 4-4"/></svg>';
 var BAGI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>';
 var WAI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-13.4 7.8L3 21l1.3-4.4A9 9 0 1 1 21 12Z"/></svg>';
@@ -500,13 +524,13 @@ function svPRow(g){var o=oldP(g);return '<div class="svrow" data-k="'+esc(g.k)+'
 // ---------- Catálogo de almacén ----------
 var CATI={'Almacén':'🥫','Bebidas':'🥤','Galletitas y golosinas':'🍪','Lácteos':'🥛','Fiambrería':'🧀','Panadería':'🥖','Verdulería':'🥕','Congelados':'🧊','Limpieza':'🧴','Perfumería':'🧼','Cigarrillos':'🚬','Otros':'🛒','Kiosco':'🍫','Carnicería':'🥩','Bazar':'🍽️','Mascotas':'🐾','Bebés':'🍼','Farmacia':'💊','Carne vacuna':'🥩','Cerdo':'🐖','Pollo':'🍗','Embutidos':'🌭','Para el asado':'🔥','Elaborados':'🍽️','Golosinas':'🍬','Snacks':'🍟','Varios':'🔋'};
 function almSetup(){document.body.classList.toggle('alm',!!ALM);if(!ALM)return;
-var r=document.documentElement;if(!TEMA&&goodColor(INFO.color)&&!/^#1{6}$|^#0{6}$/i.test(INFO.color)&&lum(INFO.color)<170)r.style.setProperty('--ap',INFO.color);if(TEMA)r.style.setProperty('--ap',TEMAS[TEMA].cat.b);
+var r=document.body,AP=ALPAL[estilo(ALPAL)||'almacen'];['ap','al','ad','abg'].forEach(function(x){r.style.setProperty('--'+x,AP[x])});AP.c.forEach(function(x,i){r.style.setProperty('--c'+(i+1),x)});if(!TEMA&&goodColor(INFO.color)&&!/^#1{6}$|^#0{6}$/i.test(INFO.color)&&lum(INFO.color)<170)r.style.setProperty('--ap',INFO.color);if(TEMA)r.style.setProperty('--ap',TEMAS[TEMA].cat.b);
 var n=INFO.name||'Catálogo',lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':esc((n[0]||'C').toUpperCase());
 var e=$('ah');e.hidden=false;
 e.innerHTML='<div class="ahb"><div class="aht"><span class="lg">'+lg+'</span><div class="nm"><b>'+esc(n)+'</b><small>'+esc(INFO.hours||INFO.addr||'Pedí online y retirá o recibí en tu casa')+'</small></div>'+
 '<button class="ai" data-nav="fav" aria-label="Favoritos">'+SVG.heart+'</button><button class="ai" id="acart" aria-label="Ver pedido">'+SVG.cart+'<em id="acn" hidden>0</em></button></div>'+
-'<label class="ahs"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="asq" type="search" placeholder="Buscá yerba, gaseosa, galletitas…" autocomplete="off"></label>'+
-'<div class="ahban"><div class="tx"><h2>'+esc(INFO.tag||'Hacé tu pedido y te lo preparamos')+'</h2><p>'+esc([INFO.addr,INFO.hours].filter(Boolean).join(' · ')||'Elegí tus productos y mandanos el pedido por WhatsApp.')+'</p><button class="go" id="ago">Ver productos</button></div><div class="pi" id="api" hidden></div></div></div>'+
+'<label class="ahs"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="asq" type="search" placeholder="'+esc(AP.q)+'" autocomplete="off"></label>'+
+'<div class="ahban"><div class="tx"><h2>'+esc(INFO.tag||AP.h)+'</h2><p>'+esc([INFO.addr,INFO.hours].filter(Boolean).join(' · ')||'Elegí tus productos y mandanos el pedido por WhatsApp.')+'</p><button class="go" id="ago">Ver productos</button></div><div class="pi" id="api" hidden></div></div></div>'+
 '<div class="acats" id="acats"></div>';
 $('acart').onclick=function(){$('cb').click()};
 $('ago').onclick=function(){$('sec').scrollIntoView({behavior:'smooth'})};
