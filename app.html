@@ -246,6 +246,13 @@ o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:2
 document.body.appendChild(o);
 var fin=function(){try{localStorage.setItem(k,'1')}catch(e){}o.remove()};
 o.querySelector('#novok').onclick=fin;o.addEventListener('click',function(e){if(e.target===o)fin()})}
+// El catálogo toma su estilo (supermercado, servicios o tienda) de public/info (alm, biz, svs). Si el rubro de la
+// tienda cambió y el catálogo quedó con el anterior, el dueño lo corrige solo al entrar (sin tocar nada más).
+function syncCatRubro(){if(ROLE!='admin'||!PUB||!CS||!SID||!canWrite())return;var b=biz(),o={};
+if(PUB.biz!==b)o.biz=b;if(!!PUB.alm!==(b=='almacen'))o.alm=b=='almacen';
+if((b=='servicios'||b=='ambos')&&!PUB.svs){var t=tipoDe(tipoActual());if(t&&t[5])o.svs=t[5]}
+if(!Object.keys(o).length)return;var k=SID+JSON.stringify(o);if(syncCatRubro.k==k)return;syncCatRubro.k=k;
+setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(function(){})}
 function drawCajaTab(){if(ventaEnCaja()){if(MAN&&type=='v')drawAdd();else drawSell();return}var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 var TR=createTraspasos({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 role:function(){return ROLE},biz:function(){return biz()},st:function(){return ST},canWrite:function(){return canWrite()},mainSid:function(){return mainSid()},rnd:rnd,skey:skey,pk:pk,
@@ -488,12 +495,12 @@ function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
 un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||''})});if(biz()=='almacen')ALM.publishSoon();redrawData()},sdErr);
-un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
+un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(e){ACC=null;drawBanner();sdErr(e)});
 un.prm=onSnapshot(doc(db,'stores',SID,'public','promos'),function(sn){PRM=(sn.exists()&&sn.data().list)||[];if(TAB=='promo'&&!PRO.editing())PRO.draw();else if(TAB=='team')drawTeam();else redrawData()},function(){PRM=[]});
-un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();autoActivateTema();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
+un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();autoActivateTema();syncCatRubro();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
 if(ROLE=='admin'){
 un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=false;sn.forEach(function(d){GA.push(d.data())});redrawData()},function(){GAERR=true;redrawData()});
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},sdErr);
