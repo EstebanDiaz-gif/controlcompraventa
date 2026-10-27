@@ -1412,7 +1412,7 @@ export function createAlmacen(X) {
     const a = document.activeElement;
     if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
     if (Array.prototype.some.call(document.body.children, (o) => o.style && o.style.position === 'fixed' && o.style.inset === '0px')) return; // hay una ventana abierta
-    const t = ['qkcod', 'cjq', 'rq', 'aq'].map((id) => $(id)).find((el) => el && el.offsetParent !== null && !el.disabled);
+    const t = ['qkcod', 'cjq', 'rq', 'aq', 'esq'].map((id) => $(id)).find((el) => el && el.offsetParent !== null && !el.disabled);
     if (!t) return;
     e.preventDefault();
     try { t.focus({ preventScroll: true }); } catch (er) { t.focus(); }

@@ -178,6 +178,7 @@ import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {createCaja,PAGOS} from './caja.js';
+import {openScanner,scanButton,codeVariants,beep,canScan} from './scanner.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
 import {createAgenda,DURS} from './agenda.js';
@@ -423,7 +424,7 @@ if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs')
 function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo})});if(biz()=='almacen')ALM.publishSoon();redrawData()},sdErr);
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||''})});if(biz()=='almacen')ALM.publishSoon();redrawData()},sdErr);
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
@@ -687,7 +688,7 @@ if(biz()=='servicios')type='c';
 if(type=='v'&&!MAN&&ST.length){drawSell();return}
 $('s-add').innerHTML='<div class="card">'+(biz()=='servicios'?'<b>Compré insumos o productos para el servicio</b><div class="k" style="margin:4px 0 0">Cargá lo que comprás para trabajar (productos, insumos). Lo que cobrás a tus clientes se registra en Atender.</div>':'<div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>')+
 '<label>Producto</label><input id="p" list="prods" placeholder="Ej: '+esc(EX('p'))+'" autocomplete="off">'+
-'<label>Código (SKU) · el mismo que en tu tienda</label><input id="s" placeholder="Ej: '+esc(EX('s'))+'" autocomplete="off">'+
+'<label>Código (SKU o código de barras)</label><div style="display:flex;gap:8px;align-items:center"><input id="s" placeholder="Ej: '+esc(EX('s'))+'" autocomplete="off" style="flex:1;min-width:0">'+scanButton('cscan')+'</div>'+
 (type=='c'?'<label>Categoría (opcional)</label><input id="ac" list="rcats" placeholder="Ej: '+esc(EX('cat'))+'" autocomplete="off" maxlength="30"><datalist id="rcats">'+catOpts()+'</datalist>':'')+
 '<div class="row"><div><label>Cantidad</label><input id="q" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="u" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 (type=='c'?'<div class="row"><div><label>Venta por mayor (opcional)</label><input id="pm" type="number" inputmode="decimal" min="0" placeholder="0"></div><div><label>Venta por menor (opcional)</label><input id="pn" type="number" inputmode="decimal" min="0" placeholder="0"></div></div><label>Mínimo de unidades para precio mayorista (opcional)</label><input id="mmq" type="number" inputmode="numeric" min="0" placeholder="Ej: 4">':'')+
@@ -746,7 +747,35 @@ else if(a=='off'){SZON=false;SZ=[]}
 drawSizes()}
 
 /* ---------- Vender (empleado) ---------- */
-function selMatch(d){var t=key(SELQ).split(/\s+/).filter(Boolean);if(!t.length)return true;var hay=key(d.n+' '+d.s+' '+d.z+' t'+d.z);return t.every(function(w){return hay.indexOf(w)>=0})}
+function selMatch(d){var t=key(SELQ).split(/\s+/).filter(Boolean);if(!t.length)return true;var hay=key(d.n+' '+d.s+' '+d.z+' t'+d.z+' '+(d.cb||''));return t.every(function(w){return hay.indexOf(w)>=0})}
+/* ---------- escanear en ropa / productos ---------- */
+// Cada talle puede tener su código de barras (stock.cb): las cajas de zapatillas traen uno por talle.
+// Si el código no está cargado, el dueño elige a qué producto y talle corresponde y queda guardado.
+// Compra: si el código ya es de un producto, completa nombre y código; si no, lo pone como código del producto nuevo.
+function compraCodigo(code){code=String(code||'').trim();var d=stByCode(code)||stBySku(code)[0],p=$('p'),sk=$('s');if(!sk)return;beep(true);
+if(d){if(p)p.value=d.n;sk.value=d.s||code}else sk.value=code;
+[p,sk].forEach(function(e){if(e)e.dispatchEvent(new Event('input',{bubbles:true}))});var q=$('q');if(q)q.focus()}
+function stByCode(code){var v=codeVariants(code);return ST.filter(function(x){return x.cb&&v.indexOf(String(x.cb).trim().toLowerCase())>=0})[0]||null}
+function stBySku(code){var v=codeVariants(code);return ST.filter(function(x){return x.s&&v.indexOf(String(x.s).trim().toLowerCase())>=0})}
+function elegirVenta(d){SELQ='';var q=$('esq');if(q)q.value='';refreshSell();var s=$('es');if(s){s.value=d.id;autoP()}var e=$('eq');if(e){e.value=1;e.dispatchEvent(new Event('input'))}}
+// Devuelve true si lo resolvió (encontró o pidió asociarlo).
+function ropaCodigo(code,desdeTeclado){code=String(code||'').trim();if(!code)return false;
+var d=stByCode(code);if(d){beep(true);elegirVenta(d);return true}
+var sk=stBySku(code);if(sk.length==1){beep(true);elegirVenta(sk[0]);return true}
+if(sk.length>1){beep(true);SELQ=code;var q=$('esq');if(q)q.value=code;refreshSell();return true}
+beep(false);
+if(ROLE!='admin'){alert('El código '+code+' todavía no está cargado. Elegí el producto a mano y pedile al dueño que lo asocie (escaneándolo él una vez).');return !desdeTeclado}
+if(!ST.length){alert('Primero cargá el producto con una compra.');return true}
+asociarCodigo(code,function(x){elegirVenta(x)});return true}
+function asociarCodigo(code,cb){var l=ST.slice().sort(function(a,b){return a.n.localeCompare(b.n)||String(a.z).localeCompare(String(b.z),undefined,{numeric:true})});
+var o=CJ.modal('<b style="font-size:19px">Código nuevo</b><div class="k" style="margin-top:4px">El código <b>'+esc(code)+'</b> todavía no está cargado. ¿De qué producto y talle es? Queda guardado y la próxima vez se reconoce solo.</div>'+
+'<label>Buscar</label><input id="acq" type="search" autocomplete="off" placeholder="Nombre o talle"><label>Producto y talle</label><select id="acs" size="6" style="height:auto">'+l.map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+(d.cb?' (ya tiene código)':'')+'</option>'}).join('')+'</select>'+
+'<button class="go" id="acok">Guardar código</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+var sel=o.querySelector('#acs');sel.selectedIndex=0;
+o.querySelector('#acq').oninput=function(){var t=key(this.value);Array.prototype.forEach.call(sel.options,function(op){op.hidden=t&&key(op.textContent).indexOf(t)<0});var f=Array.prototype.filter.call(sel.options,function(op){return !op.hidden})[0];if(f)sel.value=f.value};
+o.querySelector('#acok').onclick=function(){var id=sel.value,d=ST.filter(function(x){return x.id==id})[0];if(!d){alert('Elegí el producto.');return}
+if(d.cb&&d.cb!=code&&!confirm('Ese talle ya tenía el código '+d.cb+'. ¿Reemplazarlo por '+code+'?'))return;
+setDoc(doc(db,'stores',SID,'stock',d.id),{cb:code},{merge:true}).catch(fail);d.cb=code;o.remove();if(cb)cb(d)}}
 function sellOpts(){var h=ST.filter(selMatch).sort(function(a,b){return a.n.localeCompare(b.n)||String(a.z).localeCompare(String(b.z),undefined,{numeric:true})}).map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+(d.s?' · '+esc(d.s):'')+' (stock '+d.q+')</option>'}).join('');return h||'<option value="">Sin resultados</option>'}
 function autoP(){var s=$('es'),u=$('eu'),k=$('ek');if(!s||!u||!k)return;var d=null;ST.forEach(function(x){if(x.id==s.value)d=x});var pv=$('esp');if(pv){var im=d?photoOf(key(d.s||d.n)):'';if(im){pv.src=im;pv.style.display=''}else{pv.removeAttribute('src');pv.style.display='none'}}if(!d)return;if(u.value&&u.dataset.auto!='1')return;var v=k.value=='mayor'?d.pm:d.pn;if(v){u.value=v;u.dataset.auto='1';var q=+$('eq').value;$('etot').textContent=q?'Total: '+money(q*v):''}}
 function refreshSell(){var s=$('es');if(!s)return;var v=s.value;s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;autoP()}
@@ -754,14 +783,14 @@ function drawSell(){
 var adm=ROLE=='admin',box=adm?$('s-add'):$('s-sell');
 if(!canWrite()){box.innerHTML=blockedCard();return}
 if(!ST.length){box.innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
-CJ.listen();box.innerHTML=CJ.bar()+'<div class="card">'+(adm?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'')+'<label>Buscar producto</label><input id="esq" type="search" placeholder="Nombre, código o talle" autocomplete="off" value="'+esc(SELQ)+'"><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
+CJ.listen();box.innerHTML=CJ.bar()+'<div class="card">'+(adm?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'')+'<label>Buscar producto</label><div style="display:flex;gap:8px;align-items:center"><input id="esq" type="search" enterkeyhint="go" placeholder="Nombre, código o talle (o escaneá)" autocomplete="off" value="'+esc(SELQ)+'" style="flex:1;min-width:0">'+scanButton('rscan')+'</div><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
 '<label id="epayl">¿Cómo pagó?</label><select id="epay">'+payOpts()+'</select>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="efia" type="checkbox" style="width:auto"> Venta de fiado</label>'+
 '<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><select id="efiaCli" style="margin-bottom:8px"><option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option></select><div id="efiaNewBox" style="display:none"><label>Nombre del cliente</label><input id="efiaCliN" placeholder="Nombre" autocomplete="off"><label>Teléfono WhatsApp (opcional)</label><input id="efiaCliT" inputmode="tel" placeholder="381 614 5326" autocomplete="off"></div><label>Monto que paga ahora (opcional)</label><input id="efiaPagaHoy" type="number" inputmode="decimal" min="0" placeholder="Deja en blanco si fia todo"><div class="k" id="efiaPagaMsg" style="margin:4px 0 0;display:none"></div><label>¿En cuántas cuotas semanales paga lo fiado?</label><select id="efiaCq"><option value="1">1 cuota</option><option value="2" selected>2 cuotas</option><option value="3">3 cuotas</option><option value="4">4 cuotas</option><option value="5">5 cuotas</option><option value="6">6 cuotas</option><option value="f">Una fecha que elijo</option></select><div class="k" id="efiaCqMsg" style="margin:4px 0 0"></div><div id="efiaVtoBox" style="display:none"><label>Fecha en que paga todo</label><input id="efiaVto" type="date"></div><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
 '<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>';
-$('esq').oninput=function(){SELQ=this.value;refreshSell()};
+$('esq').oninput=function(){SELQ=this.value;refreshSell()};$('esq').onkeydown=function(e){if(e.key=='Enter'){e.preventDefault();var v=this.value.trim();if(/^[0-9A-Za-z-]{4,}$/.test(v)&&ropaCodigo(v,true))return;}};
 function upd(){var q=+$('eq').value,u=+$('eu').value,tot=q*u;$('etot').textContent=q&&u?'Total: '+money(tot):'';if($('efiaPagaHoy')){var paga=+($('efiaPagaHoy').value||0),fia=Math.max(0,tot-paga),msg=$('efiaPagaMsg');if(paga||$('efiaPagaHoy').value){msg.style.display='block';msg.textContent=paga?'Paga hoy: '+money(paga)+' → Queda fiado: '+money(fia):'Sin pagar ahora → Todo queda fiado: '+money(tot)}else{msg.style.display='none'}
 if($('epayl'))$('epayl').textContent=$('efia').checked?(paga?'¿Cómo pagó la entrega?':'¿Cómo pagó? (no paga nada ahora)'):'¿Cómo pagó?';var cq=$('efiaCq').value;$('efiaVtoBox').style.display=cq=='f'?'block':'none';$('efiaCqMsg').textContent=cq!='f'&&fia>0?fiaPlan({d:$('ed').value||today(),fia:{cq:+cq}},{fiado:fia}).map(function(c){return money(c.m)+' el sáb '+fiaFecha(c.d)}).join(' · '):''}}
 $('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};if($('efiaPagaHoy')){$('efiaPagaHoy').oninput=upd;$('efiaCq').onchange=upd;$('ed').addEventListener('change',upd)}$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
@@ -1635,6 +1664,9 @@ if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
 if(d.cj){CJ.action(d.cj,d.id);return}
+var sc0=e.target.closest&&e.target.closest('[data-al="rscan"],[data-al="cscan"]');if(sc0)d={al:sc0.dataset.al};
+if(d.al=='rscan'){openScanner({title:'Escaneá el código de la caja o etiqueta',onCode:function(c){var ok=stByCode(c)||stBySku(c).length;setTimeout(function(){ropaCodigo(c)},50);return {ok:true,close:true,msg:ok?'¡Listo!':'Código nuevo'}}});return}
+if(d.al=='cscan'){openScanner({title:'Escaneá el código del producto',onCode:function(c){setTimeout(function(){compraCodigo(c)},50);return {ok:true,close:true,msg:'¡Listo!'}}});return}
 if(d.fia=='flt'){FIA.f=d.v;drawFia();return}
 if(d.fia){var cli=d.cli,mvs=M.filter(function(x){return x.t=='v'&&x.fia&&x.fia.cli==cli});
 if(d.fia=='regpago'){var saldo=0;mvs.forEach(function(x){saldo+=fiaCalc(x).saldo});
