@@ -96,6 +96,13 @@ service cloud.firestore {
       allow get: if signedIn() && request.auth.uid == uid;
     }
 
+    // Vendedores de Pekeron (instaladores): cualquiera con sesión puede comprobar un código al crear su tienda;
+    // la lista completa y los cambios, solo el propietario de la plataforma.
+    match /vendedores/{code} {
+      allow get: if signedIn();
+      allow list, write: if isPlatformOwner();
+    }
+
     // Tema de temporada general (para todas las tiendas). Lo lee cualquiera, también el catálogo.
     // Solo el propietario de la plataforma lo activa o lo quita.
     match /platform/tema {
@@ -119,7 +126,8 @@ service cloud.firestore {
     match /stores/{sid} {
       allow read: if isMember(sid) || isPlatformOwner();
       allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
-      allow update: if isAdmin(sid) && request.resource.data.owner == resource.data.owner;
+      allow update: if (isAdmin(sid) && request.resource.data.owner == resource.data.owner)
+        || (isPlatformOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vend']));
       allow delete: if isPlatformOwner();
 
       match /members/{uid} {

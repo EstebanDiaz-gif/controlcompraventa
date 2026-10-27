@@ -182,6 +182,7 @@ import {createAlmacen} from './almacen.js';
 import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
 import {createRepartos} from './repartos.js';
+import {createVendedores} from './vendedores.js';
 import {openScanner,scanButton,codeVariants,beep,canScan} from './scanner.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
@@ -259,6 +260,11 @@ role:function(){return ROLE},biz:function(){return biz()},st:function(){return S
 costo:function(p){return p.c||(biz()!='almacen'&&ROLE=='admin'?avg(pk({s:p.s,p:p.n,z:p.z})):0)},changed:function(){drawBanner();paintTr()}});
 var RP=createRepartos({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},
 role:function(){return ROLE},biz:function(){return biz()},cs:function(){return CS},changed:function(){if(TAB=='team'){var e=$('rpc');if(e){var a=document.activeElement;if(a&&a.closest&&a.closest('#rpc')&&/INPUT/.test(a.tagName))return;e.outerHTML=RP.card(month)}}}});
+// Estado de una tienda para el panel del dueño (mismo criterio que la lista de Empresas)
+function estadoTienda(x){var a=x.acc;if(!a)return 'free';var st=deriveState(a,Date.now());if(a.life&&st.state=='paid')return 'life';if(st.state=='expired'&&!a.paidUntilMs&&!a.trialStartMs)return 'paused';if(st.state=='expired'||st.state=='grace')return 'exp';if(st.state=='trial')return 'trial';if(st.state=='paid')return 'paid';return 'free'}
+var VD=createVendedores({db:db,esc:esc,money:money,today:today,fail:function(e){fail(e)},cfg:function(){return CFG},stores:function(){return PLL.list},estado:estadoTienda,
+base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:function(){if(TAB=='plat')drawPlatLite()}});
+VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
@@ -343,6 +349,7 @@ o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:2
 
 '<label>Nombre de la tienda</label><input id="sn_n" placeholder="Ej: Pekeron" autocomplete="off">'+
 '<label>¿Qué tipo de negocio es?</label><div class="k" style="margin:2px 0 4px">Así preparamos la app con las funciones de tu rubro.</div>'+tipoGrid('',false)+
+'<label style="margin-top:14px">Código de vendedor (opcional)</label><input id="sn_v" maxlength="10" autocomplete="off" placeholder="Si te lo instaló un vendedor, poné su código" style="text-transform:uppercase" value="'+esc(VD.desdeLink())+'">'+
 '<label style="margin-top:14px">¿En qué país está tu negocio?</label><select id="sn_pais">'+PAISES.map(function(x){return '<option value="'+x[0]+'">'+x[2]+' '+x[1]+'</option>'}).join('')+'</select><div class="k" id="sn_mon" style="margin-top:4px"></div>'+
 '<label style="margin-top:14px">Elegí tu plan</label>'+pc+
 '<button class="go" id="sn_ok">Crear mi tienda</button><button class="x" id="sn_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
@@ -351,16 +358,17 @@ tipoWire(o);
 var pz=$('sn_pais');try{pz.value=localStorage.getItem('pk_pais')||paisDetect()}catch(e){pz.value=paisDetect()}
 function monUpd(){var mon=monDe(pz.value);o.querySelectorAll('.spp').forEach(function(e){e.textContent=precioPlan(CFG.plans[e.dataset.id],mon)});$('sn_mon').textContent=mon=='USD'?'Los precios para tu país están en dólares estadounidenses (US$).':'Los precios están en pesos argentinos.'}
 pz.onchange=monUpd;monUpd();
-$('sn_x').onclick=function(){o.remove()};
+$('sn_x').onclick=function(){o.remove()};$('sn_v').oninput=function(){o._vok=undefined};
 $('sn_ok').onclick=function(){
 var n=$('sn_n').value.trim();if(!n){alert('Escribí el nombre de la tienda.');return}
+if(o._vok===undefined&&$('sn_v').value.trim()){var bt0=this;bt0.disabled=true;VD.validar($('sn_v').value).then(function(c){bt0.disabled=false;if(c===null){alert('Ese código de vendedor no existe. Revisalo o dejalo vacío.');return}o._vok=c;bt0.click()});return}
 if(!o._tipo){alert('Elegí qué tipo de negocio es.');o.querySelector('.tg').scrollIntoView({behavior:'smooth',block:'center'});return}
 var pais=$('sn_pais').value,mon=monDe(pais);try{localStorage.setItem('pk_pais',pais)}catch(e){}
 var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',TC=tipoCfg(o._tipo,o.querySelector('#tgamb').checked),bz=TC.biz,rb=TC.rub||'';
 $('sn_ok').disabled=true;
 if(!SERVER_MODE){
 var sid=rnd(10),b=writeBatch(db);
-b.set(doc(db,'stores',sid),{name:n,owner:U.uid,created:Date.now(),pais:pais,mon:mon});
+var sd0={name:n,owner:U.uid,created:Date.now(),pais:pais,mon:mon};if(o._vok)sd0.vend=o._vok;b.set(doc(db,'stores',sid),sd0);
 b.set(doc(db,'stores',sid,'members',U.uid),{role:'admin',email:U.email,name:nm()});
 b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
@@ -1573,7 +1581,7 @@ getDocs(collection(db,'stores')).then(function(sn){
 var ps=[];sn.forEach(function(d){var st=d.data();
 ps.push(Promise.all([getDoc(doc(db,'stores',d.id,'billing','access')),getDocs(collection(db,'stores',d.id,'members'))]).then(function(r){
 var ad=[];r[1].forEach(function(m){var x=m.data();if(x.role=='admin')ad.push(x.email||x.name||m.id)});
-return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,mon:st.mon||'ARS',pais:st.pais||'',main:st.main||'',admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null}}))});
+return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,mon:st.mon||'ARS',pais:st.pais||'',main:st.main||'',vend:st.vend||'',admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null}}))});
 return Promise.all(ps)}).then(function(l){PLL.list=l.sort(function(a,b){return a.name.localeCompare(b.name)});PLL.busy=false;syncSucursales();drawPlatLite();drawBanner()}).catch(function(e){PLL.busy=false;PLL.list=[];fail(e)})}
 function drawPlatLite(){
 if(!PLL.list){$('s-plat').innerHTML='<div class="card"><div class="empty">Cargando empresas…</div></div>';loadLite();return}
@@ -1595,6 +1603,7 @@ var h='<div class="card"><b>Empresas inscriptas ('+cnt.all+')</b><div class="k" 
 '<input id="plq" placeholder="Buscar por nombre, email o código" value="'+esc(PLQ)+'" autocomplete="off" style="margin-top:10px">'+
 '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">'+fb('all','Todas',cnt.all)+fb('trial','En prueba',cnt.trial)+fb('paid','Pagando',cnt.paid)+fb('life','Pago único',cnt.life)+fb('paused','Pausadas',cnt.paused)+fb('exp','Vencidas',cnt.exp)+fb('free','Libres',cnt.free)+'</div>'+
 '<button class="go alt" data-lt="reload">Actualizar lista</button></div>';
+h+=VD.card();
 var dl=dueList();if(dl.length)h+='<div class="card" style="border:2px solid var(--buy)"><b>⏰ Para cobrar o renovar</b><div class="k" style="margin-top:4px">Negocios que vencen en los próximos 7 días o que ya vencieron. Solo lo ves vos.</div>'+dl.map(function(r){return '<button class="pl" data-lt="find" data-f="'+esc(r.x.sid)+'"><span><b>'+esc(r.x.name)+'</b><small>'+r.t+' · '+fdate(r.u)+'</small></span><b style="color:'+(r.dias<=1?'#b3261e':'inherit')+';font-size:14px;text-align:right">'+dueTxt(r)+'</b></button>'}).join('')+'</div>';
 if(!list.length)h+='<div class="card"><div class="empty">No hay empresas en esta vista.</div></div>';
 list.forEach(function(r){var x=r.x,a=r.a,st=r.st;
@@ -1603,7 +1612,7 @@ var hj=PLL.list.filter(function(z){return z.main==x.sid}),LL=(a&&a.limits)||{},P
 var pl=a&&a.paidPlan&&(CFG.plans[a.paidPlan]||{}).name,ch=a&&a.chosenPlan&&(CFG.plans[a.chosenPlan]||{}).name,paused=r.k=='paused';
 var vto=r.k=='life'?'de por vida':st.untilMs?(st.state=='trial'?'prueba hasta ':st.state=='grace'?'gracia hasta ':'hasta ')+fdate(st.untilMs):r.k=='free'?'sin vencimiento':'';
 h+='<details class="card emp"'+(PLO[x.sid]?' open':'')+' data-sid="'+esc(x.sid)+'"><summary><span class="ems"><b>'+esc(x.name)+'</b><small>'+esc(x.admins[0]||'sin administrador')+(vto?' · '+vto:'')+(hj.length?' · '+(hj.length+1)+' sucursales':'')+'</small></span><span class="emt '+r.cls+'">'+esc(r.lbl.split(/ \(| ·/)[0])+'</span></summary><div class="k">'+esc(x.admins.join(', ')||'sin administrador')+'</div><div class="k">'+x.n+' persona(s)'+(x.created?' · creada el '+fdate(x.created):'')+' · código '+esc(x.sid)+'</div><div class="k">'+((PAISES.filter(function(p){return p[0]==x.pais})[0]||['','Argentina','🇦🇷']).slice(1).reverse().join(' '))+' · paga en '+(x.mon=='USD'?'dólares':'pesos')+(ch&&CFG.plans[a.chosenPlan]?' ('+precioPlan(CFG.plans[a.chosenPlan],x.mon)+' por mes)':'')+'</div>'+
-'<div class="rows" style="margin:8px 0 0">'+(a&&a.llave&&r.k!='life'?'<div class="r2"><span>Llave en mano</span><b style="font-size:16px">el '+fdate(a.llave.at)+(a.llave.amt?'<small style="font-weight:400">instalación '+precioMon(a.llave.amt,x.mon)+'</small>':'')+'</b></div>':'')+(r.k=='life'?'<div class="r2"><span>Licencia de por vida</span><b style="font-size:16px">desde el '+fdate(a.life.at)+(a.life.amt?'<small style="font-weight:400">pagó '+money(a.life.amt)+'</small>':'')+'</b></div>':'')+(st.untilMs&&r.k!='life'?'<div class="r2"><span>'+(st.state=='trial'?'La prueba termina':'Activa hasta')+'</span><b style="font-size:16px">'+fdate(st.untilMs)+'</b></div>':'')+(ch?'<div class="r2"><span>Plan que eligió</span><b>'+esc(ch)+'</b></div>':'')+(pl?'<div class="r2"><span>Plan pagado</span><b>'+esc(pl)+'</b></div>':'')+'</div>'+
+'<div class="rows" style="margin:8px 0 0">'+VD.fila(x)+(a&&a.llave&&r.k!='life'?'<div class="r2"><span>Llave en mano</span><b style="font-size:16px">el '+fdate(a.llave.at)+(a.llave.amt?'<small style="font-weight:400">instalación '+precioMon(a.llave.amt,x.mon)+'</small>':'')+'</b></div>':'')+(r.k=='life'?'<div class="r2"><span>Licencia de por vida</span><b style="font-size:16px">desde el '+fdate(a.life.at)+(a.life.amt?'<small style="font-weight:400">pagó '+money(a.life.amt)+'</small>':'')+'</b></div>':'')+(st.untilMs&&r.k!='life'?'<div class="r2"><span>'+(st.state=='trial'?'La prueba termina':'Activa hasta')+'</span><b style="font-size:16px">'+fdate(st.untilMs)+'</b></div>':'')+(ch?'<div class="r2"><span>Plan que eligió</span><b>'+esc(ch)+'</b></div>':'')+(pl?'<div class="r2"><span>Plan pagado</span><b>'+esc(pl)+'</b></div>':'')+'</div>'+
 (a?'<div style="margin-top:12px;padding:12px;border-radius:14px;background:var(--bg)"><b>Personas y sucursales</b><div class="k" style="margin-top:2px">El plan '+esc(Pq.name)+' trae '+(Pq.admins+Pq.empleados)+' personas. Repartilas como quiera el cliente (se suman todas las sucursales).</div>'+
 '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div><label>Admin.</label><input id="la_'+esc(x.sid)+'" type="number" min="1" inputmode="numeric" value="'+(LL.admins!=null?LL.admins:Pq.admins)+'"></div><div><label>Empleados</label><input id="le_'+esc(x.sid)+'" type="number" min="0" inputmode="numeric" value="'+(LL.empleados!=null?LL.empleados:Pq.empleados)+'"></div><div><label>Sucursales</label><input id="ls_'+esc(x.sid)+'" type="number" min="1" inputmode="numeric" value="'+(LL.sucursales!=null?LL.sucursales:Pq.sucursales)+'"></div></div>'+
 (hj.length?'<div class="k" style="margin-top:6px">Sucursales abiertas: '+hj.map(function(z){return esc(z.name)}).join(', ')+'</div>':'')+
@@ -1612,7 +1621,7 @@ h+='<details class="card emp"'+(PLO[x.sid]?' open':'')+' data-sid="'+esc(x.sid)+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+
 '<button class="go alt" data-lt="llave" data-sid="'+esc(x.sid)+'">Llave en mano: instalación + 1 mes</button>'+(r.k=='life'?'':'<button class="go alt" data-lt="life" data-sid="'+esc(x.sid)+'">Pago único: habilitar de por vida</button>')+
 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:#b3261e;border-color:#b3261e" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></details>'});
-h+=gTemaCard();var SP=$('s-plat');SP.innerHTML=h;if(!SP._emt){SP._emt=1;SP.addEventListener('toggle',function(e){var t=e.target;if(t.classList&&t.classList.contains('emp'))PLO[t.dataset.sid]=t.open},true)}var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
+h+=gTemaCard();var SP=$('s-plat');SP.innerHTML=h;if(!SP._emt){SP._emt=1;SP.addEventListener('toggle',function(e){var t=e.target;VD.toggle(e);if(t.classList&&t.classList.contains('emp'))PLO[t.dataset.sid]=t.open},true)}var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 function litBuild(base){
 var c=computeAccess({nowMs:Date.now(),config:CFG,paidPlan:base.paidPlan||null,trialStartMs:base.trialStartMs==null?null:base.trialStartMs,paidUntilMs:base.paidUntilMs==null?null:base.paidUntilMs,ownerFree:false,grants:[]});
 var lim=c.graceUntilMs!=null?c.graceUntilMs:c.activeUntilMs,LO=base.lim||null;
@@ -1621,7 +1630,7 @@ return {state:c.state,unlimited:c.unlimited,ownerFree:false,paidPlan:base.paidPl
 function litAction(a,sid,f){
 if(a=='filt'){PLF=f||'all';drawPlatLite();return}
 if(a=='find'){PLF='all';PLQ=f||'';PLO[f]=true;drawPlatLite();window.scrollTo(0,0);return}
-if(a=='reload'){PLL.list=null;drawPlatLite();return}
+if(a=='reload'){PLL.list=null;VD.recargar();drawPlatLite();return}
 var x=PLL.list.filter(function(y){return y.sid==sid})[0];if(!x)return;
 var ref=doc(db,'stores',sid,'billing','access'),old=x.acc||{},done=function(){PLL.list=null;drawPlatLite()},cp=old.chosenPlan||null;
 if(x.main){alert('"'+x.name+'" es una sucursal: su plan se maneja desde la tienda principal.');return}
@@ -1711,6 +1720,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
 if(e.target.closest&&RP.click(e))return;
+if(e.target.closest&&IS_OWNER&&VD.click(e))return;
 var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj],[data-nsuc],[data-ost],[data-cjfix],[data-famadd],[data-tr]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
@@ -1786,7 +1796,7 @@ else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.id=='sv_d'&&SVD)SVD.d=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
-document.addEventListener('change',function(e){if(RP.change(e))return;if(e.target.id=='cjv'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{cjv:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='cjon'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{caja:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+document.addEventListener('change',function(e){if(RP.change(e))return;if(IS_OWNER&&VD.change(e))return;if(e.target.id=='cjv'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{cjv:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='cjon'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{caja:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
 if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores',SID,'members',mt.dataset.mcp),{cp:mt.checked},{merge:true}).catch(function(er){mt.checked=!mt.checked;fail(er)})}
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}
