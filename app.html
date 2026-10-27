@@ -119,6 +119,7 @@ td small{color:var(--mut)}
 .emp[open]>summary:after{transform:rotate(225deg);margin-top:4px}.emp[open]>summary{padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid var(--line)}
 .ems{min-width:0;flex:1}.ems b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ems small{display:block;color:var(--mut);font-size:12.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .emp{padding:14px 16px;margin-bottom:8px}.emt{flex:none;font-size:11.5px;font-weight:800;border-radius:99px;padding:4px 9px;background:var(--line)}.emt.ok{background:#dff3e6;color:#16703c}.emt.warn{background:#fff0d6;color:#8a4b00}.emt.bad{background:#fde7e4;color:#a4271d}
+.nvl{margin-top:14px;display:flex;flex-direction:column;gap:12px}.nvi{display:flex;gap:12px;align-items:flex-start}.nvi>span{flex:none;width:40px;height:40px;border-radius:12px;background:var(--bg);display:grid;place-items:center;font-size:21px}.nvi b{display:block;font-size:15px}.nvi small{display:block;color:var(--mut);font-size:13.5px;line-height:1.4;margin-top:2px}
 /* almacén */
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .ch{border:0;border-radius:99px;padding:8px 13px;background:var(--line);color:var(--ink);font:inherit;font-size:13px;font-weight:700}
@@ -205,7 +206,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var STCREADA=0,PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop();CJ.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -218,6 +219,27 @@ adm:function(){return ROLE=='admin'},canWrite:function(){return canWrite()},on:f
 changed:function(w){if(TAB=='caja'&&biz()!='almacen'){if(ventaEnCaja()){var cd=$('cjdet');if(cd)cd.innerHTML=CJ.vista(true)}else drawCajaTab();return}if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
 function CJL(){return CS&&CS.caja===false?'Vender':'Caja'}
 function ventaEnCaja(){return biz()=='productos'||biz()=='ambos'}
+/* ---------- Novedades: aviso que se muestra una sola vez (por persona, en cada dispositivo) ---------- */
+var NOV_ID='2026-10b',NOV_DESDE=Date.UTC(2026,9,27,12,0,0);
+function novedadesLuego(){clearTimeout(novedadesLuego.t);novedadesLuego.t=setTimeout(novedades,1800)}
+function novedades(){if(!U||!ROLE||!SID||lockState())return;var k='pk_nov_'+NOV_ID+'_'+U.uid;
+try{if(localStorage.getItem(k))return}catch(e){return}
+if(STCREADA&&STCREADA>NOV_DESDE){try{localStorage.setItem(k,'1')}catch(e){}return} // tienda nueva: para ella no son novedades
+if(document.querySelector('#sdlg,#cdlg,.cjdlg,.almdlg,#novdlg'))return novedadesLuego();
+var b=biz(),A=ROLE=='admin',rop=b=='productos'||b=='ambos',it=[];
+var add=function(i,t,d){it.push('<div class="nvi"><span>'+i+'</span><div><b>'+t+'</b><small>'+d+'</small></div></div>')};
+if(rop)add('🧮','Ahora se vende desde la pestaña Caja','Es la primera pestaña: arriba abrís y cerrás la caja, y abajo cargás la venta.'+(A?' La pestaña Cargar quedó solo para cargar compras y productos.':''));
+else if(b!='almacen')add('🧮','Nueva pestaña Caja','Abrís la caja con el cambio del día, cada cobro suma solo y al cerrar se cuenta la plata.');
+add('📝','Sacar o poner plata, con motivo','Si sacás plata de la caja (un flete, el proveedor) o ponés cambio, anotalo con “Sacar / poner” y el cierre da justo.');
+add('🙈',A?'Tus empleados cuentan a ciegas':'Cerrar la caja','Al cerrar se cuenta el efectivo y se escribe el total.'+(A?' El empleado no ve cuánto debería haber: la diferencia la ves vos, y todos los cierres quedan en Resumen.':''));
+if(rop)add('📷','Escaneá el código de la caja','Con el botón de la cámara o con una pistola lectora en la compu. Cada talle puede tener su código: '+(A?'si escaneás uno nuevo, elegís de qué producto y talle es y queda guardado.':'si uno no está cargado, avisale al dueño.'));
+if(rop&&A)add('📅','Fiado en cuotas semanales','Lo fiado se divide solo en cuotas. En Fiado ves a quién le toca pagar esta semana y quién está atrasado.');
+if(A)add('🏬','Sucursales','Desde Equipo podés abrir sucursales, cada una con su stock y su caja. Los códigos de invitación ahora son de 4 letras y llevan a la sucursal donde los generes.');
+var o=document.createElement('div');o.id='novdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto';
+o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:24px;padding:22px 20px;max-width:460px;width:100%;margin:auto"><div style="font-size:34px;line-height:1">🎉</div><b style="display:block;font-size:22px;margin-top:8px">Novedades en Pekeron</b><div class="k" style="margin-top:4px">Sumamos cosas nuevas para que tengas más control de tu negocio.</div><div class="nvl">'+it.join('')+'</div><button class="go" id="novok">¡Entendido!</button></div>';
+document.body.appendChild(o);
+var fin=function(){try{localStorage.setItem(k,'1')}catch(e){}o.remove()};
+o.querySelector('#novok').onclick=fin;o.addEventListener('click',function(e){if(e.target===o)fin()})}
 function drawCajaTab(){if(ventaEnCaja()){if(MAN&&type=='v')drawAdd();else drawSell();return}var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
@@ -411,7 +433,7 @@ var MECP=false; // permiso "puede cargar productos" de este empleado (members/{u
 function openStore(sid){
 stopStore();SID=sid;ROLE=null;MECP=false;SDTRY=0;clearTimeout(SDT);M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
-un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';STMAIN=s.data().main||'';STPAIS=s.data().pais||'';if(ROLE)drawHdr()}},function(){});
+un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';STMAIN=s.data().main||'';STPAIS=s.data().pais||'';STCREADA=s.data().created||0;if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
 if(s.exists()&&s.metadata.hasPendingWrites)return;
 if(!s.exists()){if(!s.metadata.fromCache){deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}return}
@@ -437,7 +459,7 @@ if(ROLE=='admin'){
 un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=false;sn.forEach(function(d){GA.push(d.data())});redrawData()},function(){GAERR=true;redrawData()});
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},sdErr);
 un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
-gate('app');drawHdr();drawAcct();drawBanner();buildTabs()}
+gate('app');drawHdr();drawAcct();drawBanner();buildTabs();novedadesLuego()}
 function buildTabs(){
 var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('');AG.badge();
 var ok=TAB=='promo'&&ROLE=='admin'||tabs.some(function(t){return t[0]==TAB});show(ok?TAB:tabs[0][0])}
