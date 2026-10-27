@@ -214,7 +214,7 @@ function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
 function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return r.data})}
 var CLIENTES_FIADOS=[]; // clientes frecuentes de fiado: [{n: nombre, t: teléfono}]
-var CJ=createCaja({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
+var CJ=createCaja({db:db,$:$,esc:esc,money:money,today:today,cs:function(){return CS},fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 adm:function(){return ROLE=='admin'},canWrite:function(){return canWrite()},on:function(){return !!ROLE&&biz()!='almacen'&&!(CS&&CS.caja===false)},
 changed:function(w){if(TAB=='caja'&&biz()!='almacen'){if(ventaEnCaja()){var cd=$('cjdet');if(cd)cd.innerHTML=CJ.vista(true)}else drawCajaTab();return}if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
 function CJL(){return CS&&CS.caja===false?'Vender':'Caja'}
@@ -231,7 +231,7 @@ var add=function(i,t,d){it.push('<div class="nvi"><span>'+i+'</span><div><b>'+t+
 if(rop)add('🧮','Ahora se vende desde la pestaña Caja','Es la primera pestaña: arriba abrís y cerrás la caja, y abajo cargás la venta.'+(A?' La pestaña Cargar quedó solo para cargar compras y productos.':''));
 else if(b!='almacen')add('🧮','Nueva pestaña Caja','Abrís la caja con el cambio del día, cada cobro suma solo y al cerrar se cuenta la plata.');
 add('📝','Sacar o poner plata, con motivo','Si sacás plata de la caja (un flete, el proveedor) o ponés cambio, anotalo con “Sacar / poner” y el cierre da justo.');
-add('🙈',A?'Tus empleados cuentan a ciegas':'Cerrar la caja','Al cerrar se cuenta el efectivo y se escribe el total.'+(A?' El empleado no ve cuánto debería haber: la diferencia la ves vos, y todos los cierres quedan en Resumen.':''));
+add('🔁',A?'Control entre turnos':'Abrir y cerrar la caja',A?'El que abre la caja cuenta la plata sin saber cuánto dejó el anterior. Si no coincide, te queda marcado con los dos nombres. Los cierres los podés corregir solo vos.':'Al abrir contás la plata que hay y al cerrar contás el efectivo: lo que contás es lo que recibe el próximo turno.');
 if(rop)add('📷','Escaneá el código de la caja','Con el botón de la cámara o con una pistola lectora en la compu. Cada talle puede tener su código: '+(A?'si escaneás uno nuevo, elegís de qué producto y talle es y queda guardado.':'si uno no está cargado, avisale al dueño.'));
 if(rop&&A)add('📅','Fiado en cuotas semanales','Lo fiado se divide solo en cuotas. En Fiado ves a quién le toca pagar esta semana y quién está atrasado.');
 if(A)add('🏬','Sucursales','Desde Equipo podés abrir sucursales, cada una con su stock y su caja. Los códigos de invitación ahora son de 4 letras y llevan a la sucursal donde los generes.');
@@ -1241,9 +1241,10 @@ bt.commit().then(function(){newSvd();drawSvc()}).catch(fail);return}
 if(a=='cfg'){var num=function(i){var v=+$(i).value;return isNaN(v)?0:v},cm={};
 Array.prototype.forEach.call(document.querySelectorAll('#s-svc .cf-u'),function(e){cm[e.dataset.uid]=e.value===''?deleteField():Math.max(0,Math.min(100,+e.value||0))});
 setDoc(doc(db,'stores',SID,'cfg','servicios'),{pay:{ef:num('cf_ef'),tr:num('cf_tr'),tj:num('cf_tj')},commDefault:Math.max(0,Math.min(100,num('cf_cd'))),comm:cm},{merge:true}).then(function(){alert('Guardado.')}).catch(fail)}}
-function cajaCfgCard(){if(biz()=='almacen')return '';var on=!(CS&&CS.caja===false);
+function cajaCfgCard(){if(biz()=='almacen')return '<div class="card"><b>Cierre de caja</b><label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-weight:600"><input type="checkbox" id="cjv" style="width:auto;margin-top:3px"'+(CS&&CS.cjv===false?'':' checked')+'><span>Los empleados ven cuánto debería haber<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Así controlan su caja mientras trabajan y al cerrar. Si lo desactivás, cuentan a ciegas (no ven el monto esperado): la diferencia la ves solo vos. Un cierre ya hecho lo podés corregir solo vos.</small></span></label></div>';var on=!(CS&&CS.caja===false);
 return '<div class="card"><b>Cierre de caja</b><div class="k" style="margin:4px 0 0">Abrís la caja con el efectivo del día, cada '+(biz()=='servicios'?'cobro':'venta')+' suma según cómo pagó, y al cerrar contás la plata y ves si falta o sobra. Los cierres quedan en el Resumen.</div>'+
-'<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" id="cjon" style="width:auto"'+(on?' checked':'')+'> Usar cierre de caja</label></div>'}
+'<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" id="cjon" style="width:auto"'+(on?' checked':'')+'> Usar cierre de caja</label>'+
+(on?'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-weight:600"><input type="checkbox" id="cjv" style="width:auto;margin-top:3px"'+(CS&&CS.cjv===false?'':' checked')+'><span>Los empleados ven cuánto debería haber<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Así controlan su caja mientras trabajan y al cerrar. Si lo desactivás, cuentan a ciegas (no ven el monto esperado): la diferencia la ves solo vos. Un cierre ya hecho lo podés corregir solo vos.</small></span></label>':'')+'</div>'}
 function bizCard(){
 return '<div class="card" id="bzc"><b>Tipo de negocio</b><div class="k" style="margin:4px 0 0">Elegí qué tipo de negocio es. Los datos que ya cargaste se conservan.</div>'+tipoGrid(tipoActual(),biz()=='ambos')+
 '<button class="go alt" data-bz="save">Guardar</button></div>'}
@@ -1661,7 +1662,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj],[data-nsuc],[data-ost]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj],[data-nsuc],[data-ost],[data-cjfix]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -1690,6 +1691,7 @@ if(d.cat){catAction(d.cat,d.i);return}
 if(d.svx){svcAction(d.svx,d.i,d.id);return}
 if(d.adel){delAtt(d.adel);return}
 if(d.stema!==undefined){var T0=d.stema&&TEMAS[d.stema];if(T0&&temaActivo(PUB,Date.now())&&!confirm('¿Cambiar al tema '+T0.nombre+'?'))return;setTema(d.stema);return}
+if(d.cjfix){CJ.action('fix',d.cjfix);return}
 if(d.cj){CJ.action(d.cj,d.id);return}
 var sc0=e.target.closest&&e.target.closest('[data-al="rscan"],[data-al="cscan"]');if(sc0)d={al:sc0.dataset.al};
 if(d.al=='rscan'){openScanner({title:'Escaneá el código de la caja o etiqueta',onCode:function(c){var ok=stByCode(c)||stBySku(c).length;setTimeout(function(){ropaCodigo(c)},50);return {ok:true,close:true,msg:ok?'¡Listo!':'Código nuevo'}}});return}
@@ -1733,7 +1735,7 @@ else if(t.id=='sv_p'&&SVD)SVD.p=t.value;
 else if(t.id=='sv_d'&&SVD)SVD.d=t.value;
 else if(t.classList.contains('svi-q')&&SVD&&SVD.ins[+t.dataset.i])SVD.ins[+t.dataset.i].q=t.value;
 else if(t.classList.contains('ez-q')&&ESZ[+t.dataset.i]){ESZ[+t.dataset.i].q=t.value;sumEd()}});
-document.addEventListener('change',function(e){if(e.target.id=='cjon'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{caja:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
+document.addEventListener('change',function(e){if(e.target.id=='cjv'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{cjv:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='cjon'){setDoc(doc(db,'stores',SID,'cfg','servicios'),{caja:e.target.checked},{merge:true}).catch(fail);return}if(e.target.id=='bz'&&$('bzrw'))$('bzrw').hidden=['productos','ambos'].indexOf(e.target.value)<0;if(e.target.classList&&e.target.classList.contains('svi-s')&&SVD&&SVD.ins[+e.target.dataset.i])SVD.ins[+e.target.dataset.i].id=e.target.value;
 if(e.target.dataset&&e.target.dataset.mcp){var mt=e.target;setDoc(doc(db,'stores',SID,'members',mt.dataset.mcp),{cp:mt.checked},{merge:true}).catch(function(er){mt.checked=!mt.checked;fail(er)})}
 if(e.target.id=='sv_dur'&&SVD)SVD.dur=+e.target.value;
 if(e.target.id=='cat_pt'){var fp=e.target.files&&e.target.files[0];if(fp)savePt(fp)}

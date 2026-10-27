@@ -109,6 +109,13 @@ export function createAlmacen(X) {
   const hm = (ms) => { const d = new Date(ms || 0); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* nada */ } };
+  // ¿El empleado ve cuánto debería haber? (Equipo > Cierre de caja). El dueño siempre lo ve.
+  const veEsp = () => adm() || !(X.cs && X.cs() && X.cs().cjv === false);
+  function ultimoCierre() {
+    const m = X.today().slice(0, 7), d = new Date(+m.slice(0, 4), +m.slice(5) - 2, 1), m0 = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const q = (mm) => getDocs(query(col('cajas'), where('m', '==', mm))).then((sn) => { let u = null; sn.forEach((x) => { const c = x.data(); if (c.st === 'closed' && (!u || (c.ci || 0) > (u.ci || 0))) u = c; }); return u; });
+    return q(m).then((u) => u || q(m0)).catch(() => null);
+  }
   function listenCaja() {
     if (un.caja) return;
     un.caja = onSnapshot(query(col('cajas'), where('st', '==', 'open')), (sn) => {
@@ -132,22 +139,32 @@ export function createAlmacen(X) {
       return;
     }
     e.innerHTML = '<div class="card" style="padding:12px 16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>🟢 Caja abierta</b><small style="display:block;color:var(--mut)">desde las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' · ' + esc(c.bn || '') + '</small></span>' +
-      (adm() ? '<span style="text-align:right"><small style="display:block;color:var(--mut)">Efectivo en caja</small><b style="font-size:20px">' + money(esperado(c)) + '</b></span>' : '<span style="text-align:right"><small style="display:block;color:var(--mut)">Ventas</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
+      (veEsp() ? '<span style="text-align:right"><small style="display:block;color:var(--mut)">Efectivo en caja</small><b style="font-size:20px">' + money(esperado(c)) + '</b></span>' : '<span style="text-align:right"><small style="display:block;color:var(--mut)">Ventas</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="go alt" data-al="cjmov" style="margin:0">Sacar / poner</button><button class="go" data-al="cjclose" style="margin:0">Cerrar caja</button></div></div>';
   }
   function cajaOpen() {
     if (!X.canWrite()) { alert('El acceso de la tienda venció.'); return; }
     if (S.caja) { renderCajaBar(); return; }
-    const last = lsGet('pk_deja_' + X.sid()) || '';
+    const A0 = adm(), last = A0 ? (lsGet('pk_deja_' + X.sid()) || '') : '';
     const o = modal('<b style="font-size:19px">Abrir caja</b><div class="k" style="margin-top:4px">Contá el efectivo con el que arrancás (el cambio que quedó en el cajón).</div>' +
-      '<label>Efectivo inicial</label><input id="cji" type="number" inputmode="decimal" min="0" placeholder="0" value="' + esc(last) + '">' +
+      '<div id="cjprev" class="k" style="margin-top:8px"></div>' +
+      '<label>Efectivo inicial</label><input id="cji" type="number" inputmode="decimal" min="0" placeholder="0" value="' + esc(last) + '"><div id="cjpd" style="margin-top:6px;font-size:14px"></div>' +
       '<button class="go" id="cjok">Abrir caja</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
     const i = o.querySelector('#cji');
+    let prev = null, prevBn = '';
+    const pd = () => { const e = o.querySelector('#cjpd'); if (!e) return; if (prev == null || i.value === '') { e.innerHTML = ''; return; } const df = Math.round(+i.value || 0) - prev; e.innerHTML = df === 0 ? '<b style="color:#1a8f4c">Coincide con lo que quedó ✓</b>' : df < 0 ? '<b style="color:#b3261e">Faltan ' + money(-df) + ' respecto de lo que quedó</b>' : '<b style="color:var(--sell)">Hay ' + money(df) + ' más de lo que quedó</b>'; };
+    i.oninput = pd;
+    ultimoCierre().then((u) => { if (!u || !o.isConnected) return; prev = Math.round(u.deja != null ? u.deja : (u.cnt || 0)); prevBn = u.cbn || u.bn || '';
+      if (!A0) { o.querySelector('#cjprev').innerHTML = 'Contá la plata de la caja y escribí el total. La app lo compara sola con lo que dejó el turno anterior.'; return; }
+      o.querySelector('#cjprev').innerHTML = 'En el último cierre (' + dmy(u.d) + ', ' + esc(u.cbn || u.bn || '') + ') quedaron <b>' + money(prev) + '</b> en la caja.';
+      if (!last) i.value = prev; pd(); });
     const ok = () => {
       const ini = Math.round(+i.value || 0);
       if (ini < 0) { alert('El monto no puede ser negativo.'); return; }
-      const id = uid(), u = X.user(), d = X.today();
-      setDoc(ref('cajas', id), { id, d, m: d.slice(0, 7), ab: Date.now(), by: u.uid, bn: X.nm(), ini, st: 'open', n: 0, v: 0, p: {}, c: {}, ing: 0, ret: 0 }).catch(failW);
+      const id = uid(), u = X.user(), d = X.today(), o0 = { id, d, m: d.slice(0, 7), ab: Date.now(), by: u.uid, bn: X.nm(), ini, st: 'open', n: 0, v: 0, p: {}, c: {}, ing: 0, ret: 0 };
+      if (prev != null) { o0.prev = prev; o0.prevBn = prevBn; }
+      setDoc(ref('cajas', id), o0).catch(failW);
+      if (!A0 && prev != null && ini !== prev) setTimeout(() => alert('Lo que contaste no coincide con lo que dejó el turno anterior' + (prevBn ? ' (' + prevBn + ')' : '') + '. Quedó registrado y el dueño lo va a ver. Si querés, avisale ahora al encargado.'), 100);
       o.remove();
     };
     o.querySelector('#cjok').onclick = ok; i.onkeydown = (e) => { if (e.key === 'Enter') ok(); };
@@ -174,7 +191,7 @@ export function createAlmacen(X) {
   }
   function cajaRows(c) {
     const p = c.p || {}, cb = c.c || {}, r = (t, v, cls) => '<div class="r2"><span>' + t + '</span><b class="' + (cls || '') + '" style="font-size:16px">' + v + '</b></div>';
-    let h = '<div class="rows" style="margin:10px 0 0">' + r('Efectivo inicial', money(c.ini || 0)) + r('Ventas en efectivo', '+ ' + money(p.ef || 0)) +
+    let h = '<div class="rows" style="margin:10px 0 0">' + (c.prev != null && c.prev !== c.ini ? r((c.prevBn ? esc(c.prevBn) + ' dejó' : 'Quedó en el cierre anterior') + '<small style="color:#b3261e">' + esc(c.bn || '') + ' contó ' + money(c.ini || 0) + ' al abrir: ' + (c.ini < c.prev ? 'faltan ' + money(c.prev - c.ini) : 'sobran ' + money(c.ini - c.prev)) + ' entre turnos</small>', money(c.prev)) : '') + r('Efectivo inicial' + (c.prev != null && c.prev !== c.ini ? '<small style="color:' + (c.ini < c.prev ? '#b3261e' : 'var(--sell)') + '">' + (c.ini < c.prev ? 'abrió con ' + money(c.prev - c.ini) + ' menos' : 'abrió con ' + money(c.ini - c.prev) + ' más') + '</small>' : ''), money(c.ini || 0)) + r('Ventas en efectivo', '+ ' + money(p.ef || 0)) +
       (cb.ef ? r('Cobros de fiado en efectivo', '+ ' + money(cb.ef)) : '') + (c.ing ? r('Puse plata', '+ ' + money(c.ing)) : '') + (c.ret ? r('Saqué plata', '<span style="color:#b3261e">− ' + money(c.ret) + '</span>') : '') +
       '<div class="r2" style="border-top:2px solid var(--line);padding-top:8px"><span><b>Debería haber</b></span><b style="font-size:20px">' + money(esperado(c)) + '</b></div></div>';
     const otros = ['tr', 'tj', 'qr', 'fi'].filter((k) => (p[k] || 0) || (cb[k] || 0));
@@ -186,19 +203,19 @@ export function createAlmacen(X) {
   const difHtml = (d) => d === 0 ? '<b style="color:#1a8f4c">Justo ✓</b>' : d < 0 ? '<b style="color:#b3261e">Faltan ' + money(-d) + '</b>' : '<b style="color:var(--sell)">Sobran ' + money(d) + '</b>';
   function cajaClose() {
     const c = S.caja; if (!c) return;
-    const A = adm(), esp = esperado(c);
+    const A = veEsp(), esp = esperado(c);
     const o = modal('<b style="font-size:19px">Cerrar caja</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' por ' + esc(c.bn || '') + ' · ' + (c.n || 0) + ' venta' + (c.n === 1 ? '' : 's') + ' por ' + money(c.v || 0) + '</div>' +
       (A ? cajaRows(c) : '<div class="k" style="margin-top:10px">Contá todo el efectivo del cajón (billetes y monedas) y escribí el total.</div>') +
       '<label>¿Cuánto efectivo contaste?</label><input id="ccn" type="number" inputmode="decimal" min="0" placeholder="0"><div id="ccd" style="margin-top:8px;font-size:18px"></div>' +
-      '<label>¿Cuánto dejás en la caja para el próximo turno? (opcional)</label><input id="ccj" type="number" inputmode="decimal" min="0" placeholder="0">' +
+      '<div class="k" style="margin-top:6px">Lo que contás es lo que queda en la caja y lo recibe el próximo turno. Si el dueño se lleva la recaudación, anotala antes con “Sacar / poner”.</div>' +
       '<label>Nota (opcional)</label><input id="ccx" maxlength="120" autocomplete="off" placeholder="Ej: di mal un vuelto">' +
       '<button class="go" id="ccok">Cerrar caja</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
     const cn = o.querySelector('#ccn');
     if (A) cn.oninput = () => { o.querySelector('#ccd').innerHTML = cn.value === '' ? '' : difHtml(Math.round(+cn.value) - esp); };
     o.querySelector('#ccok').onclick = () => {
       if (cn.value === '') { alert('Escribí cuánto efectivo contaste (si no hay nada, poné 0).'); cn.focus(); return; }
-      const cnt = Math.round(+cn.value || 0), deja = Math.round(+o.querySelector('#ccj').value || 0), nota = o.querySelector('#ccx').value.trim().slice(0, 120), u = X.user();
-      if (cnt < 0 || deja < 0) { alert('Los montos no pueden ser negativos.'); return; }
+      const cnt = Math.round(+cn.value || 0), deja = cnt, nota = o.querySelector('#ccx').value.trim().slice(0, 120), u = X.user();
+      if (cnt < 0) { alert('El monto no puede ser negativo.'); return; }
       const fin = { st: 'closed', ci: Date.now(), cb: u.uid, cbn: X.nm(), cnt, esp, dif: cnt - esp, deja, nota };
       setDoc(ref('cajas', c.id), fin, { merge: true }).catch(failW);
       lsSet('pk_deja_' + X.sid(), String(deja || ''));
@@ -215,17 +232,31 @@ export function createAlmacen(X) {
     if (c.ret) l.push('Saqué plata: ' + money(c.ret));
     l.push('Debería haber: ' + money(c.esp != null ? c.esp : esperado(c)), 'Contado: ' + money(c.cnt || 0), (c.dif === 0 ? 'Diferencia: justo ✓' : c.dif < 0 ? 'Faltan: ' + money(-c.dif) : 'Sobran: ' + money(c.dif)));
     ['tr', 'tj', 'qr', 'fi'].forEach((k) => { const v = (p[k] || 0) + (cb[k] || 0); if (v) l.push(PAY[k] + ': ' + money(v)); });
-    if (c.deja) l.push('Queda en caja para el próximo turno: ' + money(c.deja));
+    if (c.cnt != null) l.push('Queda en la caja para el próximo turno: ' + money(c.deja != null ? c.deja : c.cnt));
     if (c.nota) l.push('Nota: ' + c.nota);
     return l.join('\n');
   }
   function cajaVer(c, recien) {
     const o = modal('<b style="font-size:19px">' + (recien ? 'Caja cerrada ✓' : 'Cierre de caja del ' + dmy(c.d)) + '</b><div class="k" style="margin-top:4px">' + hm(c.ab) + ' a ' + (c.ci ? hm(c.ci) : '…') + ' · abrió ' + esc(c.bn || '') + (c.cbn && c.cbn !== c.bn ? ' · cerró ' + esc(c.cbn) : '') + ' · ' + (c.n || 0) + ' ventas por ' + money(c.v || 0) + '</div>' +
       '<div style="margin:14px 0 0;padding:14px 16px;border-radius:16px;background:var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px"><span>Contado <b>' + money(c.cnt || 0) + '</b></span><span style="font-size:20px">' + difHtml(c.dif || 0) + '</span></div>' +
-      cajaRows(c) + (c.deja ? '<div class="k" style="margin-top:10px">Queda en caja para el próximo turno: <b>' + money(c.deja) + '</b></div>' : '') + (c.nota ? '<div class="k" style="margin-top:6px">Nota: ' + esc(c.nota) + '</div>' : '') +
+      (c.corr ? '<div class="k" style="margin-top:8px">Corregido por ' + esc(c.corr.bn || '') + ' (antes: contado ' + money(c.corr.cnt0 || 0) + ')</div>' : '') +
+      (veEsp() ? cajaRows(c) : '') + (c.st === 'closed' && c.deja != null && c.deja !== c.cnt ? '<div class="k" style="margin-top:10px">Quedó en la caja para el próximo turno: <b>' + money(c.deja) + '</b></div>' : '') + (c.nota ? '<div class="k" style="margin-top:6px">Nota: ' + esc(c.nota) + '</div>' : '') +
       '<a class="go" style="display:block;text-align:center;text-decoration:none;margin-top:14px" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(cajaTxt(c)) + '">Mandar el resumen por WhatsApp</a>' +
+      (adm() && c.st === 'closed' ? '<button class="go alt" data-al="cjfix" data-id="' + esc(c.id) + '">Corregir este cierre</button>' : '') +
       '<button class="go alt" data-close="1">Listo</button>');
     return o;
+  }
+  function cajaFix(c) {
+    const o = modal('<b style="font-size:19px">Corregir cierre del ' + dmy(c.d) + '</b><div class="k" style="margin-top:4px">Debería haber ' + money(c.esp || 0) + '. Se contaron ' + money(c.cnt || 0) + '. Queda registrado que lo corregiste.</div>' +
+      '<label>Efectivo contado</label><input id="cfc" type="number" inputmode="decimal" min="0" value="' + (c.cnt || 0) + '">' +
+      '<label>Nota</label><input id="cfn" maxlength="120" autocomplete="off" value="' + esc(c.nota || '') + '" placeholder="Ej: apareció la plata del flete">' +
+      '<button class="go" id="cfok">Guardar corrección</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    o.querySelector('#cfok').onclick = () => {
+      const cnt = Math.round(+o.querySelector('#cfc').value || 0), nota = o.querySelector('#cfn').value.trim().slice(0, 120);
+      if (cnt < 0) { alert('El monto no puede ser negativo.'); return; }
+      setDoc(ref('cajas', c.id), { cnt, deja: cnt, dif: cnt - (c.esp || 0), nota, corr: { at: Date.now(), bn: X.nm(), cnt0: c.cnt || 0 } }, { merge: true }).catch(failW);
+      o.remove();
+    };
   }
   function cajasCard() {
     if (S.cajasM == null) return '';
@@ -234,7 +265,7 @@ export function createAlmacen(X) {
     if (!l.length) return h + '<div class="k" style="margin-top:6px">Todavía no hay cierres este mes. Se abre y se cierra la caja desde la Caja.</div></div>';
     let fal = 0; l.forEach((c) => { if (c.st === 'closed' && c.dif < 0) fal += -c.dif; });
     if (fal) h += '<div class="k" style="margin-top:4px">En el mes faltaron <b style="color:#b3261e">' + money(fal) + '</b> en total.</div>';
-    h += l.slice(0, 40).map((c) => '<button class="pl" data-al="cjver" data-id="' + esc(c.id) + '"><span><b>' + dmy(c.d) + ' · ' + hm(c.ab) + (c.ci ? '–' + hm(c.ci) : '') + '</b><small>' + esc(c.cbn || c.bn || '') + ' · ' + (c.n || 0) + ' ventas · ' + money(c.v || 0) + '</small></span>' +
+    h += l.slice(0, 40).map((c) => '<button class="pl" data-al="cjver" data-id="' + esc(c.id) + '"><span><b>' + dmy(c.d) + ' · ' + hm(c.ab) + (c.ci ? '–' + hm(c.ci) : '') + '</b><small>' + esc(c.cbn || c.bn || '') + ' · ' + (c.n || 0) + ' ventas · ' + money(c.v || 0) + (c.prev != null && c.prev !== c.ini ? '<span style="display:block;color:#b3261e">⚠️ Al abrir ' + (c.ini < c.prev ? 'faltaban ' : 'sobraban ') + money(Math.abs(c.ini - c.prev)) + ' de lo que dejó ' + esc(c.prevBn || 'el turno anterior') + '</span>' : '') + '</small></span>' +
       (c.st === 'open' ? '<b style="color:#1a8f4c">Abierta</b>' : difHtml(c.dif || 0)) + '</button>').join('');
     return h + '</div>';
   }
@@ -1366,6 +1397,7 @@ export function createAlmacen(X) {
     else if (a === 'demodel') { const ids = P().filter((p) => p.demo).map((p) => p.id); if (ids.length && confirm('¿Borrar los ' + ids.length + ' productos de ejemplo?')) borrarDemo({ db, sid: X.sid(), ids }).catch(failW); }
     else if (a === 'cjmov') cajaMov();
     else if (a === 'cjclose') cajaClose();
+    else if (a === 'cjfix') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { document.querySelectorAll('.almdlg').forEach((e) => e.remove()); cajaFix(c); } }
     else if (a === 'cjver') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { if (c.st === 'open') cajaClose(); else cajaVer(c); } }
     else if (a === 'delv') delVenta(id);
     else if (a === 'newcli') cliDlg(null, !!el.dataset.pick);
