@@ -68,6 +68,20 @@ service cloud.firestore {
       allow read, write: if signedIn() && request.auth.uid == uid;
     }
 
+    // Códigos de invitación cortos (4 caracteres): llevan a una tienda o sucursal puntual.
+    // Se consultan de a uno (sabiendo el código), no se pueden listar. Los crea y borra un administrador de esa tienda.
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && code.matches('^[A-Z0-9]{4}$')
+        && request.resource.data.keys().hasOnly(['sid', 'iid', 'role', 'created', 'exp'])
+        && request.resource.data.role in ['admin', 'empleado']
+        && isAdmin(request.resource.data.sid)
+        && getAfter(/databases/$(database)/documents/stores/$(request.resource.data.sid)/invites/$(request.resource.data.iid)).data.role == request.resource.data.role;
+      allow delete: if signedIn() && isAdmin(resource.data.sid);
+    }
+
     // Marca de propietario: cada persona solo puede consultar SU documento. Nadie lo escribe desde la app.
     match /platform_owners/{uid} {
       allow get: if signedIn() && request.auth.uid == uid;
