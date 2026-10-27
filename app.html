@@ -199,7 +199,7 @@ if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Fa
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
-var STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
+var CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop();CJ.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
@@ -314,10 +314,10 @@ b.set(doc(db,'stores',sid),{name:n,owner:U.uid,created:Date.now(),pais:pais,mon:
 b.set(doc(db,'stores',sid,'members',U.uid),{role:'admin',email:U.email,name:nm()});
 b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
-try{localStorage.setItem('cv_sid',sid)}catch(e){}
-b.commit().then(function(){o.remove();
-var c0=TC;if(Object.keys(c0).length)setDoc(doc(db,'stores',sid,'cfg','servicios'),c0,{merge:true}).catch(function(){});
-alert('¡Listo! Tu tienda ya está creada.');}).catch(function(e){$('sn_ok').disabled=false;fail(e)});return}
+CREATING=sid;$('sn_ok').textContent='Creando tu tienda…';
+b.commit().then(function(){return setDoc(doc(db,'stores',sid,'cfg','servicios'),TC,{merge:true}).catch(function(){})}).then(function(){o.remove();CREATING=null;
+try{localStorage.setItem('cv_sid',sid)}catch(e){}openStore(sid);
+alert('¡Listo! Tu tienda ya está creada.');}).catch(function(e){CREATING=null;$('sn_ok').disabled=false;$('sn_ok').textContent='Crear mi tienda';fail(e)});return}
 callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz,pais:pais}).then(function(r){o.remove();
 if(r.sid)setDoc(doc(db,'stores',r.sid,'cfg','servicios'),TC,{merge:true}).catch(function(){});
 try{localStorage.setItem('cv_sid',r.sid)}catch(e){}
@@ -346,7 +346,7 @@ IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owner
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
 un.stores=onSnapshot(collection(db,'users',u.uid,'stores'),function(sn){
-STORES=[];sn.forEach(function(d){STORES.push({id:d.id,name:d.data().name||'Tienda'})});
+STORES=[];sn.forEach(function(d){if(d.id!=CREATING)STORES.push({id:d.id,name:d.data().name||'Tienda'})});
 var has=function(i){return STORES.some(function(s){return s.id==i})};
 var sv=null;try{sv=localStorage.getItem('cv_sid')}catch(e){}
 var pick=has(sv)?sv:(has(SID)?SID:(STORES[0]&&STORES[0].id));
@@ -356,10 +356,11 @@ if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;gate('nostore')}
 
 var MECP=false; // permiso "puede cargar productos" de este empleado (members/{uid}.cp)
 function openStore(sid){
-stopStore();SID=sid;ROLE=null;MECP=false;M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
+stopStore();SID=sid;ROLE=null;MECP=false;SDTRY=0;clearTimeout(SDT);M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
+if(s.exists()&&s.metadata.hasPendingWrites)return;
 if(!s.exists()){if(!s.metadata.fromCache){deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}return}
 var r=s.data().role,cp=!!s.data().cp,chg=cp!=MECP;MECP=cp;if(r!=ROLE){ROLE=r;startData()}else if(chg&&biz()=='almacen'){ALM.resetView();ALM.redraw()}},function(){})}
 
@@ -369,18 +370,19 @@ if(isAgBiz())AG.start();else AG.stop();
 if(biz()=='almacen'){stop('movs');M=[];ALM.start();return}
 ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
+function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo})});if(biz()=='almacen')ALM.publishSoon();redrawData()},function(){});
-un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(){syncBiz()});
-un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},function(){});
+un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo})});if(biz()=='almacen')ALM.publishSoon();redrawData()},sdErr);
+un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz();CS=sn.exists()?sn.data():null;syncBiz();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
+un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
-un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(){ACC=null;drawBanner()});
+un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(e){ACC=null;drawBanner();sdErr(e)});
 un.prm=onSnapshot(doc(db,'stores',SID,'public','promos'),function(sn){PRM=(sn.exists()&&sn.data().list)||[];if(TAB=='promo'&&!PRO.editing())PRO.draw();else if(TAB=='team')drawTeam();else redrawData()},function(){PRM=[]});
 un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();autoActivateTema();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
 if(ROLE=='admin'){
 un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=false;sn.forEach(function(d){GA.push(d.data())});redrawData()},function(){GAERR=true;redrawData()});
-un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},function(){});
+un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},sdErr);
 un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
 gate('app');drawHdr();drawAcct();drawBanner();buildTabs()}
 function buildTabs(){
