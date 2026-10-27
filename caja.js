@@ -187,10 +187,11 @@ export function createCaja(X) {
     else if (a === 'ver') { const c = (S.mes || []).find((x) => x.id === id); if (c) ver(c); }
   }
   // Pestaña Caja (ropa, servicios): barra para abrir/cerrar, detalle de la caja abierta e historial del mes (admin).
-  function vista() {
-    if (!enUso()) return '<div class="card"><div class="empty">El cierre de caja está desactivado. Se activa en Equipo.</div></div>';
+  // det = true: solo el detalle (debajo del formulario de venta en ropa/productos), sin la barra.
+  function vista(det) {
+    if (!enUso()) return det ? '' : '<div class="card"><div class="empty">El cierre de caja está desactivado. Se activa en Equipo.</div></div>';
     const c = S.caja, A = X.adm();
-    let h = bar();
+    let h = det ? '' : bar();
     if (c) {
       const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(b.h).localeCompare(String(a.h)));
       h += '<div class="card"><b>Caja de hoy</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' por ' + esc(c.bn || '') + ' · ' + ventasTxt(c) + '</div>' +

@@ -215,8 +215,10 @@ function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return 
 var CLIENTES_FIADOS=[]; // clientes frecuentes de fiado: [{n: nombre, t: teléfono}]
 var CJ=createCaja({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 adm:function(){return ROLE=='admin'},canWrite:function(){return canWrite()},on:function(){return !!ROLE&&biz()!='almacen'&&!(CS&&CS.caja===false)},
-changed:function(w){if(TAB=='caja'&&biz()!='almacen'){drawCajaTab();return}if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
-function drawCajaTab(){var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
+changed:function(w){if(TAB=='caja'&&biz()!='almacen'){if(ventaEnCaja()){var cd=$('cjdet');if(cd)cd.innerHTML=CJ.vista(true)}else drawCajaTab();return}if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
+function CJL(){return CS&&CS.caja===false?'Vender':'Caja'}
+function ventaEnCaja(){return biz()=='productos'||biz()=='ambos'}
+function drawCajaTab(){if(ventaEnCaja()){if(MAN&&type=='v')drawAdd();else drawSell();return}var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
@@ -548,11 +550,11 @@ var PAYN={ef:'Efectivo',tr:'Transferencia',tj:'Tarjeta'};
 function tabsFor(){var b=biz(),t;
 if(b=='almacen')t=ROLE=='admin'?[['caja','Caja'],['fia','Fiado'],['stk','Stock'],['res','Resumen'],['gas','Gastos'],['team','Equipo']]:[['caja','Caja'],['fia','Fiado'],['stk','Stock']];
 else if(ROLE=='admin'){
-if(b=='productos')t=[['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
+if(b=='productos')t=[['caja',CJL()],['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
 else if(b=='servicios')t=[['agd','Agenda'],['att','Atender'],['res','Resumen'],['add','Compras'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
-else t=[['agd','Agenda'],['att','Atender'],['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']]}
-else t=b=='productos'?[['sell','Vender'],['fia','Fiado'],['stk','Stock']]:b=='servicios'?[['agd','Agenda'],['att','Atender'],['fia','Fiado'],['stk','Stock']]:[['agd','Agenda'],['att','Atender'],['sell','Vender'],['fia','Fiado'],['stk','Stock']];
-if(b!='almacen'&&!(CS&&CS.caja===false)){var ip=0;t.forEach(function(x,i){if(['add','sell','att'].indexOf(x[0])>=0)ip=i+1});t.splice(ip,0,['caja','Caja'])}
+else t=[['agd','Agenda'],['att','Atender'],['caja',CJL()],['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']]}
+else t=b=='productos'?[['caja',CJL()],['fia','Fiado'],['stk','Stock']]:b=='servicios'?[['agd','Agenda'],['att','Atender'],['fia','Fiado'],['stk','Stock']]:[['agd','Agenda'],['att','Atender'],['caja',CJL()],['fia','Fiado'],['stk','Stock']];
+if(b=='servicios'&&!(CS&&CS.caja===false)){var ip=0;t.forEach(function(x,i){if(x[0]=='att')ip=i+1});t.splice(ip,0,['caja','Caja'])}
 if(IS_OWNER)t.push(['plat','Empresas']);return t}
 function show(t){if(t=='promo'&&TAB!='promo')PREVTAB=TAB;TAB=t;Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.t==t)});
 ['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd'].forEach(function(i){$('s-'+i).hidden=i!=t});
@@ -560,7 +562,8 @@ if(lockState()){drawLock();return}
 if(t=='agd'){AG.draw();return}
 if(t=='promo'){window.scrollTo(0,0);PRO.draw();return}
 if(t=='fia'&&biz()!='almacen'){drawFia();return}
-if(t=='caja'&&biz()!='almacen'){drawCajaTab();return}
+if(t=='caja'&&biz()!='almacen'){if(ventaEnCaja()){type='v';MAN=false}drawCajaTab();return}
+if(t=='add'&&ventaEnCaja()){type='c';MAN=false}
 if(biz()=='almacen'&&['caja','fia','stk','res'].indexOf(t)>=0){ALM.redraw();return}
 if(t=='add')drawAdd();else if(t=='sell')drawSell();else if(t=='att')drawAtt();else if(t=='svc')drawSvc();else if(t=='plat')drawPlat();else redrawData()}
 function redrawData(){
@@ -568,6 +571,7 @@ if(biz()=='productos'||biz()=='ambos')applyEx();
 if(ROLE=='admin'&&isAgBiz())AG.publishSoon();
 if(TAB=='agd'){if(!AG.editing())AG.draw();return}
 if(biz()=='almacen'&&['caja','fia','stk','res'].indexOf(TAB)>=0){ALM.redraw();return}
+if(TAB=='caja'&&ventaEnCaja()){if($('es'))refreshSell();else if(!(MAN&&type=='v'))drawSell();return}
 if(ROLE=='admin'){if(TAB=='att')drawAtt();else if(TAB=='svc'){var fa=document.activeElement;if(!(fa&&fa.closest&&fa.closest('#s-svc')&&/INPUT|SELECT|TEXTAREA/.test(fa.tagName)))drawSvc()}else if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='gas')drawGas();else if(TAB=='add'){if($('es'))refreshSell();else if($('prods'))fillList()}}
 else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
 
@@ -682,11 +686,12 @@ function fillList(){var dl='',n=names(),seen={};for(var k in n){var kk=key(n[k])
 
 /* ---------- Cargar (administrador) ---------- */
 function drawAdd(){
-if(!canWrite()){$('s-add').innerHTML=blockedCard();return}
+var ABX=(ventaEnCaja()&&type=='v')?$('s-caja'):$('s-add');
+if(!canWrite()){ABX.innerHTML=blockedCard();return}
 SZ=[];SZON=false;
 if(biz()=='servicios')type='c';
 if(type=='v'&&!MAN&&ST.length){drawSell();return}
-$('s-add').innerHTML='<div class="card">'+(biz()=='servicios'?'<b>Compré insumos o productos para el servicio</b><div class="k" style="margin:4px 0 0">Cargá lo que comprás para trabajar (productos, insumos). Lo que cobrás a tus clientes se registra en Atender.</div>':'<div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>')+
+ABX.innerHTML='<div class="card">'+(ventaEnCaja()?(type=='v'?'<button class="x" data-y="v" style="font-size:14px;text-decoration:underline;margin-bottom:6px">← Volver a la venta</button><b style="display:block;font-size:18px">Vender algo que no está en la lista</b>':'<b style="font-size:18px">Cargar compra</b><div class="k" style="margin:4px 0 0">Cargá lo que compraste: suma al stock. Las ventas se hacen en la pestaña '+CJL()+'.</div>'):biz()=='servicios'?'<b>Compré insumos o productos para el servicio</b><div class="k" style="margin:4px 0 0">Cargá lo que comprás para trabajar (productos, insumos). Lo que cobrás a tus clientes se registra en Atender.</div>':'<div class="seg"><button class="c '+(type=='c'?'on':'')+'" data-y="c">Compré</button><button class="v '+(type=='v'?'on':'')+'" data-y="v">Vendí</button></div>')+
 '<label>Producto</label><input id="p" list="prods" placeholder="Ej: '+esc(EX('p'))+'" autocomplete="off">'+
 '<label>Código (SKU o código de barras)</label><div style="display:flex;gap:8px;align-items:center"><input id="s" placeholder="Ej: '+esc(EX('s'))+'" autocomplete="off" style="flex:1;min-width:0">'+scanButton('cscan')+'</div>'+
 (type=='c'?'<label>Categoría (opcional)</label><input id="ac" list="rcats" placeholder="Ej: '+esc(EX('cat'))+'" autocomplete="off" maxlength="30"><datalist id="rcats">'+catOpts()+'</datalist>':'')+
@@ -778,18 +783,18 @@ if(d.cb&&d.cb!=code&&!confirm('Ese talle ya tenía el código '+d.cb+'. ¿Reempl
 setDoc(doc(db,'stores',SID,'stock',d.id),{cb:code},{merge:true}).catch(fail);d.cb=code;o.remove();if(cb)cb(d)}}
 function sellOpts(){var h=ST.filter(selMatch).sort(function(a,b){return a.n.localeCompare(b.n)||String(a.z).localeCompare(String(b.z),undefined,{numeric:true})}).map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+(d.s?' · '+esc(d.s):'')+' (stock '+d.q+')</option>'}).join('');return h||'<option value="">Sin resultados</option>'}
 function autoP(){var s=$('es'),u=$('eu'),k=$('ek');if(!s||!u||!k)return;var d=null;ST.forEach(function(x){if(x.id==s.value)d=x});var pv=$('esp');if(pv){var im=d?photoOf(key(d.s||d.n)):'';if(im){pv.src=im;pv.style.display=''}else{pv.removeAttribute('src');pv.style.display='none'}}if(!d)return;if(u.value&&u.dataset.auto!='1')return;var v=k.value=='mayor'?d.pm:d.pn;if(v){u.value=v;u.dataset.auto='1';var q=+$('eq').value;$('etot').textContent=q?'Total: '+money(q*v):''}}
-function refreshSell(){var s=$('es');if(!s)return;var v=s.value;s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;autoP()}
+function refreshSell(){var s=$('es');if(!s)return;var v=s.value,et=$('etot'),msg=et&&/✓/.test(et.textContent)?et.textContent:'';s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;autoP();if(msg&&et&&!et.textContent)et.textContent=msg}
 function drawSell(){
-var adm=ROLE=='admin',box=adm?$('s-add'):$('s-sell');
+var adm=ROLE=='admin',box=ventaEnCaja()?$('s-caja'):(adm?$('s-add'):$('s-sell'));
 if(!canWrite()){box.innerHTML=blockedCard();return}
-if(!ST.length){box.innerHTML='<div class="card"><div class="empty">Todavía no hay productos cargados. Un administrador tiene que cargar primero las compras.</div></div>';return}
-CJ.listen();box.innerHTML=CJ.bar()+'<div class="card">'+(adm?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'')+'<label>Buscar producto</label><div style="display:flex;gap:8px;align-items:center"><input id="esq" type="search" enterkeyhint="go" placeholder="Nombre, código o talle (o escaneá)" autocomplete="off" value="'+esc(SELQ)+'" style="flex:1;min-width:0">'+scanButton('rscan')+'</div><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
+if(!ST.length){box.innerHTML=(ventaEnCaja()?(CJ.listen(),CJ.bar()):'')+'<div class="card"><div class="empty">Todavía no hay productos cargados. '+(adm?'Cargalos en la pestaña <b>Cargar</b> (con la compra).':'Un administrador tiene que cargar primero las compras.')+'</div></div>'+(ventaEnCaja()?'<div id="cjdet">'+CJ.vista(true)+'</div>':'');return}
+CJ.listen();if(adm)CJ.listenMes(month);box.innerHTML=CJ.bar()+'<div class="card">'+(adm&&!ventaEnCaja()?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'<b style="font-size:18px">Nueva venta</b>')+'<label>Buscar producto</label><div style="display:flex;gap:8px;align-items:center"><input id="esq" type="search" enterkeyhint="go" placeholder="Nombre, código o talle (o escaneá)" autocomplete="off" value="'+esc(SELQ)+'" style="flex:1;min-width:0">'+scanButton('rscan')+'</div><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
 '<label id="epayl">¿Cómo pagó?</label><select id="epay">'+payOpts()+'</select>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="efia" type="checkbox" style="width:auto"> Venta de fiado</label>'+
 '<div id="efiabox" style="display:none;background:var(--line);border-radius:14px;padding:14px;margin:14px 0"><label>Cliente</label><select id="efiaCli" style="margin-bottom:8px"><option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option></select><div id="efiaNewBox" style="display:none"><label>Nombre del cliente</label><input id="efiaCliN" placeholder="Nombre" autocomplete="off"><label>Teléfono WhatsApp (opcional)</label><input id="efiaCliT" inputmode="tel" placeholder="381 614 5326" autocomplete="off"></div><label>Monto que paga ahora (opcional)</label><input id="efiaPagaHoy" type="number" inputmode="decimal" min="0" placeholder="Deja en blanco si fia todo"><div class="k" id="efiaPagaMsg" style="margin:4px 0 0;display:none"></div><label>¿En cuántas cuotas semanales paga lo fiado?</label><select id="efiaCq"><option value="1">1 cuota</option><option value="2" selected>2 cuotas</option><option value="3">3 cuotas</option><option value="4">4 cuotas</option><option value="5">5 cuotas</option><option value="6">6 cuotas</option><option value="f">Una fecha que elijo</option></select><div class="k" id="efiaCqMsg" style="margin:4px 0 0"></div><div id="efiaVtoBox" style="display:none"><label>Fecha en que paga todo</label><input id="efiaVto" type="date"></div><label>Interés/mora si no paga a tiempo (%) (opcional)</label><input id="efiaInt" type="number" inputmode="decimal" min="0" placeholder="0"></div>'+
-'<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>';
+'<label>Fecha</label><input id="ed" type="date" value="'+today()+'"><div class="tot" id="etot"></div><button class="go" id="eok">Guardar venta</button>'+(adm?'<button class="x" data-man="1" style="display:block;margin:16px auto 0;font-size:14px;text-decoration:underline">Vender algo que no está en la lista</button>':'')+'</div>'+(ventaEnCaja()?'<div id="cjdet">'+CJ.vista(true)+'</div>':'');
 $('esq').oninput=function(){SELQ=this.value;refreshSell()};$('esq').onkeydown=function(e){if(e.key=='Enter'){e.preventDefault();var v=this.value.trim();if(/^[0-9A-Za-z-]{4,}$/.test(v)&&ropaCodigo(v,true))return;}};
 function upd(){var q=+$('eq').value,u=+$('eu').value,tot=q*u;$('etot').textContent=q&&u?'Total: '+money(tot):'';if($('efiaPagaHoy')){var paga=+($('efiaPagaHoy').value||0),fia=Math.max(0,tot-paga),msg=$('efiaPagaMsg');if(paga||$('efiaPagaHoy').value){msg.style.display='block';msg.textContent=paga?'Paga hoy: '+money(paga)+' → Queda fiado: '+money(fia):'Sin pagar ahora → Todo queda fiado: '+money(tot)}else{msg.style.display='none'}
 if($('epayl'))$('epayl').textContent=$('efia').checked?(paga?'¿Cómo pagó la entrega?':'¿Cómo pagó? (no paga nada ahora)'):'¿Cómo pagó?';var cq=$('efiaCq').value;$('efiaVtoBox').style.display=cq=='f'?'block':'none';$('efiaCqMsg').textContent=cq!='f'&&fia>0?fiaPlan({d:$('ed').value||today(),fia:{cq:+cq}},{fiado:fia}).map(function(c){return money(c.m)+' el sáb '+fiaFecha(c.d)}).join(' · '):''}}
