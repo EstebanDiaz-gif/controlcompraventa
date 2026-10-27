@@ -389,10 +389,19 @@ return Promise.all(familia().map(function(id){return Promise.all([getDocs(collec
 r[0].forEach(function(d){var x=d.data();if(x.role=='admin')adm[d.id]=1;else emp[d.id]=1});
 r[1].forEach(function(d){var x=d.data();if(!x.exp||x.exp>now)inv[x.role=='admin'?'admin':'empleado']++})},function(){})})).then(function(){
 Object.keys(adm).forEach(function(k){delete emp[k]});return {admins:Object.keys(adm).length,empleados:Object.keys(emp).length,inv:inv}})}
+// Link al catálogo de cada sucursal (public/info es público): para ver si hay un producto y a qué precio en la otra.
+var SUCCAT=null;
+function catDe(id,inf){return catBase()+(inf&&inf.slug?inf.slug:'catalogo.html?t='+id)}
+function sucCatLink(id){if(!SUCCAT||!SUCCAT[id])return 'buscando catálogo…';var c=SUCCAT[id];
+if(!c.on)return 'catálogo apagado'+(id==SID?' · se activa abajo en Catálogo':' · se activa en el Equipo de esa sucursal');
+return '<a href="'+esc(catDe(id,c))+'" target="_blank" rel="noopener" style="color:var(--sell);font-weight:700">Ver catálogo ↗</a>'}
+function cargarSucCat(fam){SUCCAT={_for:fam.join(',')};var mine=SUCCAT;
+fam.forEach(function(id){getDoc(doc(db,'stores',id,'public','info')).then(function(sn){var d=sn.exists()?sn.data():{};mine[id]={on:!!d.enabled,slug:d.slug||''}},function(){mine[id]={on:false}}).then(function(){var e=document.querySelector('.succ[data-sc="'+id+'"]');if(e)e.innerHTML=sucCatLink(id)})})}
 function sucCard(){if(ROLE!='admin')return '';var m=mainSid(),fam=familia(),L=(ACC&&ACC.limits)||{},max=L.sucursales,es=m!=SID;
 var nm0=function(id){var s=STORES.filter(function(x){return x.id==id})[0];return s?s.name:id};
 var h='<div class="card"><b>Sucursales</b><div class="k" style="margin:4px 0 0">Cada sucursal tiene su propio stock, caja, fiado y catálogo. Las personas del plan se suman entre todas las sucursales. Para invitar a alguien a una sucursal, entrá a esa sucursal desde el selector de arriba y generá el código acá en Equipo: el código lleva solo a esa sucursal.</div>';
-h+='<div class="rows" style="margin:8px 0 0">'+fam.map(function(id,i){return '<div class="r2"><span>'+esc(nm0(id))+(i==0?'<small>principal</small>':'')+'</span><b style="font-size:14px">'+(id==SID?'estás acá':'<button class="x" data-ost="'+esc(id)+'" style="font-size:14px;text-decoration:underline">Abrir</button>')+'</b></div>'}).join('')+'</div>';
+if(!SUCCAT||SUCCAT._for!=fam.join(','))cargarSucCat(fam);
+h+='<div class="rows" style="margin:8px 0 0">'+fam.map(function(id,i){return '<div class="r2"><span>'+esc(nm0(id))+(i==0?'<small>principal</small>':'')+'<small class="succ" data-sc="'+esc(id)+'">'+sucCatLink(id)+'</small></span><b style="font-size:14px">'+(id==SID?'estás acá':'<button class="x" data-ost="'+esc(id)+'" style="font-size:14px;text-decoration:underline">Abrir</button>')+'</b></div>'}).join('')+'</div>';
 if(es)h+='<div class="k" style="margin-top:8px">Las sucursales nuevas se abren desde la tienda principal.</div>';
 else if(max==null||fam.length<max)h+='<button class="go alt" data-nsuc="1">+ Abrir sucursal</button>'+(max!=null?'<div class="k" style="margin-top:6px">Tu plan permite '+max+' sucursal'+(max==1?'':'es')+' en total (contando la principal).</div>':'');
 else h+='<div class="k" style="margin-top:8px">Tu plan permite '+max+' sucursal'+(max==1?'':'es')+'. Para abrir otra, hablá con Pekeron App.</div>';
@@ -449,7 +458,7 @@ if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;gate('nostore')}
 
 var MECP=false; // permiso "puede cargar productos" de este empleado (members/{uid}.cp)
 function openStore(sid){
-stopStore();SID=sid;ROLE=null;MECP=false;SDTRY=0;FAMP=null;clearTimeout(SDT);M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
+stopStore();SID=sid;ROLE=null;MECP=false;SDTRY=0;FAMP=null;SUCCAT=null;clearTimeout(SDT);M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';STMAIN=s.data().main||'';STPAIS=s.data().pais||'';STCREADA=s.data().created||0;if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
