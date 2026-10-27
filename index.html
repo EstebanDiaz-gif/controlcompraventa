@@ -76,6 +76,17 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 .dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
 .dlg>div{background:var(--card);border-radius:22px;padding:22px;max-width:420px;width:100%}
 .dlg li{margin:8px 0}
+.phs{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:26px}
+.ph{margin:0;text-align:center}.ph .fr{background:#111;border-radius:38px;padding:24px 9px 12px;box-shadow:0 24px 48px -20px rgba(16,36,104,.45),0 2px 0 rgba(255,255,255,.08) inset;position:relative}
+.ph .fr:before{content:'';position:absolute;top:9px;left:50%;transform:translateX(-50%);width:26%;height:7px;border-radius:99px;background:#2a2a2a;z-index:2}
+.ph img{display:block;width:100%;height:auto;border-radius:22px;background:#fff}
+.ph figcaption{margin-top:14px}.ph figcaption b{display:block;font-size:16px}.ph figcaption span{display:block;color:var(--mut);font-size:13.5px;line-height:1.4;margin-top:3px}
+@media(max-width:860px){.phs{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;padding:6px 20px 14px;margin:22px -20px 0;-webkit-overflow-scrolling:touch}.ph{flex:0 0 68%;scroll-snap-align:center}}
+.llv{display:grid;grid-template-columns:1.4fr .6fr;gap:26px;align-items:center;background:var(--card);border:1.5px solid var(--line);border-radius:28px;padding:32px}
+.llv h2{text-align:left;margin:12px 0 8px}.llu{margin:14px 0 22px;padding:0;list-style:none}.llu li{padding:7px 0 7px 30px;position:relative;font-size:15.5px}.llu li:before{content:'✓';position:absolute;left:4px;color:var(--g);font-weight:900}
+.lli{font-size:140px;text-align:center;line-height:1;filter:drop-shadow(0 18px 24px rgba(16,36,104,.25))}
+@media(max-width:700px){.llv{grid-template-columns:1fr;padding:24px}.lli{display:none}}
+html,body{overflow-x:clip}
 </style></head><body>
 <nav><div class="wrap"><a class="logo" href="#"><img src="./icon-192.png" alt=""><span>CONTROL PEKERON</span></a><a class="btn p s" href="./app.html?app=1">Abrir la app</a></div></nav>
 
@@ -116,6 +127,25 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 <div class="bz"><div class="e">🛒</div><h3>Almacén, kiosco y drugstore</h3><p>Para el comercio de barrio que vende de todo.</p><ul><li>Caja rápida: buscás, tocás y cobrás</li><li>Venta suelta por kilo: fiambre, queso, yerba</li><li>Libreta de fiado con el saldo de cada cliente</li><li>Lector de código de barras</li><li>Aumentá precios por % en un toque</li><li>Cierre de caja: ves si falta o sobra</li></ul></div>
 <div class="bz"><div class="e">💄</div><h3>Servicios</h3><p>Peluquerías, barberías, estéticas, uñas.</p><ul><li>Turnos online desde tu catálogo</li><li>Atenciones y precios por forma de pago</li><li>Comisión de cada empleada</li><li>Insumos que se descuentan solos</li><li>Cierre de caja del día <span class="new">NUEVO</span></li></ul></div>
 </div></div></section>
+
+
+<section id="catalogos" style="background:var(--soft);padding:46px 0;overflow:hidden"><div class="wrap">
+<h2>Así se ve tu catálogo online</h2><p class="sub">Cada rubro tiene su propio diseño. Tus clientes ven tus productos o servicios, eligen y te mandan el pedido (o reservan su turno) por WhatsApp.</p>
+<div class="phs">
+<figure class="ph"><div class="fr"><img src="img/prev-ropa.webp" alt="Vista previa del catálogo de una tienda de ropa y zapatillas" loading="lazy" width="585" height="1266"></div><figcaption><b>Ropa y calzado</b><span>Vidriera de destacados que gira sola, talles y precio mayorista</span></figcaption></figure>
+<figure class="ph"><div class="fr"><img src="img/prev-almacen.webp" alt="Vista previa del catálogo de un almacén" loading="lazy" width="585" height="1266"></div><figcaption><b>Almacén, kiosco y drugstore</b><span>Estilo supermercado: categorías, ofertas y carrito rápido</span></figcaption></figure>
+<figure class="ph"><div class="fr"><img src="img/prev-barberia.webp" alt="Vista previa del catálogo de una barbería" loading="lazy" width="585" height="1266"></div><figcaption><b>Barbería</b><span>Servicios con foto, precio y duración, y reserva de turno online</span></figcaption></figure>
+<figure class="ph"><div class="fr"><img src="img/prev-estetica.webp" alt="Vista previa del catálogo de una estética" loading="lazy" width="585" height="1266"></div><figcaption><b>Estética y uñas</b><span>Colores suaves, servicios, productos y turnos</span></figcaption></figure>
+</div>
+<p class="note" style="text-align:center">Ejemplos con negocios inventados. Tu catálogo lleva tu nombre, tu logo, tus fotos y tus precios, y tiene su propio link para compartir.</p>
+</div></section>
+
+<section id="llave"><div class="wrap"><div class="llv"><div class="llt"><span class="pill">Llave en mano</span>
+<h2>¿No tenés tiempo de cargar todo? Te lo dejamos listo.</h2>
+<p class="sub" style="text-align:left;margin-left:0">Con el servicio <b>Llave en mano</b> vamos a tu negocio (o lo hacemos a distancia) y dejamos la app funcionando para que vos solo te ocupes de vender.</p>
+<ul class="llu"><li>Cargamos tus productos o servicios con fotos, precios y stock</li><li>Armamos tu catálogo online con tu logo y tu link</li><li>Sumamos a tu equipo con sus códigos y configuramos la caja</li><li>Te enseñamos a usarla a vos y a tus empleados</li></ul>
+<a class="btn p" target="_blank" rel="noopener" href="https://wa.me/5493816031467?text=Hola%2C%20quiero%20consultar%20por%20el%20servicio%20Llave%20en%20mano%20de%20Pekeron%20App">Consultar por WhatsApp</a></div>
+<div class="lli" aria-hidden="true">🔑</div></div></div></section>
 
 <section id="control"><div class="wrap">
 <h2>La caja cierra. Y sabés por qué.</h2><p class="sub">El problema de muchos negocios no es vender poco: es no saber dónde se va la plata. Esto es lo que te da Pekeron para tener el control, aunque no estés en el local.</p>
@@ -163,6 +193,7 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 <details><summary>¿Funciona sin internet?</summary><p>Sí. Podés seguir cargando ventas sin señal y se sincronizan solas cuando vuelve la conexión. Perfecto para negocios con mala señal.</p></details>
 <details><summary>¿Se instala desde una tienda de apps?</summary><p>No hace falta. Se instala directo desde esta página, en segundos, y no ocupa casi espacio (2 MB). Sin App Store, sin colas.</p></details>
 <details><summary>¿Es seguro confiarle mis datos del negocio?</summary><p>Totalmente. Tus datos están encriptados y guardados en servidores seguros. Solo vos y tu equipo (con el código que vos das) ven la información de tu negocio.</p></details>
+<details><summary>¿Me pueden cargar los productos?</summary><p>Sí. Con el servicio Llave en mano cargamos tus productos o servicios con fotos y precios, armamos tu catálogo, sumamos a tu equipo y te enseñamos a usar la app. Escribinos por WhatsApp y te contamos cómo es.</p></details>
 <details><summary>¿Cómo controlo la caja si no estoy en el local?</summary><p>Cada día se abre la caja con el cambio y se cierra contando la plata. Las ventas suman solas según cómo pagó cada cliente, y si alguien saca plata tiene que anotar para qué. Al cerrar, vos ves desde tu celular cuánto debería haber, cuánto contaron y si faltó o sobró. Y en cada cambio de turno, el que abre cuenta sin saber cuánto dejó el anterior: si no coincide, queda marcado con los dos nombres.</p></details>
 <details><summary>¿Puedo tener más de una sucursal?</summary><p>Sí. Cada sucursal tiene su propio stock, caja, fiado y catálogo, y vos las ves todas desde tu cuenta. Cada empleado entra a su sucursal con su código. Las personas del plan se cuentan sumando todas las sucursales.</p></details>
 <details><summary>¿Sirve para mi almacén o minimercado?</summary><p>Sí. Al crear la tienda elegís tu rubro (almacén, kiosco, drugstore, minimercado, carnicería, farmacia, ferretería…): tenés caja rápida, venta por kilo, libreta de fiado, aumento de precios por categoría. Tus empleados cobran desde su celular y vos ves la ganancia real del mes.</p></details>
