@@ -5,9 +5,11 @@
 // - Pekeron puede cobrar una comisión por venta (marketplace_fee); arranca en 0% y la cambia el dueño de la plataforma.
 //
 // Variables (wrangler.toml): FB_PROJECT, FB_API_KEY, ORIGINS (orígenes permitidos, separados por coma), OWNER_UIDS
-// Secretos: MP_CLIENT_ID, MP_CLIENT_SECRET
+// Secretos: MP_CLIENT_ID, MP_CLIENT_SECRET (conexión de cuentas), MP_ACCESS_TOKEN (cuenta de Pekeron: suscripciones),
+//   FB_SA (cuenta de servicio de Firebase: extender abonos)
 // KV: MP  →  tok:{sid} = {at, rt, exp, mpuid, nick, conn}   st:{state} = {sid, uid, vuelta}   cfg:fee = {pct}
 import { calcularPedido, gruposStock, gruposLista } from '../../pedido.js';
+import * as SUS from './suscripciones.js';
 
 const MP_API = 'https://api.mercadopago.com';
 const MP_AUTH = 'https://auth.mercadopago.com/authorization';
@@ -190,6 +192,36 @@ async function pagar(req, env) {
   return json(req, env, { url: d.init_point, total: c.total });
 }
 
+// ---------- débito automático del abono (suscripciones) ----------
+const emailOk = (e) => typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length < 120;
+async function susRuta(req, env, path) {
+  if (!env.MP_ACCESS_TOKEN || !env.FB_SA) return err(req, env, 'Todavía no está activado el débito automático.', 503);
+  const b = await req.json().catch(() => ({}));
+  if (!await esAdmin(env, tokenDe(req), b.sid)) return err(req, env, 'Solo un administrador de la tienda puede hacer esto.', 403);
+  try {
+    if (path === '/sus/crear') {
+      if (!emailOk(b.email)) return err(req, env, 'Revisá el email de Mercado Pago.');
+      if (!urlPermitida(b.vuelta, env)) return err(req, env, 'Dirección de vuelta no permitida.');
+      return json(req, env, await SUS.crear(env, { sid: b.sid, plan: String(b.plan || ''), email: b.email.trim().toLowerCase(), vuelta: b.vuelta }));
+    }
+    if (path === '/sus/sync') return json(req, env, await SUS.sincronizar(env, b.sid));
+    if (path === '/sus/cancelar') return json(req, env, await SUS.cancelar(env, b.sid));
+  } catch (e) {
+    if (e.http) return err(req, env, e.message, e.http);
+    console.error(e && e.stack || e, e && e.mp);
+    return err(req, env, e.mp && /payer_email|email/i.test(JSON.stringify(e.mp)) ? 'Mercado Pago no aceptó ese email. Usá el mismo email con el que entrás a Mercado Pago.' : 'Mercado Pago no respondió bien. Probá de nuevo en un rato.', 502);
+  }
+  return err(req, env, 'No encontrado.', 404);
+}
+async function webhook(req, env) {
+  const u = new URL(req.url); let b = {};
+  try { b = await req.json(); } catch (e) {}
+  const tipo = String(b.type || b.topic || u.searchParams.get('type') || u.searchParams.get('topic') || '');
+  const id = String((b.data && b.data.id) || u.searchParams.get('data.id') || u.searchParams.get('id') || '');
+  if (env.MP_ACCESS_TOKEN && env.FB_SA && /^[A-Za-z0-9_-]{1,64}$/.test(id)) { try { await SUS.aviso(env, tipo, id); } catch (e) { console.error('aviso', tipo, id, e && e.message); return new Response('reintentar', { status: 500 }); } }
+  return new Response('ok');
+}
+
 export default {
   async fetch(req, env) {
     const path = new URL(req.url).pathname;
@@ -198,11 +230,13 @@ export default {
       if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron' });
       if (path === '/mp/vuelta' && req.method === 'GET') return await vuelta(req, env);
       if (path === '/mp/comision') return await comision(req, env);
+      if (path === '/mp/webhook') return await webhook(req, env);
       if (req.method !== 'POST') return err(req, env, 'Método no permitido.', 405);
       if (path === '/mp/conectar') return await conectar(req, env);
       if (path === '/mp/estado') return await estado(req, env);
       if (path === '/mp/desconectar') return await desconectar(req, env);
       if (path === '/pagar') return await pagar(req, env);
+      if (path.startsWith('/sus/')) return await susRuta(req, env, path);
       return err(req, env, 'No encontrado.', 404);
     } catch (e) {
       console.error(e && e.stack || e);

@@ -363,6 +363,40 @@ function monDe(pais){return pais=='AR'?'ARS':'USD'}
 function precioMon(n,mon){return mon=='USD'?'US$ '+n:money(n)}
 function precioPlan(p,mon){return mon=='USD'?'US$ '+(p.priceUSD!=null?p.priceUSD:'—'):money(p.priceARS)}
 function payNote(mon){return mon=='USD'?'Los planes en dólares se pagan con un link internacional (tarjeta o PayPal). Escribinos y te lo pasamos; cuando se acredite el pago, activamos tu plan.':'Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.'}
+// ---------- Débito automático del abono (servidor de pagos: /sus/*) ----------
+// billing/sus = { id, plan, monto, st: pending|authorized|paused|cancelled, next, email }. Lo escribe solo el servidor.
+var SUS=null,SUSY=0;
+function susOn(){return !!PAGOS_URL&&STMON!='USD'&&!STMAIN&&ROLE=='admin'&&!(ACC&&ACC.life)}
+function susFetch(path,body){return auth.currentUser.getIdToken().then(function(t){return fetch(PAGOS_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify(Object.assign({sid:SID},body||{}))})}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Error');return d})})}
+function susHtml(){if(!susOn())return '<div id="susbox"></div>';var S=SUS,P=S&&CFG.plans[S.plan],h='<div id="susbox">';
+if(S&&S.id&&Date.now()-SUSY>600000&&S.st!='cancelled'){SUSY=Date.now();susFetch('/sus/sync').catch(function(){})}
+if(S&&S.st=='authorized')h+='<div class="note" style="margin-top:14px;background:#E6F4EA;color:#17713c"><b>✓ Débito automático activo</b> · Plan '+esc(P?P.name:S.plan)+' · '+money(S.monto||0)+' por mes'+(S.next?'<br>Próximo cobro: '+fdate(S.next):'')+'<br><button class="x" data-sus="baja" style="font-size:13px;text-decoration:underline;color:#17713c;margin-top:6px">Dar de baja el débito automático</button></div>';
+else if(S&&S.st=='pending')h+='<div class="note" style="margin-top:14px"><b>⏳ Débito automático pendiente</b><br>Falta que confirmes en Mercado Pago. Si ya lo hiciste, puede tardar unos minutos. <button class="x" data-sus="sync" style="font-size:13px;text-decoration:underline">Revisar ahora</button></div>';
+else if(S&&S.st=='paused')h+='<div class="note" style="margin-top:14px;background:#FDEDE7;color:#a8431f"><b>⚠️ Mercado Pago pausó tu débito automático</b><br>Revisá tu tarjeta en Mercado Pago → Suscripciones, o elegí un plan de nuevo.</div>';
+else h+='<div class="k" style="margin-top:14px">💳 <b>Débito automático:</b> elegí tu plan y Mercado Pago te lo cobra solo cada mes, con tarjeta o dinero en cuenta. '+(ACC&&ACC.state=='trial'?'El primer cobro es cuando termina tu prueba.':ACC&&(ACC.state=='paid'||ACC.state=='free_timed')?'El primer cobro es cuando vence lo que ya tenés.':'')+' Lo podés dar de baja cuando quieras.</div>';
+return h+'</div>'}
+function planBtn(id,p,mon){if(!susOn())return payBtn(p,mon);var S=SUS,cur=S&&S.st=='authorized'&&S.plan==id;
+var st='flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;font-weight:800;border:0;font:inherit;font-weight:800;cursor:pointer;background:var(--btn);color:var(--btnink)';
+if(cur)return '<div style="flex-basis:100%;margin-top:8px;padding:10px;border-radius:14px;text-align:center;font-weight:800;background:#E6F4EA;color:#17713c">✓ Tu plan con débito automático</div>';
+return '<button data-sus="alta" data-plan="'+id+'" style="'+st+'">'+(S&&S.st=='authorized'?'Cambiar a '+esc(p.name):'Débito automático · '+esc(p.name))+'</button>'}
+function susAlta(plan){var p=CFG.plans[plan];if(!p)return;
+var em=prompt('Débito automático del plan '+p.name+' ('+money(p.priceARS)+' por mes).\n\nEscribí el email con el que entrás a Mercado Pago (tiene que ser ese mismo):',(SUS&&SUS.email)||U.email||'');if(em===null)return;em=em.trim();
+if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('Revisá el email.');return}
+var b=document.querySelector('[data-sus="alta"][data-plan="'+plan+'"]');if(b){b.disabled=true;b.textContent='Abriendo Mercado Pago…'}
+susFetch('/sus/crear',{plan:plan,email:em,vuelta:location.origin+location.pathname+'?sussid='+encodeURIComponent(SID)}).then(function(d){location.href=d.url})
+.catch(function(e){if(b){b.disabled=false;b.textContent='Débito automático · '+p.name}alert(e.message||'No pude abrir Mercado Pago.')})}
+function susClick(e){var b=e.target.closest&&e.target.closest('[data-sus]');if(!b)return false;var a=b.dataset.sus;
+if(a=='alta'){susAlta(b.dataset.plan);return true}
+if(a=='sync'){b.textContent='Revisando…';susFetch('/sus/sync').then(function(d){if(d.st=='pending')alert('Todavía no figura confirmado en Mercado Pago. Si ya lo confirmaste, probá en unos minutos.')}).catch(function(x){alert(x.message)});return true}
+if(a=='baja'){if(!confirm('¿Dar de baja el débito automático? Tu plan sigue activo hasta que vence lo que ya pagaste; después vas a tener que pagarlo a mano.'))return true;
+susFetch('/sus/cancelar').then(function(){alert('Listo, el débito automático quedó dado de baja.')}).catch(function(x){alert(x.message)});return true}
+return false}
+document.addEventListener('click',function(e){susClick(e)});
+// Vuelta de Mercado Pago después de confirmar la suscripción (app.html?sussid=…)
+function susVuelta(){var q;try{q=new URLSearchParams(location.search)}catch(e){return}var sid=q.get('sussid');if(!sid)return;try{history.replaceState(null,'',location.pathname)}catch(e){}
+var n=0,go=function(){if(SID!=sid||ROLE!='admin'){if(++n<30)setTimeout(go,500);return}show('team');
+susFetch('/sus/sync').then(function(d){alert(d.st=='authorized'?'¡Listo! Quedó activo el débito automático. Mercado Pago te va a cobrar el plan cada mes.':'Recibimos tu suscripción. En cuanto Mercado Pago la confirme, aparece como activa en tu plan.')}).catch(function(){})};
+try{if(STORES.some(function(x){return x.id==sid})&&SID!=sid)openStore(sid)}catch(e){}setTimeout(go,800)}
 function payBtn(p,mon){var st='flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)';
 if(mon=='USD')return '<a href="https://wa.me/'+SOPORTE_WA+'?text='+encodeURIComponent('Hola, quiero contratar el plan '+p.name+' (US$ '+p.priceUSD+' por mes) de Pekeron App para "'+SNAME+'".')+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>';
 return p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>':''}
@@ -497,7 +531,7 @@ if(r.sid!=SID&&STORES.some(function(x){return x.id==r.sid}))openStore(r.sid)}).c
 onAuthStateChanged(auth,function(u){
 stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');stop('vend');VEND='';GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
 if(!u){gate('auth');return}
-gate('load');vendWatch(u);mpVuelta();
+gate('load');vendWatch(u);mpVuelta();susVuelta();
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
@@ -533,6 +567,7 @@ un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.fo
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
+SUS=null;un.sus=onSnapshot(doc(db,'stores',SID,'billing','sus'),function(sn){SUS=sn.exists()?sn.data():null;if(TAB=='team'){var e=$('susbox');if(e)e.outerHTML=susHtml()}},function(){SUS=null});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(e){ACC=null;drawBanner();sdErr(e)});
 un.prm=onSnapshot(doc(db,'stores',SID,'public','promos'),function(sn){PRM=(sn.exists()&&sn.data().list)||[];if(TAB=='promo'&&!PRO.editing())PRO.draw();else if(TAB=='team')drawTeam();else redrawData()},function(){PRM=[]});
 un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();autoActivateTema();syncCatRubro();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
@@ -1549,9 +1584,9 @@ var h='<div class="card"><b style="display:flex;justify-content:space-between;al
 '<div class="r2"><span>Empleados</span><b>'+nE+' de '+lim(L.empleados)+'</b></div>'+
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
-if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+='<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+payBtn(p,STMON)+'</div>'});
-h+='<div class="k" style="margin-top:8px">'+payNote(STMON)+'</div>'}
+if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+=susHtml()+'<div style="margin-top:14px"><b>Planes disponibles</b></div>';
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+planBtn(id,p,STMON)+'</div>'});
+h+='<div class="k" style="margin-top:8px">'+(susOn()?'Con débito automático no tenés que mandar comprobantes: cada cobro aprobado renueva tu plan solo.':payNote(STMON))+'</div>'}
 h+='</div></div>';
 return h}
 // ---------- Orden de los destacados del catálogo ----------
@@ -1600,9 +1635,9 @@ var h='<div class="card"><b>Plan y límites</b><div class="rows" style="margin:6
 '<div class="r2"><span>Empleados</span><b>'+nE+' de '+lim(L.empleados)+'</b></div>'+
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
-if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+='<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+payBtn(p,STMON)+'</div>'});
-h+='<div class="k" style="margin-top:8px">'+payNote(STMON)+'</div>'}
+if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+=susHtml()+'<div style="margin-top:14px"><b>Planes disponibles</b></div>';
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+planBtn(id,p,STMON)+'</div>'});
+h+='<div class="k" style="margin-top:8px">'+(susOn()?'Con débito automático no tenés que mandar comprobantes: cada cobro aprobado renueva tu plan solo.':payNote(STMON))+'</div>'}
 return h+'</div>'}
 function shareCode(c){
 var appLink=catBase()+'app.html?t='+SID;
@@ -1671,9 +1706,9 @@ function loadLite(){
 if(PLL.busy)return;PLL.busy=true;
 getDocs(collection(db,'stores')).then(function(sn){
 var ps=[];sn.forEach(function(d){var st=d.data();
-ps.push(Promise.all([getDoc(doc(db,'stores',d.id,'billing','access')),getDocs(collection(db,'stores',d.id,'members'))]).then(function(r){
+ps.push(Promise.all([getDoc(doc(db,'stores',d.id,'billing','access')),getDocs(collection(db,'stores',d.id,'members')),PAGOS_URL&&!st.main?getDoc(doc(db,'stores',d.id,'billing','sus')).catch(function(){return null}):Promise.resolve(null)]).then(function(r){
 var ad=[];r[1].forEach(function(m){var x=m.data();if(x.role=='admin')ad.push(x.email||x.name||m.id)});
-return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,mon:st.mon||'ARS',pais:st.pais||'',main:st.main||'',vend:st.vend||'',admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null}}))});
+return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,mon:st.mon||'ARS',pais:st.pais||'',main:st.main||'',vend:st.vend||'',admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null,sus:r[2]&&r[2].exists()?r[2].data():null}}))});
 return Promise.all(ps)}).then(function(l){PLL.list=l.sort(function(a,b){return a.name.localeCompare(b.name)});PLL.busy=false;syncSucursales();drawPlatLite();drawBanner()}).catch(function(e){PLL.busy=false;PLL.list=[];fail(e)})}
 function drawPlatLite(){
 if(!PLL.list){$('s-plat').innerHTML='<div class="card"><div class="empty">Cargando empresas…</div></div>';loadLite();return}
@@ -1704,7 +1739,7 @@ var hj=PLL.list.filter(function(z){return z.main==x.sid}),LL=(a&&a.limits)||{},P
 var pl=a&&a.paidPlan&&(CFG.plans[a.paidPlan]||{}).name,ch=a&&a.chosenPlan&&(CFG.plans[a.chosenPlan]||{}).name,paused=r.k=='paused';
 var vto=r.k=='life'?'de por vida':st.untilMs?(st.state=='trial'?'prueba hasta ':st.state=='grace'?'gracia hasta ':'hasta ')+fdate(st.untilMs):r.k=='free'?'sin vencimiento':'';
 h+='<details class="card emp"'+(PLO[x.sid]?' open':'')+' data-sid="'+esc(x.sid)+'"><summary><span class="ems"><b>'+esc(x.name)+'</b><small>'+esc(x.admins[0]||'sin administrador')+(vto?' · '+vto:'')+(hj.length?' · '+(hj.length+1)+' sucursales':'')+'</small></span><span class="emt '+r.cls+'">'+esc(r.lbl.split(/ \(| ·/)[0])+'</span></summary><div class="k">'+esc(x.admins.join(', ')||'sin administrador')+'</div><div class="k">'+x.n+' persona(s)'+(x.created?' · creada el '+fdate(x.created):'')+' · código '+esc(x.sid)+'</div><div class="k">'+((PAISES.filter(function(p){return p[0]==x.pais})[0]||['','Argentina','🇦🇷']).slice(1).reverse().join(' '))+' · paga en '+(x.mon=='USD'?'dólares':'pesos')+(ch&&CFG.plans[a.chosenPlan]?' ('+precioPlan(CFG.plans[a.chosenPlan],x.mon)+' por mes)':'')+'</div>'+
-'<div class="rows" style="margin:8px 0 0">'+VD.fila(x)+(a&&a.llave&&r.k!='life'?'<div class="r2"><span>Llave en mano</span><b style="font-size:16px">el '+fdate(a.llave.at)+(a.llave.amt?'<small style="font-weight:400">instalación '+precioMon(a.llave.amt,x.mon)+'</small>':'')+'</b></div>':'')+(r.k=='life'?'<div class="r2"><span>Licencia de por vida</span><b style="font-size:16px">desde el '+fdate(a.life.at)+(a.life.amt?'<small style="font-weight:400">pagó '+money(a.life.amt)+'</small>':'')+'</b></div>':'')+(st.untilMs&&r.k!='life'?'<div class="r2"><span>'+(st.state=='trial'?'La prueba termina':'Activa hasta')+'</span><b style="font-size:16px">'+fdate(st.untilMs)+'</b></div>':'')+(ch?'<div class="r2"><span>Plan que eligió</span><b>'+esc(ch)+'</b></div>':'')+(pl?'<div class="r2"><span>Plan pagado</span><b>'+esc(pl)+'</b></div>':'')+'</div>'+
+'<div class="rows" style="margin:8px 0 0">'+VD.fila(x)+(x.sus&&x.sus.st&&x.sus.st!='cancelled'?'<div class="r2"><span>Débito automático</span><b style="font-size:16px">'+({authorized:'✓ activo',pending:'⏳ sin confirmar',paused:'⚠️ pausado'}[x.sus.st]||x.sus.st)+'<small style="font-weight:400">'+esc((CFG.plans[x.sus.plan]||{}).name||x.sus.plan||'')+(x.sus.next?' · próximo cobro '+fdate(x.sus.next):'')+'</small></b></div>':'')+(a&&a.llave&&r.k!='life'?'<div class="r2"><span>Llave en mano</span><b style="font-size:16px">el '+fdate(a.llave.at)+(a.llave.amt?'<small style="font-weight:400">instalación '+precioMon(a.llave.amt,x.mon)+'</small>':'')+'</b></div>':'')+(r.k=='life'?'<div class="r2"><span>Licencia de por vida</span><b style="font-size:16px">desde el '+fdate(a.life.at)+(a.life.amt?'<small style="font-weight:400">pagó '+money(a.life.amt)+'</small>':'')+'</b></div>':'')+(st.untilMs&&r.k!='life'?'<div class="r2"><span>'+(st.state=='trial'?'La prueba termina':'Activa hasta')+'</span><b style="font-size:16px">'+fdate(st.untilMs)+'</b></div>':'')+(ch?'<div class="r2"><span>Plan que eligió</span><b>'+esc(ch)+'</b></div>':'')+(pl?'<div class="r2"><span>Plan pagado</span><b>'+esc(pl)+'</b></div>':'')+'</div>'+
 (a?'<div style="margin-top:12px;padding:12px;border-radius:14px;background:var(--bg)"><b>Personas y sucursales</b><div class="k" style="margin-top:2px">El plan '+esc(Pq.name)+' trae '+(Pq.admins+Pq.empleados)+' personas. Repartilas como quiera el cliente (se suman todas las sucursales).</div>'+
 '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div><label>Admin.</label><input id="la_'+esc(x.sid)+'" type="number" min="1" inputmode="numeric" value="'+(LL.admins!=null?LL.admins:Pq.admins)+'"></div><div><label>Empleados</label><input id="le_'+esc(x.sid)+'" type="number" min="0" inputmode="numeric" value="'+(LL.empleados!=null?LL.empleados:Pq.empleados)+'"></div><div><label>Sucursales</label><input id="ls_'+esc(x.sid)+'" type="number" min="1" inputmode="numeric" value="'+(LL.sucursales!=null?LL.sucursales:Pq.sucursales)+'"></div></div>'+
 (hj.length?'<div class="k" style="margin-top:6px">Sucursales abiertas: '+hj.map(function(z){return esc(z.name)}).join(', ')+'</div>':'')+

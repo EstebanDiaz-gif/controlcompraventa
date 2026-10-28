@@ -1,7 +1,9 @@
 # Publica el servidor de pagos (worker/) en Cloudflare cada vez que cambia.
 # Secretos del repositorio (Settings → Secrets and variables → Actions):
 #   CLOUDFLARE_API_TOKEN (obligatorio), CLOUDFLARE_ACCOUNT_ID (opcional: si falta, sale del token)
-#   MP_CLIENT_ID, MP_CLIENT_SECRET               (de la aplicación de Mercado Pago; se pueden cargar después)
+#   MP_CLIENT_ID, MP_CLIENT_SECRET   (aplicación de Mercado Pago: conectar cuentas de los negocios)
+#   MP_ACCESS_TOKEN                  (Access Token de producción de la aplicación: débito automático del abono)
+#   FIREBASE_SA                      (JSON de la cuenta de servicio de Firebase: extender abonos)
 name: Servidor de pagos
 on:
   push:
@@ -16,6 +18,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       MP_CLIENT_ID: ${{ secrets.MP_CLIENT_ID }}
       MP_CLIENT_SECRET: ${{ secrets.MP_CLIENT_SECRET }}
+      MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
+      FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
     steps:
       - name: Faltan los datos de Cloudflare
         if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
@@ -39,11 +43,12 @@ jobs:
           if [ -z "$ID" ]; then echo "::error::No pude crear el espacio de datos (KV) en Cloudflare. Revisá que el token tenga permiso de Workers KV."; exit 1; fi
           sed "s/__KV_ID__/$ID/" wrangler.toml.tpl > wrangler.toml
           npx wrangler deploy | tee /tmp/deploy.txt
-          if [ -n "$MP_CLIENT_ID" ] && [ -n "$MP_CLIENT_SECRET" ]; then
-            node -e 'require("fs").writeFileSync("/tmp/s.json",JSON.stringify({MP_CLIENT_ID:process.env.MP_CLIENT_ID,MP_CLIENT_SECRET:process.env.MP_CLIENT_SECRET}))'
-            npx wrangler secret bulk /tmp/s.json
-            rm -f /tmp/s.json
-          else
-            echo "::notice::Todavía no cargaste MP_CLIENT_ID y MP_CLIENT_SECRET (la aplicación de Mercado Pago)."
-          fi
+          node -e 'const o={};for(const [k,e] of [["MP_CLIENT_ID","MP_CLIENT_ID"],["MP_CLIENT_SECRET","MP_CLIENT_SECRET"],["MP_ACCESS_TOKEN","MP_ACCESS_TOKEN"],["FB_SA","FIREBASE_SA"]]){const v=(process.env[e]||"").trim();if(v)o[k]=v}
+            if(o.FB_SA){try{const j=JSON.parse(o.FB_SA);if(!j.private_key||!j.client_email)throw 0}catch(e){console.log("::error::FIREBASE_SA no es el JSON de la cuenta de servicio (pegá el archivo completo).");delete o.FB_SA}}
+            require("fs").writeFileSync("/tmp/s.json",JSON.stringify(o));console.log("Secretos: "+(Object.keys(o).join(", ")||"ninguno"))'
+          if [ "$(cat /tmp/s.json)" != "{}" ]; then npx wrangler secret bulk /tmp/s.json; fi
+          rm -f /tmp/s.json
+          [ -z "$MP_CLIENT_ID" ] || [ -z "$MP_CLIENT_SECRET" ] && echo "::notice::Faltan MP_CLIENT_ID / MP_CLIENT_SECRET (conectar Mercado Pago de los negocios)."
+          [ -z "$MP_ACCESS_TOKEN" ] || [ -z "$FIREBASE_SA" ] && echo "::notice::Faltan MP_ACCESS_TOKEN / FIREBASE_SA (débito automático del abono)."
+          true
           grep -o 'https://[a-z0-9.-]*workers.dev' /tmp/deploy.txt | head -1 | sed 's/^/::notice::Dirección del servidor: /'
