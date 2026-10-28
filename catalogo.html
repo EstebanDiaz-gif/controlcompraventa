@@ -267,7 +267,7 @@ body.est-calzado .sec h2,body.est-celus .sec h2{text-transform:uppercase;letter-
 .pays input{width:18px;height:18px;margin:0;accent-color:var(--ink);flex:none}
 .pays .pi{font-size:20px;flex:none}.pays .pn{flex:1;min-width:0}
 .pays .pb2{flex:none;font-size:12px;font-weight:800;border-radius:99px;padding:3px 9px;background:#E6F4EA;color:#17713c}
-.pays .pb2.rcg{background:#FDEDE7;color:#a8431f}
+.pays .pb2.rcg{background:#EEF0F3;color:#3b4048}
 .dsc span:last-child{white-space:nowrap;flex:none}
 .pdet{background:var(--soft);border-radius:14px;padding:12px 14px;margin-top:10px;font-size:14.5px}
 .pdet .pr2{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0}
@@ -939,7 +939,7 @@ if(P.mp&&P.mp.on&&okLink(P.mp.link))l.push({id:'mp',n:'Mercado Pago',ic:'💙',p
 (P.ot||[]).forEach(function(o,i){if(o&&o.n&&(!o.link||okLink(o.link)))l.push({id:'o'+i,n:String(o.n),ic:'💳',p:n(o.p),d:o})});return l}
 function pagoSel(){var l=medios();if(!l.length)return null;var m=l.filter(function(x){return x.id==PAGO})[0];if(!m){m=l[0];PAGO=m.id}return m}
 function ajuste(m,t){return m&&m.p?Math.round(t*m.p/100):0}
-function pbad(m){return m.p<0?'<span class="pb2">'+(-m.p)+'% OFF</span>':m.p>0?'<span class="pb2 rcg">+'+m.p+'%</span>':''}
+function pbad(m){return m.p<0?'<span class="pb2">'+(-m.p)+'% OFF</span>':m.p>0?'<span class="pb2 rcg">Precio de lista</span>':''}
 // "$9.000 con transferencia": el mejor descuento, debajo del precio de cada producto
 var MDS;function mejorDesc(){if(MDS!==undefined)return MDS;var l=medios().filter(function(m){return m.p<0});if(!l.length)return MDS=null;
 var mn=Math.min.apply(null,l.map(function(m){return m.p})),ns=l.filter(function(m){return m.p==mn}).map(function(m){return m.id=='mp'?'Mercado Pago':m.n.toLowerCase()});
@@ -971,11 +971,11 @@ if(!hn&&r.cerca)hn='Sumá '+r.cerca.faltan+' '+(r.cerca.faltan==1?(ALM?'producto
 if(envOn())h+='<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA=='ret'?' checked':'')+'> Retiro en el local</label><label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label></div>'+(ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="120" value="'+esc(EDIR)+'" autocomplete="street-address">':'');
 var MP=pagoSel(),aj=ajuste(MP,total);
 if(MP){h+='<div class="lbl" style="margin-top:12px">¿Cómo pagás?</div>'+paysHtml(medios(),MP.id);
-if(aj)h+='<div class="dsc"><span>'+(aj<0?'🏷️ '+(-MP.p)+'% OFF pagando con '+esc(MP.id=='mp'?MP.n:MP.n.toLowerCase()):'Recargo '+esc(MP.n)+' ('+MP.p+'%)')+'</span><span>'+(aj<0?'−':'+')+money(Math.abs(aj))+'</span></div>'}
+if(aj<0)h+='<div class="dsc"><span>🏷️ '+(-MP.p)+'% OFF pagando con '+esc(MP.id=='mp'?MP.n:MP.n.toLowerCase())+'</span><span>−'+money(-aj)+'</span></div>'}
 total+=aj;
 if(envCosto())h+='<div class="dsc"><span>🛵 Envío a domicilio</span><span>+'+money(envCosto())+'</span></div>';
 total+=envCosto();
-h+='<div class="tot"><span>Total</span><span>'+money(total)+'</span></div>'+(MP?pdet(MP,total):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
+h+='<div class="tot"><span>Total'+(aj>0?' <small style="font-size:13px;font-weight:700;color:var(--mut)">precio de lista</small>':'')+'</span><span>'+money(total)+'</span></div>'+(MP?pdet(MP,total):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
 (TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
 (WAS.length>1?'<div class="lbl" style="text-align:center">¿A quién le mandás el pedido?</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
@@ -990,7 +990,7 @@ function waBtns(fn,pre){return WAS.map(function(x,i){return '<a class="wa" data-
 function elegirWa(){OPEN='';$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><b style="font-size:20px;display:block;margin:4px 44px 6px 0">¿A quién le querés escribir?</b>'+waBtns(function(w){return waUrl(w,'Hola! Vi tu catálogo y quería consultar.')})+'<button class="x" data-cl="1" style="display:block;margin:16px auto 0">Cancelar</button>';$('sh').hidden=false}
 function waLink(r,total,w){var m=TEMA&&TEMAS[TEMA].wa?'Hola! Quiero hacer este pedido '+TEMAS[TEMA].wa+'\n':'Hola! Quiero hacer este pedido:\n';
 r.ls.forEach(function(x){if(x.promo){m+='- '+x.l.q+' × '+x.g.n+(x.g.inc?' ('+x.g.inc+')':'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+'\n';return}m+=x.l.w?'- '+fq(x.l.q)+' de '+x.g.n+' — '+money(x.u*x.l.q)+'\n':'- '+x.l.q+' × '+x.g.n+(x.l.z?', talle '+x.l.z:'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+(x.may?' (mayorista)':'')+'\n'});
-if(r.dsc)m+='🏷️ '+r.dsc.t+': −'+money(r.dsc.m)+'\n';if(envOn())m+=(ENTREGA=='env'?'🛵 Envío a domicilio'+(envCosto()?': +'+money(envCosto()):'')+(EDIR.trim()?'\n📍 Dirección: '+EDIR.trim():''):'🏪 Lo retiro en el local')+'\n';var MP=pagoSel();if(MP){var aj=ajuste(MP,r.total);m+='💳 Pago: '+MP.n+(aj?' ('+(aj<0?(-MP.p)+'% OFF: −':'recargo '+MP.p+'%: +')+money(Math.abs(aj))+')':'')+'\n'}m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
+if(r.dsc)m+='🏷️ '+r.dsc.t+': −'+money(r.dsc.m)+'\n';if(envOn())m+=(ENTREGA=='env'?'🛵 Envío a domicilio'+(envCosto()?': +'+money(envCosto()):'')+(EDIR.trim()?'\n📍 Dirección: '+EDIR.trim():''):'🏪 Lo retiro en el local')+'\n';var MP=pagoSel();if(MP){var aj=ajuste(MP,r.total);m+='💳 Pago: '+MP.n+(aj<0?' ('+(-MP.p)+'% OFF: −'+money(-aj)+')':aj>0?' (precio de lista)':'')+'\n'}m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
 $('sq').oninput=function(){Q=this.value;draw()};
 $('arow').onclick=function(e){if(almClick(e))return;var f=e.target.closest('[data-fav]');if(f){e.stopPropagation();togFav(f.dataset.fav);f.classList.toggle('on',isFav(f.dataset.fav));return}var c=e.target.closest('.ac');if(c)prod(c.dataset.k)};
 $('cats').onclick=function(e){var b=e.target.closest('[data-c]');if(!b)return;CAT=b.dataset.c;draw()};
