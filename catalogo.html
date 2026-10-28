@@ -232,6 +232,24 @@ body.serif .htag,body.serif .sec h2,body.serif .brand b,body.serif .brand h1,bod
 body.est-celus .im,body.est-celus .rc{border-radius:14px}
 body[class*="est-"] .chip.on,body[class*="est-"] .plus{background:var(--b);color:var(--bi)}
 body.est-calzado .sec h2,body.est-celus .sec h2{text-transform:uppercase;letter-spacing:.04em;font-size:18px;font-weight:900}
+/* ---------- Medios de pago ---------- */
+.pprice+.pdt{text-align:center;font-size:14px}
+.pdt{display:block;font-size:12.5px;color:var(--ok);font-weight:700;margin-top:3px;line-height:1.25}
+.ac .pdt{margin-top:2px}
+.pays{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.pays label{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:14px;padding:11px 12px;font-weight:700;cursor:pointer;background:var(--card)}
+.pays label.on{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.pays input{width:18px;height:18px;margin:0;accent-color:var(--ink);flex:none}
+.pays .pi{font-size:20px;flex:none}.pays .pn{flex:1;min-width:0}
+.pays .pb2{flex:none;font-size:12px;font-weight:800;border-radius:99px;padding:3px 9px;background:#E6F4EA;color:#17713c}
+.pays .pb2.rcg{background:#FDEDE7;color:#a8431f}
+.dsc span:last-child{white-space:nowrap;flex:none}
+.pdet{background:var(--soft);border-radius:14px;padding:12px 14px;margin-top:10px;font-size:14.5px}
+.pdet .pr2{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0}
+.pdet .pr2 span{min-width:0;word-break:break-all}.pdet .pr2 small{display:block;color:var(--mut);font-size:12px;font-weight:600;word-break:normal}
+.pdet .cpb{flex:none;border:0;border-radius:10px;background:var(--ink);color:#fff;font-weight:800;font-size:13px;padding:7px 12px;cursor:pointer}
+.pdet .lk{display:block;text-align:center;text-decoration:none;border-radius:12px;background:var(--ink);color:#fff;font-weight:800;padding:12px;margin-top:6px}
+.pdet p{margin:6px 0 0;color:var(--mut);font-size:13px;line-height:1.35}
 /* ---------- Pie de página ---------- */
 footer{position:relative;z-index:1;margin-top:34px;background:#141414;color:#d9d9d6;font-size:14px;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .fseas{position:relative;overflow:hidden;padding:18px 20px;display:flex;align-items:center;gap:14px}
@@ -520,7 +538,7 @@ tl.onclick=function(ev){var x=ev.target.closest('[data-svgo]');if(x)$(x.dataset.
 function svImgs(){((AGD&&AGD.sv)||[]).forEach(function(x){if(!x.f||SVI[x.id]||SVL[x.id])return;SVL[x.id]=1;
 getDoc(doc(db,'stores',sid,'public','svfoto_'+x.id)).then(function(d){var f=d.exists()&&d.data().f;if(!f)return;SVI[x.id]=f;
 Array.prototype.forEach.call(document.querySelectorAll('[data-svi="'+x.id+'"]'),function(el){el.innerHTML='<img alt="" src="'+esc(f)+'">'});svHero()}).catch(function(){})})}
-function svPRow(g){var o=oldP(g);return '<div class="svrow" data-k="'+esc(g.k)+'"><span class="im">'+imgHtml(g,1)+'</span><div class="tx"><b>'+esc(g.n)+'</b><span class="pr">'+money(base(g))+(o?'<s>'+money(o)+'</s>':'')+'</span>'+(g.d?'<small>'+esc(g.d)+'</small>':g.sz.length?'<small>'+g.sz.map(function(z){return esc(z.z)}).join(' · ')+'</small>':'')+'</div><span class="ic2">'+BAGI+'</span></div>'}
+function svPRow(g){var o=oldP(g);return '<div class="svrow" data-k="'+esc(g.k)+'"><span class="im">'+imgHtml(g,1)+'</span><div class="tx"><b>'+esc(g.n)+'</b><span class="pr">'+money(base(g))+(o?'<s>'+money(o)+'</s>':'')+'</span>'+dl(g)+(g.d?'<small>'+esc(g.d)+'</small>':g.sz.length?'<small>'+g.sz.map(function(z){return esc(z.z)}).join(' · ')+'</small>':'')+'</div><span class="ic2">'+BAGI+'</span></div>'}
 // ---------- Catálogo de almacén ----------
 var CATI={'Almacén':'🥫','Bebidas':'🥤','Galletitas y golosinas':'🍪','Lácteos':'🥛','Fiambrería':'🧀','Panadería':'🥖','Verdulería':'🥕','Congelados':'🧊','Limpieza':'🧴','Perfumería':'🧼','Cigarrillos':'🚬','Otros':'🛒','Kiosco':'🍫','Carnicería':'🥩','Bazar':'🍽️','Mascotas':'🐾','Bebés':'🍼','Farmacia':'💊','Carne vacuna':'🥩','Cerdo':'🐖','Pollo':'🍗','Embutidos':'🌭','Para el asado':'🔥','Elaborados':'🍽️','Golosinas':'🍬','Snacks':'🍟','Varios':'🔋'};
 function almSetup(){document.body.classList.toggle('alm',!!ALM);if(!ALM)return;
@@ -543,7 +561,7 @@ return '<div class="stp"><button data-dec="'+esc(g.k)+'" aria-label="Uno menos">
 function acCard(g){var p=pct(g),o=oldP(g);
 return '<div class="ac" data-k="'+esc(g.k)+'">'+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+
 '<div class="aim">'+imgHtml(g,1)+'</div><div class="anm">'+esc(g.n)+'</div><div class="asub">'+(g.w?'por kg':(g.d?esc(g.d):(g.cat?esc(g.cat):'&nbsp;')))+'</div>'+
-'<div class="apr">'+money(base(g))+(g.w?'<span class="kg"> /kg</span>':'')+(o?'<s>'+money(o)+'</s>':'')+'</div><div class="aadd">'+addHtml(g)+'</div></div>'}
+'<div class="apr">'+money(base(g))+(g.w?'<span class="kg"> /kg</span>':'')+(o?'<s>'+money(o)+'</s>':'')+'</div>'+dl(g)+'<div class="aadd">'+addHtml(g)+'</div></div>'}
 function almStep(k,dir){var g=gOf(k);if(!g)return;var st=g.w?0.25:1,l=CART.filter(function(x){return x.k==k&&!x.promo})[0],q=l?l.q:0,mx=stockOf(g);
 var nq=Math.round((q+dir*st)*1000)/1000;if(dir>0&&nq>mx){nq=q;alert('No hay más stock de este producto por ahora.')}
 if(nq<=0){if(l)CART.splice(CART.indexOf(l),1)}else if(l)l.q=nq;else CART.push({k:k,z:'',q:nq,w:g.w});bar()}
@@ -723,7 +741,7 @@ if(!l.length){$('grid').innerHTML=!G.length&&!$('promos').hidden?'':'<div class=
 if(ALM){$('grid').innerHTML=l.map(acCard).join('');bar();openPend();return}
 if(SVC){$('grid').className='grid svg';$('grid').innerHTML=l.map(svPRow).join('');svHero();bar();openPend();return}
 $('grid').innerHTML=l.map(function(g){var mt=g.pm&&g.pn&&g.pm<g.pn&&(INFO.mode=='carrito'?INFO.minCart>0:g.mm>0),p=pct(g);
-return '<div class="card" data-k="'+esc(g.k)+'"><div class="im"'+(TEMA&&TEMAS[TEMA].badge?' data-bd="'+TEMAS[TEMA].badge+'"':'')+'>'+imgHtml(g,1)+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+(!g.w&&g.q<=2?'<span class="tag">Últimas unidades</span>':'')+(mt?'<span class="tag m">Mayorista</span>':'')+'</div><div class="body"><div class="nm">'+esc(g.n)+'</div>'+(g.d?'<div class="ds">'+esc(g.d)+'</div>':'')+'<div class="pb"><span class="pr">'+priceHtml(g)+'</span><span class="plus">'+PLUS+'</span></div></div></div>'}).join('');bar();openPend()}
+return '<div class="card" data-k="'+esc(g.k)+'"><div class="im"'+(TEMA&&TEMAS[TEMA].badge?' data-bd="'+TEMAS[TEMA].badge+'"':'')+'>'+imgHtml(g,1)+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+(!g.w&&g.q<=2?'<span class="tag">Últimas unidades</span>':'')+(mt?'<span class="tag m">Mayorista</span>':'')+'</div><div class="body"><div class="nm">'+esc(g.n)+'</div>'+(g.d?'<div class="ds">'+esc(g.d)+'</div>':'')+'<div class="pb"><span class="pr">'+priceHtml(g)+'</span><span class="plus">'+PLUS+'</span></div>'+dl(g)+'</div></div>'}).join('');bar();openPend()}
 /* ---------- carta de servicios y turnos online (public/agenda la publica la app; ver turnos.js) ---------- */
 var AGD=null,BK=null,OCC={};
 function loadAg(){getDoc(doc(db,'stores',sid,'public','agenda')).then(function(d){if(!d.exists())return;AGD=d.data();drawCarta();draw()}).catch(function(){})}
@@ -750,12 +768,14 @@ occ(d,fresh).then(function(busy){if(!BK||BK.d!=d)return;var ids=BK.pro=='*'?(AGD
 BK.busy=busy;BK.slots=libres(AGD,d,BK.sv.dur,ids,busy,desdeHoy(d,new Date(),AGD.ant||0));renderBook()}).catch(function(){if(BK){BK.slots=[];BK.err=1;renderBook()}})}
 function dLbl(d){var t=ymd(new Date());return d==t?'Hoy':d==addDays(t,1)?'Mañana':fechaCorta(d).split(' ')[0]}
 function renderBook(){if(!BK)return;var x=BK.sv,h='<button class="cl" data-cl="1" aria-label="Cerrar">×</button>';
-if(BK.done){var t=BK.done,msg='Hola! Reservé un turno desde el catálogo: *'+x.n+'* el '+fechaLargaT(t.d)+' a las '+hm(t.i)+((AGD.pros||[]).length>1?' con '+t.en:'')+'. Soy '+t.cl+'.';
+if(BK.done){var t=BK.done,sn=senaDe(x),ms=mediosSena(),MS=null;if(sn&&ms.length){MS=ms.filter(function(m){return m.id==PAGO})[0]||ms[0];PAGO=MS.id}
+var msg='Hola! Reservé un turno desde el catálogo: *'+x.n+'* el '+fechaLargaT(t.d)+' a las '+hm(t.i)+((AGD.pros||[]).length>1?' con '+t.en:'')+'. Soy '+t.cl+'.'+(sn?' Te mando la seña de '+money(sn)+(MS?' ('+MS.n+')':'')+'.':'');
 h+='<div style="text-align:center;padding:6px 4px 0"><div class="okc">✓</div><b style="font-size:22px">¡Turno reservado!</b><div style="font-size:18px;font-weight:700;margin-top:10px">'+esc(fechaLargaT(t.d))+' · '+hm(t.i)+'</div><div class="k" style="color:var(--mut);margin-top:4px">'+esc(x.n)+((AGD.pros||[]).length>1?' con '+esc(t.en):'')+' · '+durTxt(x.dur)+'</div></div>'+
-(WAS.length?'<a class="wa" target="_blank" rel="noopener" style="margin-top:18px" href="'+esc(waUrl(WAS[0].w,msg))+'">Avisar al negocio por WhatsApp</a>':'')+
+(sn?'<div class="note" style="margin-top:16px;text-align:center"><b style="font-size:16px">Para confirmar tu turno, señá '+money(sn)+'</b><br>Se descuenta del total del servicio.</div>'+(ms.length>1?paysHtml(ms,MS.id,1):'')+(MS?pdet(MS,sn,'sena'):''):'')+
+(WAS.length?'<a class="wa" target="_blank" rel="noopener" style="margin-top:18px" href="'+esc(waUrl(WAS[0].w,msg))+'">'+(sn?'Mandar el comprobante por WhatsApp':'Avisar al negocio por WhatsApp')+'</a>':'')+
 '<a class="wa" target="_blank" rel="noopener" style="margin-top:10px;background:var(--soft);color:var(--ink)" href="'+esc(gcalUrl(x.n+' · '+(INFO.name||''),t.d,t.i,t.f,'Turno reservado desde el catálogo.',INFO.addr||''))+'">Agregar a mi calendario</a>'+
 '<div class="note" style="margin-top:14px">Si no podés ir, avisale al negocio por WhatsApp así le dejás el horario a otra persona.</div>';
-$('shc').innerHTML=h;return}
+$('shc').innerHTML=h;Array.prototype.forEach.call(document.querySelectorAll('#shc input[name=pago]'),function(r){r.onchange=function(){var sc=$('sh').scrollTop;PAGO=this.value;renderBook();$('sh').scrollTop=sc}});return}
 h+='<b style="font-size:20px">Reservar turno</b><div class="bksv"><b>'+esc(x.n)+'</b><span>'+durTxt(x.dur)+' · '+money(x.p)+'</span></div>';
 var pr=AGD.pros||[];
 if(pr.length>1)h+='<div class="lbl">¿Con quién?</div><div class="chips"><button class="chip'+(BK.pro=='*'?' on':'')+'" data-bkp="*">Cualquiera</button>'+pr.map(function(p){return '<button class="chip'+(BK.pro==p.id?' on':'')+'" data-bkp="'+esc(p.id)+'">'+esc(p.n)+'</button>'}).join('')+'</div>';
@@ -767,7 +787,7 @@ else if(BK.err)h+='<div class="note">No pude ver los horarios. Probá de nuevo e
 else if(!BK.slots.length)h+='<div class="note">No quedan horarios libres este día. Probá con otro.</div>';
 else h+='<div class="tgrid">'+BK.slots.map(function(s){return '<button class="tch'+(BK.m==s.m?' on':'')+'" data-bkm="'+s.m+'">'+hm(s.m)+'</button>'}).join('')+'</div>';
 if(BK.m!=null){h+='<div class="lbl">Tus datos</div><input class="bkin" id="bk_n" maxlength="60" placeholder="Tu nombre" autocomplete="name" value="'+esc(BK.cl||'')+'"><input class="bkin" id="bk_w" maxlength="20" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" autocomplete="tel" value="'+esc(BK.tel||'')+'">'+
-'<button class="add" data-bkok="1" style="width:100%;margin-top:14px">Reservar · '+esc(dLbl(BK.d))+' '+hm(BK.m)+'</button><div class="k" style="color:var(--mut);font-size:13px;text-align:center;margin-top:8px">El turno queda reservado al instante.</div>'}
+'<button class="add" data-bkok="1" style="width:100%;margin-top:14px">Reservar · '+esc(dLbl(BK.d))+' '+hm(BK.m)+'</button><div class="k" style="color:var(--mut);font-size:13px;text-align:center;margin-top:8px">El turno queda reservado al instante.'+(senaDe(x)?' Después te pedimos una seña de '+money(senaDe(x))+' para confirmarlo.':'')+'</div>'}
 $('shc').innerHTML=h;var n=$('bk_n'),w=$('bk_w');if(n){n.oninput=function(){BK.cl=n.value};w.oninput=function(){BK.tel=w.value}}}
 function confirmBook(btn){var x=BK.sv,cl=(BK.cl||'').trim().replace(/\s+/g,' '),tel=(BK.tel||'').trim();
 if(cl.length<2){alert('Escribí tu nombre.');return}
@@ -790,7 +810,7 @@ var h='<div class="pimg'+(hasI?'':' noi')+'"'+(g.img?' data-zoom="1"':'')+'>'+(n
 '<div class="gdots">'+Array.from({length:nx+1},function(_,i){return '<i'+(i?'':' class="on"')+'></i>'}).join('')+'</div><button class="gnav l" data-gn="-1" aria-label="Foto anterior">‹</button><button class="gnav r" data-gn="1" aria-label="Foto siguiente">›</button>':main)+(g.img?'<span class="zm">'+(nx?'Deslizá para ver más fotos':'Tocá para ampliar')+'</span>':'')+
 '<div class="ptop"><button class="ib" data-cl="1" aria-label="Volver">'+BACK+'</button><span><button class="ib fav'+(isFav(k)?' on':'')+'" data-fav="'+esc(k)+'" aria-label="Favorito">'+SVG.heart+'</button><button class="ib" data-share="1" aria-label="Compartir">'+SHARE+'</button></span></div></div>'+
 '<div class="pbody"><h2>'+esc(g.n)+'</h2><div class="pmeta"><span class="pcat">'+(g.cat?TAGI+esc(g.cat):'')+'</span><span class="stk'+(low?' low':'')+'">'+(low?'Últimas unidades':'Disponible')+'</span></div>'+
-'<div class="pprice"><b>'+ptxt(g)+'</b>'+(o?'<s>'+money(o)+'</s><em>-'+p+'%</em>':'')+'</div>'+(mt?'<div class="may">'+esc(mt)+'</div>':'')+(g.d?'<p class="pdesc">'+esc(g.d)+'</p>':'')+
+'<div class="pprice"><b>'+ptxt(g)+'</b>'+(o?'<s>'+money(o)+'</s><em>-'+p+'%</em>':'')+'</div>'+dl(g)+(mt?'<div class="may">'+esc(mt)+'</div>':'')+(g.d?'<p class="pdesc">'+esc(g.d)+'</p>':'')+
 (g.sz.length?'<div class="lbl">Elegí una opción</div><div class="rad">'+g.sz.map(function(z){return '<button class="ro'+(s.z==z.z?' on':'')+'" data-z="'+esc(z.z)+'"><i></i>'+esc(z.z)+'</button>'}).join('')+'</div>':'')+
 (g.w?'<div class="lbl">¿Cuánto querés? (de a 250 g)</div>':'')+'<div class="qrow"><div class="q"><button data-m="-1" aria-label="Menos">−</button><span>'+(g.w?fq(s.q):s.q)+'</span><button data-m="1" aria-label="Más">+</button></div>'+(g.w?'<b>'+money(s.q*g.pn)+'</b>':'')+'</div>'+
 '<div class="acts"><button class="add" data-add="1">Agregar '+SVG.cart+'</button>'+(WAS.length?'<button class="wa1" data-wa1="1">WhatsApp</button>':'')+'</div></div>';
@@ -830,6 +850,38 @@ return {tot:tot,ls:ls,sub:sub,dsc:dsc,cerca:d.cerca,total:sub-(dsc?dsc.m:0)}}
 function bar(){almRefresh();var n=CART.reduce(function(a,l){return a+cnt(l)},0);$('bar').hidden=!n;$('cbn').hidden=!n;$('cbn').textContent=n;if(n){var r=lines();$('vc').textContent='Ver pedido ('+n+') · '+money(r.total)}}
 function hint(r){if(!ALM&&INFO.mode=='carrito'&&INFO.minCart>0){var f=INFO.minCart-r.tot;return f>0?'Sumá '+f+' prenda'+(f==1?'':'s')+' más y todo pasa a precio mayorista.':'Precio mayorista aplicado a todo el pedido.'}
 return ''}
+// ---------- Medios de pago (public/info.pagos; los configura el negocio en Catálogo) ----------
+// pagos = { ef:{on,p}, tr:{on,alias,cbu,tit,p}, mp:{on,link,p}, ot:[{n,link,nota,p}], sena:{on,t:'%'|'$',v} }
+// p = % de descuento (negativo) o recargo (positivo) sobre los productos. El cliente elige y va en el mensaje.
+var PAGO=null;
+function okLink(u){return /^https:\/\/[^\s"'<>]+$/i.test(String(u||''))}
+function medios(){var P=INFO.pagos||{},l=[],n=function(v){v=+v||0;return Math.max(-90,Math.min(90,v))};
+if(P.ef&&P.ef.on)l.push({id:'ef',n:'Efectivo',ic:'💵',p:n(P.ef.p),d:P.ef});
+if(P.tr&&P.tr.on&&(P.tr.alias||P.tr.cbu))l.push({id:'tr',n:'Transferencia',ic:'🏦',p:n(P.tr.p),d:P.tr});
+if(P.mp&&P.mp.on&&okLink(P.mp.link))l.push({id:'mp',n:'Mercado Pago',ic:'💙',p:n(P.mp.p),d:P.mp});
+(P.ot||[]).forEach(function(o,i){if(o&&o.n&&(!o.link||okLink(o.link)))l.push({id:'o'+i,n:String(o.n),ic:'💳',p:n(o.p),d:o})});return l}
+function pagoSel(){var l=medios();if(!l.length)return null;var m=l.filter(function(x){return x.id==PAGO})[0];if(!m){m=l[0];PAGO=m.id}return m}
+function ajuste(m,t){return m&&m.p?Math.round(t*m.p/100):0}
+function pbad(m){return m.p<0?'<span class="pb2">'+(-m.p)+'% OFF</span>':m.p>0?'<span class="pb2 rcg">+'+m.p+'%</span>':''}
+// "$9.000 con transferencia": el mejor descuento, debajo del precio de cada producto
+var MDS;function mejorDesc(){if(MDS!==undefined)return MDS;var l=medios().filter(function(m){return m.p<0});if(!l.length)return MDS=null;
+var mn=Math.min.apply(null,l.map(function(m){return m.p})),ns=l.filter(function(m){return m.p==mn}).map(function(m){return m.id=='mp'?'Mercado Pago':m.n.toLowerCase()});
+return MDS={p:mn,t:ns.length>2?ns.slice(0,-1).join(', ')+' o '+ns[ns.length-1]:ns.join(' o ')}}
+function dl(g){var d=mejorDesc();if(!d||!base(g))return '';return '<span class="pdt">'+money(Math.round(base(g)*(100+d.p)/100))+(g.w?'/kg':'')+' con '+esc(d.t)+'</span>'}
+// Seña para reservar turnos: % del servicio o un monto fijo. Se paga por transferencia o link (no en efectivo).
+function senaDe(x){var S=(INFO.pagos||{}).sena;if(!S||!S.on||!(+S.v>0))return 0;return S.t=='$'?Math.round(+S.v):Math.round((+x.p||0)*Math.min(100,+S.v)/100)}
+function mediosSena(){return medios().filter(function(m){return m.id!='ef'})}
+function cpRow(lbl,v){return v?'<div class="pr2"><span><small>'+lbl+'</small>'+esc(v)+'</span><button class="cpb" data-cp="'+esc(v)+'">Copiar</button></div>':''}
+// Detalle del medio elegido: datos para transferir, botón al link de pago, etc.
+function pdet(m,monto,que){if(!m)return '';var d=m.d||{},h='<div class="pdet">';
+if(m.id=='ef')h+='<b>💵 Pagás en efectivo</b><p>'+(que=='sena'?'Llevá la seña al local.':'Pagás '+money(monto)+' al '+(envCosto()?'recibir':'retirar')+' el pedido.')+'</p>';
+else if(m.id=='tr')h+='<b>Transferí '+money(monto)+'</b>'+cpRow('Alias',d.alias)+cpRow('CBU / CVU',d.cbu)+(d.tit?'<div class="pr2"><span><small>Titular</small>'+esc(d.tit)+'</span></div>':'')+'<p>Después mandá el comprobante por WhatsApp.</p>';
+else if(d.link)h+='<a class="lk" href="'+esc(d.link)+'" target="_blank" rel="noopener">Pagar '+money(monto)+(m.id=='mp'?' con Mercado Pago':' · '+esc(m.n))+' ↗</a>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>Si el link te pide el monto, poné '+money(monto)+'. Después mandá el comprobante por WhatsApp.</p>';
+else h+='<b>'+esc(m.n)+'</b>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>El negocio te confirma cómo pagar por WhatsApp.</p>';
+return h+'</div>'}
+function paysHtml(l,sel,nob){return '<div class="pays">'+l.map(function(m){return '<label'+(m.id==sel?' class="on"':'')+'><input type="radio" name="pago" value="'+esc(m.id)+'"'+(m.id==sel?' checked':'')+'><span class="pi">'+m.ic+'</span><span class="pn">'+esc(m.n)+'</span>'+(nob?'':pbad(m))+'</label>'}).join('')+'</div>'}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-cp]');if(!b)return;var v=b.dataset.cp;
+(navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(function(){b.textContent='¡Copiado!';setTimeout(function(){b.textContent='Copiar'},1500)},function(){prompt('Copiá:',v)})});
 // Envío a domicilio (lo configura el negocio): el cliente elige retiro o envío y se suma el costo.
 var ENTREGA='ret',EDIR='';function envOn(){return !!(INFO.env&&INFO.env.on)}function envCosto(){return envOn()&&ENTREGA=='env'?(+INFO.env.precio||0):0}
 function sheet(){OPEN='';$('sh').className='sheet';var r=lines();
@@ -840,14 +892,19 @@ var hn=hint(r);
 if(r.dsc)h+='<div class="dsc"><span>🏷️ '+esc(r.dsc.t)+'</span><span>−'+money(r.dsc.m)+'</span></div>';
 if(!hn&&r.cerca)hn='Sumá '+r.cerca.faltan+' '+(r.cerca.faltan==1?(ALM?'producto':'prenda'):UNI())+(r.cerca.p.cat?' de '+r.cerca.p.cat:'')+' más y tenés '+r.cerca.p.pct+'% OFF.';
 if(envOn())h+='<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA=='ret'?' checked':'')+'> Retiro en el local</label><label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label></div>'+(ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="120" value="'+esc(EDIR)+'" autocomplete="street-address">':'');
+var MP=pagoSel(),aj=ajuste(MP,total);
+if(MP){h+='<div class="lbl" style="margin-top:12px">¿Cómo pagás?</div>'+paysHtml(medios(),MP.id);
+if(aj)h+='<div class="dsc"><span>'+(aj<0?'🏷️ '+(-MP.p)+'% OFF pagando con '+esc(MP.id=='mp'?MP.n:MP.n.toLowerCase()):'Recargo '+esc(MP.n)+' ('+MP.p+'%)')+'</span><span>'+(aj<0?'−':'+')+money(Math.abs(aj))+'</span></div>'}
+total+=aj;
 if(envCosto())h+='<div class="dsc"><span>🛵 Envío a domicilio</span><span>+'+money(envCosto())+'</span></div>';
 total+=envCosto();
-h+='<div class="tot"><span>Total</span><span>'+money(total)+'</span></div>'+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
+h+='<div class="tot"><span>Total</span><span>'+money(total)+'</span></div>'+(MP?pdet(MP,total):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
 (TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
 (WAS.length>1?'<div class="lbl" style="text-align:center">¿A quién le mandás el pedido?</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
 $('shc').innerHTML=h;$('sh').hidden=false;
 Array.prototype.forEach.call(document.querySelectorAll('input[name=entr]'),function(x){x.onchange=function(){ENTREGA=this.value;sheet()}});
+Array.prototype.forEach.call(document.querySelectorAll('#shc input[name=pago]'),function(x){x.onchange=function(){var sc=$('sh').scrollTop;PAGO=this.value;sheet();$('sh').scrollTop=sc}});
 var ed=$('edir');if(ed)ed.oninput=function(){EDIR=this.value;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})};
 var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})}}
 function waUrl(w,m){return 'https://wa.me/'+String(w).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
@@ -856,7 +913,7 @@ function waBtns(fn,pre){return WAS.map(function(x,i){return '<a class="wa" data-
 function elegirWa(){OPEN='';$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><b style="font-size:20px;display:block;margin:4px 44px 6px 0">¿A quién le querés escribir?</b>'+waBtns(function(w){return waUrl(w,'Hola! Vi tu catálogo y quería consultar.')})+'<button class="x" data-cl="1" style="display:block;margin:16px auto 0">Cancelar</button>';$('sh').hidden=false}
 function waLink(r,total,w){var m=TEMA&&TEMAS[TEMA].wa?'Hola! Quiero hacer este pedido '+TEMAS[TEMA].wa+'\n':'Hola! Quiero hacer este pedido:\n';
 r.ls.forEach(function(x){if(x.promo){m+='- '+x.l.q+' × '+x.g.n+(x.g.inc?' ('+x.g.inc+')':'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+'\n';return}m+=x.l.w?'- '+fq(x.l.q)+' de '+x.g.n+' — '+money(x.u*x.l.q)+'\n':'- '+x.l.q+' × '+x.g.n+(x.l.z?', talle '+x.l.z:'')+' — '+money(x.u)+(x.l.q>1?' c/u':'')+(x.may?' (mayorista)':'')+'\n'});
-if(r.dsc)m+='🏷️ '+r.dsc.t+': −'+money(r.dsc.m)+'\n';if(envOn())m+=(ENTREGA=='env'?'🛵 Envío a domicilio'+(envCosto()?': +'+money(envCosto()):'')+(EDIR.trim()?'\n📍 Dirección: '+EDIR.trim():''):'🏪 Lo retiro en el local')+'\n';m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
+if(r.dsc)m+='🏷️ '+r.dsc.t+': −'+money(r.dsc.m)+'\n';if(envOn())m+=(ENTREGA=='env'?'🛵 Envío a domicilio'+(envCosto()?': +'+money(envCosto()):'')+(EDIR.trim()?'\n📍 Dirección: '+EDIR.trim():''):'🏪 Lo retiro en el local')+'\n';var MP=pagoSel();if(MP){var aj=ajuste(MP,r.total);m+='💳 Pago: '+MP.n+(aj?' ('+(aj<0?(-MP.p)+'% OFF: −':'recargo '+MP.p+'%: +')+money(Math.abs(aj))+')':'')+'\n'}m+='Total: '+money(total);if(TEMA&&TEMAS[TEMA].regalo&&GIFT)m+='\n🎁 Por favor, envuelto para regalo.';return waUrl(w||(WAS[0]&&WAS[0].w)||INFO.wa,m)}
 $('sq').oninput=function(){Q=this.value;draw()};
 $('arow').onclick=function(e){if(almClick(e))return;var f=e.target.closest('[data-fav]');if(f){e.stopPropagation();togFav(f.dataset.fav);f.classList.toggle('on',isFav(f.dataset.fav));return}var c=e.target.closest('.ac');if(c)prod(c.dataset.k)};
 $('cats').onclick=function(e){var b=e.target.closest('[data-c]');if(!b)return;CAT=b.dataset.c;draw()};

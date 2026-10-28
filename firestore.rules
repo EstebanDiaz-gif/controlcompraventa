@@ -102,6 +102,27 @@ service cloud.firestore {
       allow get: if signedIn();
       allow list, write: if isPlatformOwner();
     }
+    // Panel del vendedor. El propietario le manda un link con una clave (vendClaves/{código}); con esa clave
+    // el vendedor vincula su cuenta (vendUid/{uid} = {code}) y la clave se borra en el mismo paso.
+    function vendCodeOf() { return get(/databases/$(database)/documents/vendUid/$(request.auth.uid)).data.code; }
+    function isVendOf(c) {
+      return signedIn() && c is string && c != ''
+        && exists(/databases/$(database)/documents/vendUid/$(request.auth.uid)) && vendCodeOf() == c;
+    }
+    match /vendClaves/{code} {
+      allow read, write: if isPlatformOwner();
+      allow delete: if signedIn()
+        && getAfter(/databases/$(database)/documents/vendUid/$(request.auth.uid)).data.code == code;
+    }
+    match /vendUid/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isPlatformOwner());
+      allow list, delete: if isPlatformOwner();
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code', 'clave', 'email', 'at'])
+        && request.resource.data.clave is string && request.resource.data.clave.size() == 6
+        && exists(/databases/$(database)/documents/vendClaves/$(request.resource.data.code))
+        && get(/databases/$(database)/documents/vendClaves/$(request.resource.data.code)).data.clave == request.resource.data.clave;
+    }
 
     // Tema de temporada general (para todas las tiendas). Lo lee cualquiera, también el catálogo.
     // Solo el propietario de la plataforma lo activa o lo quita.
@@ -124,7 +145,8 @@ service cloud.firestore {
     }
 
     match /stores/{sid} {
-      allow read: if isMember(sid) || isPlatformOwner();
+      // El vendedor que trajo la tienda ve sus datos básicos (nombre, alta), no lo de adentro.
+      allow read: if isMember(sid) || isPlatformOwner() || isVendOf(resource.data.get('vend', ''));
       allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
       allow update: if (isAdmin(sid) && request.resource.data.owner == resource.data.owner)
         || (isPlatformOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vend']));
@@ -149,7 +171,8 @@ service cloud.firestore {
 
       // Estado de la suscripción: lo ven los miembros; solo el propietario de la plataforma lo modifica.
       match /billing/{doc} {
-        allow read: if isMember(sid) || isPlatformOwner();
+        allow read: if isMember(sid) || isPlatformOwner()
+          || (doc == 'access' && isVendOf(get(/databases/$(database)/documents/stores/$(sid)).data.get('vend', '')));
         // Al crear la tienda, quien la crea puede iniciar SU prueba gratuita (máximo 15 días, sin pago registrado).
         allow create: if isPlatformOwner() || (signedIn()
           && getAfter(/databases/$(database)/documents/stores/$(sid)).data.owner == request.auth.uid

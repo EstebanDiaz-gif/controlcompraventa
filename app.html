@@ -157,7 +157,9 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <div class="k">Creá tu tienda, o unite a una con el código que te dio un administrador.</div>
 <button class="go" id="mk">Crear tienda nueva</button>
 <button class="go alt" id="jn">Unirme con un código</button>
+<button class="go alt" id="vpb" hidden>🤝 Mi panel de vendedor</button>
 <button class="x" id="lo0" style="font-size:14px;margin-top:10px;text-decoration:underline">Cerrar sesión</button></div></section>
+<section id="vpanel" hidden></section>
 <div id="appui" hidden>
 <div id="hdr"></div>
 <div id="banner"></div>
@@ -216,7 +218,7 @@ var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:pers
 var STCREADA=0,PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
-function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui'].forEach(function(i){$(i).hidden=i!=g})}
+function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui','vpanel'].forEach(function(i){$(i).hidden=i!=g})}
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
 function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return r.data})}
@@ -274,7 +276,7 @@ role:function(){return ROLE},biz:function(){return biz()},cs:function(){return C
 // Estado de una tienda para el panel del dueño (mismo criterio que la lista de Empresas)
 function estadoTienda(x){var a=x.acc;if(!a)return 'free';var st=deriveState(a,Date.now());if(a.life&&st.state=='paid')return 'life';if(st.state=='expired'&&!a.paidUntilMs&&!a.trialStartMs)return 'paused';if(st.state=='expired'||st.state=='grace')return 'exp';if(st.state=='trial')return 'trial';if(st.state=='paid')return 'paid';return 'free'}
 var VD=createVendedores({db:db,esc:esc,money:money,today:today,fail:function(e){fail(e)},cfg:function(){return CFG},stores:function(){return PLL.list},estado:estadoTienda,
-base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:function(){if(TAB=='plat')drawPlatLite()}});
+base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:function(){if(TAB=='plat')drawPlatLite()},panelDraw:function(){var e=$('vpanel');if(e&&!e.hidden)e.innerHTML=VD.panel()}});
 VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
@@ -322,6 +324,18 @@ sendPasswordResetEmail(auth,m).then(function(){say('Te mandamos un mail para cam
 $('lo0').onclick=function(){signOut(auth)};
 $('mk').onclick=function(){newStore()};
 $('jn').onclick=function(){joinStore()};
+// ---------- Panel del vendedor (vendUid/{uid} = {code}) ----------
+var VEND='';
+function openVend(){if(!VEND)return;gate('vpanel');$('vpanel').innerHTML=VD.panel();VD.panelCargar(VEND);try{window.scrollTo(0,0)}catch(e){}}
+function vendWatch(u){var inv=VD.invDesdeLink(),first=true;
+if(inv)try{history.replaceState(null,'',location.pathname)}catch(e){}
+un.vend=onSnapshot(doc(db,'vendUid',u.uid),function(sn){var was=VEND;VEND=sn.exists()?(sn.data().code||''):'';$('vpb').hidden=!VEND;if(ROLE&&was!=VEND)drawHdr();
+if(first){first=false;if(inv){var ic=inv.split('-')[0];if(VEND==ic){try{localStorage.removeItem('pk_vinv')}catch(e){}openVend();return}vendClaim(inv);return}}
+if(VEND&&!was&&!$('nostore').hidden)openVend()},function(){if(first&&inv){first=false;vendClaim(inv)}})}
+function vendClaim(t){VD.vincular(U.uid,U.email,t).then(function(){/* el snapshot de vendUid trae el código */setTimeout(function(){if(VEND)openVend()},400)}).catch(function(){alert('Ese link de vendedor no es válido o ya se usó. Pedile uno nuevo a Pekeron.')})}
+$('vpb').onclick=function(){openVend()};
+$('vpanel').addEventListener('click',function(e){if(e.target.closest('[data-vpx]')){if(SID&&ROLE)gate('app');else gate('nostore');return}VD.panelClick(e)});
+$('vpanel').addEventListener('change',function(e){VD.panelChange(e)});
 
 
 /* ---------- tipo de negocio (grilla) ---------- */
@@ -457,6 +471,7 @@ b.commit().then(function(){return Object.keys(cfg).length?setDoc(doc(db,'stores'
 try{localStorage.setItem('cv_sid',bsid)}catch(e){}openStore(bsid);alert('Listo. Abriste la sucursal '+suc+'. Ahora estás adentro: cargá su stock y generá los códigos para sus empleados en Equipo.')}).catch(function(e){CREATING=null;fail(e)})}
 function joinStore(){
 var c=(prompt('Pegá el código (o el mensaje completo) que te dieron:')||'').trim();if(!c)return;
+var vm=c.toUpperCase().match(/[A-Z0-9]{3,10}-[A-Z0-9]{6}/);if(vm&&VD.esInvitacion(vm[0])){vendClaim(vm[0]);return}
 if(/^[A-Za-z0-9]{4}$/.test(c.replace(/\s/g,''))||/(^|[^A-Za-z0-9])[A-Za-z0-9]{4}([^A-Za-z0-9]|$)/.test(c)&&!/[a-z0-9]{17}/i.test(c)){var cc=(c.replace(/\s/g,'').length==4?c.replace(/\s/g,''):(c.match(/(?:^|[^A-Za-z0-9])([A-Za-z0-9]{4})(?=[^A-Za-z0-9]|$)/)||[])[1]||'').toUpperCase();
 if(cc){getDoc(doc(db,'codes',cc)).then(function(s){if(!s.exists()){alert('Ese código no existe o ya lo anularon. Pedile uno nuevo al administrador.');return}var k=s.data();
 if(k.exp&&k.exp<Date.now()){alert('Ese código ya venció. Pedile uno nuevo al administrador.');return}
@@ -479,9 +494,9 @@ if(r.already)alert('Ya sos parte de esa tienda.');
 if(r.sid!=SID&&STORES.some(function(x){return x.id==r.sid}))openStore(r.sid)}).catch(fail)}
 
 onAuthStateChanged(auth,function(u){
-stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
+stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');stop('vend');VEND='';GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
 if(!u){gate('auth');return}
-gate('load');
+gate('load');vendWatch(u);
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
@@ -491,7 +506,7 @@ var has=function(i){return STORES.some(function(s){return s.id==i})};
 var sv=null;try{sv=localStorage.getItem('cv_sid')}catch(e){}
 var pick=has(sv)?sv:(has(SID)?SID:(STORES[0]&&STORES[0].id));
 if(pick&&pick==SID){if(ROLE)drawHdr();return}
-if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;gate('nostore')}
+if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;if(VEND)openVend();else gate('nostore')}
 },function(){gate('nostore')})});
 
 var MECP=false; // permiso "puede cargar productos" de este empleado (members/{uid}.cp)
@@ -665,10 +680,10 @@ else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){i
 
 var BRAND='<div class="brand"><img src="./icon-192.png" alt="Pekeron" style="width:28px;height:28px;border-radius:6px;margin-right:8px"><b>pekeron</b></div>';
 function drawHdr(){
-var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>';
+var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>'+(VEND?'<option value="__vend">🤝 Mi panel de vendedor</option>':'');
 var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#FFD6AA','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
-$('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v!=SID)openStore(v)}}
+$('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v=='__vend'){this.value=SID;openVend()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
 a.innerHTML=esc(U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
 $('out').onclick=function(){signOut(auth)};
@@ -1359,9 +1374,9 @@ limpiarCodigos();var INVa=INV.filter(function(v){return !v.exp||v.exp>Date.now()
 if(INVa.length){h+='<div class="card"><b>Códigos activos</b>';
 INVa.forEach(function(v){var c=invCode(v);h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+' · '+esc(SNAME)+(v.exp?' · vence el '+fdate(v.exp):'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Cada código sirve para una sola persona y vence a los '+CODE_DIAS+' días. Cuando la persona entra, el código se borra solo.</div></div>'}
-h+=planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard();
+h+=planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
-$('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'))}
+$('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open},true)}}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
 function catLink(){var sl=PUB&&PUB.slug;return catBase()+(sl?sl:'catalogo.html?t='+SID)}
 // Link con el nombre de la tienda (pekeronapp.com/minombre). El nombre se reserva en slugs/{nombre}.
@@ -1426,7 +1441,39 @@ function waRows(list){return list.map(function(x,i){return '<div class="row" sty
 function readWas(){return Array.prototype.map.call(document.querySelectorAll('#cat_was .row'),function(r){return {n:r.querySelector('.cw-n').value.trim().slice(0,30),w:r.querySelector('.cw-w').value.replace(/\D/g,'')}})}
 // Acepta 3816145326, 03816145326, +54 9 381 614-5326 → 5493816145326
 function waNorm(w){w=String(w||'').replace(/\D/g,'').replace(/^0+/,'');if(w.length==10)w='549'+w;else if(/^54[1-8]\d{9}$/.test(w))w='549'+w.slice(2);return w}
+// ---------- Medios de pago del catálogo (public/info.pagos) ----------
+// ef/tr/mp/ot: cada uno con p = % (negativo descuento, positivo recargo) que ve el cliente al elegirlo.
+// sena: seña para reservar turnos (servicios): % del servicio o monto fijo.
+var PGOPEN=false;
+function pgAj(id,p){p=+p||0;return '<div class="row" style="gap:8px;margin-top:6px"><div><select id="'+id+'_t"><option value="0"'+(!p?' selected':'')+'>Precio normal</option><option value="d"'+(p<0?' selected':'')+'>Descuento</option><option value="r"'+(p>0?' selected':'')+'>Recargo</option></select></div><div style="flex:.6"><input id="'+id+'_p" type="number" inputmode="decimal" min="0" max="90" placeholder="%" value="'+(p?Math.abs(p):'')+'"></div></div>'}
+function pgAjLeer(id){var t=$(id+'_t').value,v=Math.max(0,Math.min(90,+$(id+'_p').value||0));return t=='d'?-v:t=='r'?v:0}
+function pgOtRows(l){return l.map(function(o,i){return '<div class="pgot" style="padding:12px;border-radius:14px;background:var(--bg);margin-top:8px"><div class="row" style="gap:8px"><div><input class="pgo-n" maxlength="40" placeholder="Nombre (ej: Tarjeta · Payway)" value="'+esc(o.n||'')+'"></div><button class="x" data-cat="pgdel" data-i="'+i+'" style="flex:none;font-size:13px;text-decoration:underline">Quitar</button></div>'+
+'<input class="pgo-l" maxlength="300" placeholder="Link de pago (opcional, empieza con https://)" value="'+esc(o.link||'')+'" style="margin-top:6px">'+
+'<input class="pgo-x" maxlength="80" placeholder="Aclaración (ej: hasta 3 cuotas sin interés)" value="'+esc(o.nota||'')+'" style="margin-top:6px">'+pgAj('pgo'+i,o.p)+'</div>'}).join('')}
+function pgOtLeer(){return Array.prototype.map.call(document.querySelectorAll('#pg_ot .pgot'),function(r,i){return {n:r.querySelector('.pgo-n').value.trim().slice(0,40),link:r.querySelector('.pgo-l').value.trim().slice(0,300),nota:r.querySelector('.pgo-x').value.trim().slice(0,80),p:pgAjLeer('pgo'+i)}})}
+function pgChk(id,lbl,on){return '<label style="display:flex;gap:10px;align-items:center;margin-top:16px;font-weight:700;font-size:16px"><input id="'+id+'" type="checkbox" style="width:auto"'+(on?' checked':'')+'> '+lbl+'</label>'}
+function pagosCard(){var P=(PUB&&PUB.pagos)||{},ef=P.ef||{},tr=P.tr||{},mp=P.mp||{},sn=P.sena||{},svc=biz()=='servicios'||biz()=='ambos';
+var h='<details class="card" id="pgc"'+(PGOPEN?' open':'')+'><summary style="cursor:pointer;list-style:none"><b>💳 Medios de pago del catálogo</b><div class="k" style="margin:4px 0 0">Cómo te pueden pagar. El cliente elige al hacer el pedido, ve el total con el descuento o recargo y los datos para pagar, y te llega en el mensaje.</div></summary>'+
+pgChk('pg_ef','💵 Efectivo',ef.on)+pgAj('pg_efa',ef.p)+
+pgChk('pg_tr','🏦 Transferencia',tr.on)+'<div class="row" style="gap:8px"><div><label>Alias</label><input id="pg_tra" maxlength="40" placeholder="mi.negocio.mp" value="'+esc(tr.alias||'')+'" autocomplete="off"></div><div><label>CBU / CVU</label><input id="pg_trc" maxlength="30" inputmode="numeric" placeholder="22 números" value="'+esc(tr.cbu||'')+'" autocomplete="off"></div></div><label>Titular de la cuenta</label><input id="pg_trt" maxlength="60" placeholder="Nombre como figura en el banco" value="'+esc(tr.tit||'')+'" autocomplete="off">'+pgAj('pg_tra2',tr.p)+
+pgChk('pg_mp','💙 Mercado Pago',mp.on)+'<label>Tu link de pago de Mercado Pago</label><input id="pg_mpl" maxlength="300" placeholder="https://link.mercadopago.com.ar/minegocio" value="'+esc(mp.link||'')+'" autocomplete="off"><div class="k" style="margin-top:4px">Lo sacás en la app de Mercado Pago → Cobrar → Link de pago (sin monto fijo).</div>'+pgAj('pg_mpa',mp.p)+
+'<div style="margin-top:18px;font-weight:700;font-size:16px">💳 Otros medios</div><div class="k" style="margin-top:2px">Tarjetas con Payway, Getnet, Ualá Bis, MODO, Naranja X… Cargá el nombre y, si tenés, el link de pago.</div><div id="pg_ot">'+pgOtRows(P.ot||[])+'</div><button class="x" data-cat="pgadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:8px 0 4px">+ Agregar otro medio</button>'+
+(svc?'<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">'+pgChk('pg_sn','📅 Pedir seña para reservar turnos',sn.on).replace('margin-top:16px','margin-top:0')+'<div class="k" style="margin-top:4px">Después de reservar, el cliente ve cuánto señar y tus datos de transferencia o link de pago.</div><div class="row" style="gap:8px;margin-top:6px"><div><select id="pg_snt"><option value="%"'+(sn.t!='$'?' selected':'')+'>% del servicio</option><option value="$"'+(sn.t=='$'?' selected':'')+'>Monto fijo ($)</option></select></div><div style="flex:.6"><input id="pg_snv" type="number" inputmode="decimal" min="0" placeholder="Ej: 30" value="'+(sn.v||'')+'"></div></div></div>':'')+
+'<button class="go" data-cat="pgsave" style="margin-top:16px">Guardar medios de pago</button></details>';
+return h}
 function catAction(a,i){
+if(a=='pgadd'){var lo=pgOtLeer();if(lo.length>=6){alert('Podés cargar hasta 6 medios más.');return}lo.push({n:'',link:'',nota:'',p:0});$('pg_ot').innerHTML=pgOtRows(lo);return}
+if(a=='pgdel'){var ld=pgOtLeer();ld.splice(+i,1);$('pg_ot').innerHTML=pgOtRows(ld);return}
+if(a=='pgsave'){var ok=function(u){return !u||/^https:\/\/[^\s"'<>]+$/i.test(u)};
+var pg={ef:{on:$('pg_ef').checked,p:pgAjLeer('pg_efa')},tr:{on:$('pg_tr').checked,alias:$('pg_tra').value.trim(),cbu:$('pg_trc').value.replace(/\D/g,''),tit:$('pg_trt').value.trim(),p:pgAjLeer('pg_tra2')},
+mp:{on:$('pg_mp').checked,link:$('pg_mpl').value.trim(),p:pgAjLeer('pg_mpa')},ot:pgOtLeer().filter(function(o){return o.n})};
+if(pg.tr.on&&!pg.tr.alias&&!pg.tr.cbu){alert('Para transferencia, poné el alias o el CBU/CVU.');return}
+if(pg.tr.cbu&&pg.tr.cbu.length!=22){alert('El CBU o CVU tiene 22 números. Revisalo.');return}
+if(pg.mp.on&&!/^https:\/\//i.test(pg.mp.link)){alert('Pegá tu link de pago de Mercado Pago (empieza con https://).');return}
+if(!ok(pg.mp.link)||pg.ot.some(function(o){return !ok(o.link)})){alert('Revisá los links de pago: tienen que empezar con https://');return}
+if($('pg_sn')){var sv=Math.max(0,+$('pg_snv').value||0),st=$('pg_snt').value;if($('pg_sn').checked&&!sv){alert('Poné de cuánto es la seña.');return}if(st=='%'&&sv>100){alert('La seña no puede ser más del 100%.');return}
+pg.sena={on:$('pg_sn').checked,t:st,v:sv};if(pg.sena.on&&!pg.tr.on&&!pg.mp.on&&!pg.ot.length){alert('Para pedir seña, activá transferencia, Mercado Pago u otro medio con link.');return}}
+PGOPEN=true;setDoc(doc(db,'stores',SID,'public','info'),{pagos:pg},{merge:true}).then(function(){alert('Medios de pago guardados.')}).catch(fail);return}
 if(a=='waadd'){var l0=readWas();if(l0.length>=6){alert('Podés cargar hasta 6 números.');return}l0.push({n:'',w:''});$('cat_was').innerHTML=waRows(l0);var ns=document.querySelectorAll('#cat_was .cw-n');if(ns.length)ns[ns.length-1].focus();return}
 if(a=='wadel'){var l1=readWas();l1.splice(+i,1);$('cat_was').innerHTML=waRows(l1);return}
 if(a=='wa'){var m=($('cat_msg')||{}).value||shareMsg();window.open('https://wa.me/?text='+encodeURIComponent(m),'_blank');return}
