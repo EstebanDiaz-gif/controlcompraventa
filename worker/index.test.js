@@ -129,3 +129,12 @@ test('CORS solo para los orígenes permitidos', async () => {
   r = await W.fetch(new Request('https://pagos.test/pagar', { method: 'OPTIONS', headers: { Origin: 'https://otro.com' } }), env);
   assert.equal(r.headers.get('Access-Control-Allow-Origin'), null);
 });
+
+test('fotos de la base pública: solo de Open Food Facts', async () => {
+  const { env } = entorno({});
+  globalThis.fetch = async (u) => new Response(new Uint8Array(2000), { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '2000' } });
+  let r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://images.openfoodfacts.org/images/products/779/front_es.400.jpg')), env);
+  assert.equal(r.status, 200); assert.equal(r.headers.get('Access-Control-Allow-Origin'), '*'); assert.equal((await r.arrayBuffer()).byteLength, 2000);
+  r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://malo.com/x.jpg')), env);
+  assert.equal(r.status, 400);
+});

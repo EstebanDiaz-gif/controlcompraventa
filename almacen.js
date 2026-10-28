@@ -8,9 +8,10 @@
 // - El costo de cada venta se guarda al momento de vender (costo promedio del producto),
 //   así no hace falta recorrer el historial de compras para calcular la ganancia.
 // - Cada cliente del fiado tiene su saldo ya calculado (campo s).
-import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
-import { fotoId } from './fotos.js';
+import { fotoId, makePhotos } from './fotos.js';
+import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
 import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
@@ -728,6 +729,7 @@ export function createAlmacen(X) {
     if (p) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = q;
     b.set(ref('stock', id), o, { merge: true });
     b.commit().catch(failW);
+    if (s) aportar(s, n, E.img !== undefined ? E.img : (p && p.img) || '');
     closeForms();
   }
   function delProd() {
@@ -984,15 +986,49 @@ export function createAlmacen(X) {
   const precioDesde = (costo, c) => roundPrice(costo * (1 + c.m / 100), c.r);
   const costoDesde = (precio, c) => Math.round(precio / (1 + c.m / 100));
   // Nombre por código de barras en bases públicas y gratuitas (si no aparece, se escribe a mano).
-  const NOMC = {};
+  const NOMC = {}, IMGC = {}, BASEC = {};
+  // Base compartida de Pekeron (productos/{código} = { n, t: foto chica, at }): lo que cargó cualquier negocio.
+  // Solo nombre y foto: nunca precios, stock ni de qué negocio vino.
+  function buscarBase(code) {
+    if (!/^\d{8,14}$/.test(code)) return Promise.resolve(null);
+    if (BASEC[code] !== undefined) return Promise.resolve(BASEC[code]);
+    return getDoc(doc(db, 'productos', code)).then((s) => (BASEC[code] = s.exists() ? s.data() : null), () => (BASEC[code] = null));
+  }
+  // Foto desde la base pública: se baja y se achica como las fotos propias (si el navegador no deja, pasa por el servidor).
+  function fotoDeUrl(url) {
+    if (!url) return Promise.resolve(null);
+    const bajar = (u) => fetch(u).then((r) => { if (!r.ok) throw new Error('img'); return r.blob(); });
+    return bajar(url).catch(() => (PAGOS_URL ? bajar(PAGOS_URL + '/img?u=' + encodeURIComponent(url)) : Promise.reject()))
+      .then((bl) => (bl && bl.size > 500 && /^image\//.test(bl.type || 'image/') ? makePhotos(bl) : null)).then((f) => (f && f.thumb ? f : null)).catch(() => null);
+  }
+  // Nombre + foto para un código: primero la base de Pekeron, después Open Food Facts.
+  function buscarProducto(code) {
+    return buscarBase(code).then((b) => {
+      if (b && b.n && b.t) return { n: b.n, thumb: b.t, hd: '', base: true };
+      return buscarNombre(code).then((n) => {
+        const nom = (b && b.n) || n;
+        return fotoDeUrl(IMGC[code]).then((f) => ({ n: nom, thumb: f ? f.thumb : '', hd: f ? f.hd : '', base: !!(b && b.n) }));
+      });
+    });
+  }
+  // Aporta a la base compartida el nombre y la foto de un producto con código (si todavía no estaban).
+  function aportar(code, n, thumb) {
+    if (!/^\d{8,14}$/.test(code || '') || !n || n.length < 2) return;
+    const t = thumb && /^data:image\/(webp|jpeg);base64,/.test(thumb) && thumb.length < 150000 ? thumb : '';
+    buscarBase(code).then((b) => {
+      if (!b) { const o = { n: n.slice(0, 80), at: Date.now() }; if (t) o.t = t; BASEC[code] = o; return setDoc(doc(db, 'productos', code), o); }
+      if (!b.t && t) { b.t = t; return setDoc(doc(db, 'productos', code), { t, at: Date.now() }, { merge: true }); }
+    }).catch(() => {});
+  }
   function buscarNombre(code) {
     if (!/^\d{8,14}$/.test(code)) return Promise.resolve('');
     if (NOMC[code] != null) return Promise.resolve(NOMC[code]);
     const one = (host) => {
       const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null, t = setTimeout(() => ctl && ctl.abort(), 3500);
-      return fetch('https://' + host + '/api/v2/product/' + code + '.json?fields=product_name_es,product_name,brands,quantity', ctl ? { signal: ctl.signal } : {})
+      return fetch('https://' + host + '/api/v2/product/' + code + '.json?fields=product_name_es,product_name,brands,quantity,image_front_url,image_url', ctl ? { signal: ctl.signal } : {})
         .then((r) => (r.ok ? r.json() : null)).then((j) => {
           clearTimeout(t); const p = j && j.status === 1 && j.product; if (!p) return '';
+          const im = String(p.image_front_url || p.image_url || ''); if (/^https:\/\/images\.open(food|beauty)facts\.org\//.test(im)) IMGC[code] = IMGC[code] || im;
           let n = String(p.product_name_es || p.product_name || '').trim(); if (!n) return '';
           const b = String(p.brands || '').split(',')[0].trim(), q = String(p.quantity || '').trim();
           if (b && n.toLowerCase().indexOf(b.toLowerCase()) < 0) n = b + ' ' + n;
@@ -1070,7 +1106,7 @@ export function createAlmacen(X) {
     box.innerHTML = '<div class="card" style="border:2px solid var(--ink)">' +
       (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · stock ' + fq(p.q, p.w) + '</div>'
         : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
-          '<label>Nombre</label><input id="qk_n" maxlength="80" autocomplete="off" placeholder="' + (code ? 'Buscando el nombre…' : 'Ej: Queso cremoso') + '"><div class="k" id="qk_nf" style="margin-top:4px"></div>' +
+          '<label>Nombre</label><input id="qk_n" maxlength="80" autocomplete="off" placeholder="' + (code ? 'Buscando el nombre…' : 'Ej: Queso cremoso') + '"><div class="k" id="qk_nf" style="margin-top:4px"></div><div id="qk_ph"></div>' +
           '<label>Categoría</label><select id="qk_c"><option value="">Sin categoría</option>' + catOpts + '</select>' +
           '<label class="row" style="align-items:center;gap:8px;margin-top:12px;font-weight:600;color:var(--ink)"><input id="qk_w" type="checkbox" style="width:auto"' + (code ? '' : ' checked') + '> Se vende por peso (kg)</label>') +
       '<div class="row"><div><label id="qk_lp">Precio de venta</label><input id="qk_p" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (p && p.pn ? p.pn : '') + '"></div>' +
@@ -1093,11 +1129,14 @@ export function createAlmacen(X) {
     labels(); hint();
     const first = p ? q('qk_q') : q('qk_n');
     setTimeout(() => { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }, 120);
-    if (!p && code) buscarNombre(code).then((n) => {
+    let FOTO = null;
+    const fotoDraw = () => { const e = q('qk_ph'); if (!e) return; e.innerHTML = FOTO ? '<div style="display:flex;align-items:center;gap:12px;margin-top:10px"><img src="' + FOTO.thumb + '" alt="" style="width:72px;height:72px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--line)"><div class="k" style="margin:0">📷 Foto encontrada: se usa en el catálogo.<br><button class="x" id="qk_phx" style="font-size:13px;text-decoration:underline">Quitar foto</button></div></div>' : ''; const x = q('qk_phx'); if (x) x.onclick = () => { FOTO = null; fotoDraw(); }; };
+    if (!p && code) buscarProducto(code).then((r) => {
       const el = q('qk_n'); if (!el) return;
       el.placeholder = 'Ej: Galletitas Oreo 118 g';
-      if (n && !el.value) { el.value = n; q('qk_nf').textContent = '✓ Nombre encontrado en la base de productos (podés corregirlo)'; try { q('qk_p').focus({ preventScroll: true }); } catch (e) { /* nada */ } }
-      else if (!n) q('qk_nf').textContent = 'No lo encontré en la base de productos: escribí el nombre.';
+      if (r.n && !el.value) { el.value = r.n; q('qk_nf').textContent = '✓ ' + (r.base ? 'Ya lo cargó otro negocio de Pekeron' : 'Nombre encontrado en la base de productos') + ' (podés corregirlo)'; try { q('qk_p').focus({ preventScroll: true }); } catch (e) { /* nada */ } }
+      else if (!r.n) q('qk_nf').textContent = 'No lo encontré en la base de productos: escribí el nombre.';
+      if (r.thumb) { FOTO = { thumb: r.thumb, hd: r.hd || '' }; fotoDraw(); }
     });
     q('qk_q').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('qk_ok').click(); } };
     q('qk_x').onclick = () => cb.onCancel();
@@ -1123,8 +1162,11 @@ export function createAlmacen(X) {
       const ce = coIn == null && pr > 0, co = coIn != null ? coIn : (pr > 0 ? costoDesde(pr, c) : 0);
       const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
       if (ce) o.ce = 1;
+      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; }
       q('qk_ok').disabled = true;
-      setDoc(ref('stock', id), o, { merge: true }).catch(failW);
+      const bq = writeBatch(db); bq.set(ref('stock', id), o, { merge: true }); if (FOTO && FOTO.hd) bq.set(ref('public', fotoId(id)), { f: FOTO.hd, at: Date.now() });
+      bq.commit().catch(failW);
+      if (code) aportar(code, n, FOTO ? FOTO.thumb : '');
       cb.onDone(Object.assign({ id }, o));
     };
   }

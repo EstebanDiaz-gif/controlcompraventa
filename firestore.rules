@@ -98,6 +98,20 @@ service cloud.firestore {
 
     // Vendedores de Pekeron (instaladores): cualquiera con sesión puede comprobar un código al crear su tienda;
     // la lista completa y los cambios, solo el propietario de la plataforma.
+    // Base compartida de productos (código de barras → nombre y foto chica). La leen y la completan los negocios
+    // al cargar productos; no guarda precios, stock ni de qué negocio vino. No se pisa: solo se agrega la foto si faltaba.
+    function fotoOk(t) { return t is string && t.size() < 150000 && t.split(',')[0] in ['data:image/webp;base64', 'data:image/jpeg;base64']; }
+    match /productos/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn() && code.matches('[0-9]{8,14}')
+        && request.resource.data.keys().hasOnly(['n', 't', 'at'])
+        && request.resource.data.n is string && request.resource.data.n.size() >= 2 && request.resource.data.n.size() <= 80
+        && request.resource.data.at is int
+        && (!('t' in request.resource.data) || fotoOk(request.resource.data.t));
+      allow update: if signedIn() && !('t' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['t', 'at'])
+        && fotoOk(request.resource.data.t);
+    }
     match /vendedores/{code} {
       allow get: if signedIn();
       allow list, write: if isPlatformOwner();

@@ -236,6 +236,16 @@ async function pushRuta(req, env, path) {
   } catch (e) { if (e.http) return err(req, env, e.message, e.http); throw e; }
   return err(req, env, 'No encontrado.', 404);
 }
+// Foto de producto de la base pública (Open Food Facts) para la app, cuando el navegador no la deja bajar directo.
+async function imagen(req, env) {
+  const u = new URL(req.url).searchParams.get('u') || '';
+  if (!/^https:\/\/images\.open(food|beauty)facts\.org\/[\w./-]+\.(jpg|jpeg|png|webp)$/i.test(u)) return err(req, env, 'Imagen no permitida.', 400);
+  const r = await fetch(u, { cf: { cacheTtl: 86400, cacheEverything: true } });
+  const len = +(r.headers.get('content-length') || 0);
+  if (!r.ok || len > 3000000 || !/^image\//.test(r.headers.get('content-type') || '')) return err(req, env, 'No se pudo bajar la imagen.', 502);
+  const h = new Headers({ 'Content-Type': r.headers.get('content-type'), 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
+  return new Response(r.body, { status: 200, headers: h });
+}
 async function webhook(req, env) {
   const u = new URL(req.url); let b = {};
   try { b = await req.json(); } catch (e) {}
@@ -261,6 +271,7 @@ export default {
       if (path === '/mp/comision') return await comision(req, env);
       if (path === '/mp/webhook') return await webhook(req, env);
       if (path === '/push/clave') return await pushRuta(req, env, path);
+      if (path === '/img' && req.method === 'GET') return await imagen(req, env);
       if (req.method !== 'POST') return err(req, env, 'Método no permitido.', 405);
       if (path === '/mp/conectar') return await conectar(req, env);
       if (path === '/mp/estado') return await estado(req, env);
