@@ -365,8 +365,9 @@ function precioPlan(p,mon){return mon=='USD'?'US$ '+(p.priceUSD!=null?p.priceUSD
 function payNote(mon){return mon=='USD'?'Los planes en dólares se pagan con un link internacional (tarjeta o PayPal). Escribinos y te lo pasamos; cuando se acredite el pago, activamos tu plan.':'Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.'}
 // ---------- Débito automático del abono (servidor de pagos: /sus/*) ----------
 // billing/sus = { id, plan, monto, st: pending|authorized|paused|cancelled, next, email }. Lo escribe solo el servidor.
-var SUS=null,SUSY=0;
-function susOn(){return !!PAGOS_URL&&STMON!='USD'&&!STMAIN&&ROLE=='admin'&&!(ACC&&ACC.life)}
+var SUS=null,SUSY=0,SUSOK=false;
+if(PAGOS_URL)fetch(PAGOS_URL+'/').then(function(r){return r.json()}).then(function(d){SUSOK=!!d.sus;if(SUSOK&&TAB=='team')redrawData()}).catch(function(){});
+function susOn(){return !!PAGOS_URL&&SUSOK&&STMON!='USD'&&!STMAIN&&ROLE=='admin'&&!(ACC&&ACC.life)}
 function susFetch(path,body){return auth.currentUser.getIdToken().then(function(t){return fetch(PAGOS_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify(Object.assign({sid:SID},body||{}))})}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Error');return d})})}
 function susHtml(){if(!susOn())return '<div id="susbox"></div>';var S=SUS,P=S&&CFG.plans[S.plan],h='<div id="susbox">';
 if(S&&S.id&&Date.now()-SUSY>600000&&S.st!='cancelled'){SUSY=Date.now();susFetch('/sus/sync').catch(function(){})}
