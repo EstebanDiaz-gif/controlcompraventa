@@ -218,7 +218,7 @@ var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
 var STCREADA=0,PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
-function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
+function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','sus','costos'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui','vpanel'].forEach(function(i){$(i).hidden=i!=g})}
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
@@ -271,7 +271,7 @@ return '<label>Estilo del catálogo</label><select id="'+(sv?'cat_svs':'cat_est'
 function drawCajaTab(){if(ventaEnCaja()){if(MAN&&type=='v')drawAdd();else drawSell();return}var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 var TR=createTraspasos({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 role:function(){return ROLE},biz:function(){return biz()},st:function(){return ST},canWrite:function(){return canWrite()},mainSid:function(){return mainSid()},rnd:rnd,skey:skey,pk:pk,
-costo:function(p){return p.c||(biz()!='almacen'&&ROLE=='admin'?avg(pk({s:p.s,p:p.n,z:p.z})):0)},changed:function(){drawBanner();paintTr()}});
+costosOk:function(){return COSTOK},costoDe:costoDe,costo:function(p){return p.c||COSTS[p.id]||(biz()!='almacen'&&ROLE=='admin'?avg(pk({s:p.s,p:p.n,z:p.z})):0)},changed:function(){drawBanner();paintTr()}});
 var RP=createRepartos({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},
 role:function(){return ROLE},biz:function(){return biz()},cs:function(){return CS},changed:function(){if(TAB=='team'){var e=$('rpc');if(e){var a=document.activeElement;if(a&&a.closest&&a.closest('#rpc')&&/INPUT/.test(a.tagName))return;e.outerHTML=RP.card(month)}}}});
 // Estado de una tienda para el panel del dueño (mismo criterio que la lista de Empresas)
@@ -590,7 +590,7 @@ if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs')
 function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||''})});if(biz()=='almacen')ALM.publishSoon();redrawData()},sdErr);
+costosEscuchar();un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||''})});if(biz()=='almacen')ALM.publishSoon();costosMover();redrawData()},sdErr);
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
@@ -760,6 +760,15 @@ window.addEventListener('online',drawAcct);window.addEventListener('offline',dra
 /* ---------- escritura (movimiento + contador de stock en un solo paso) ---------- */
 function mref(id){return doc(db,'stores',SID,'movs',String(id))}
 function sref(k){return doc(db,'stores',SID,'stock',skey(k))}
+// Costo de compra: en stores/{sid}/costos/{id del stock} (solo lo lee el equipo), no en el stock, que el catálogo hace público.
+// COSTOK = las reglas ya lo permiten. Mientras tanto se sigue guardando como antes; al publicarlas, el administrador lo mueve solo.
+var COSTS={},COSTOK=false,COSTMIG='';
+function cref(id){return doc(db,'stores',SID,'costos',id)}
+function costosEscuchar(){stop('costos');COSTS={};COSTOK=false;if(!SID||biz()=='almacen')return;var sid=SID;
+un.costos=onSnapshot(collection(db,'stores',sid,'costos'),function(sn){if(sid!=SID)return;COSTS={};sn.forEach(function(d){COSTS[d.id]=d.data().c||0});COSTOK=true;costosMover()},function(){COSTOK=false})}
+function costoDe(id){return COSTS[id]||0}
+function costosMover(){if(!COSTOK||ROLE!='admin'||!canWrite()||COSTMIG==SID)return;var l=ST.filter(function(p){return p.c>0});if(!l.length){if(ST.length)COSTMIG=SID;return}COSTMIG=SID;
+for(var i=0;i<l.length;i+=200){var b=writeBatch(db);l.slice(i,i+200).forEach(function(p){if(!COSTS[p.id])b.set(cref(p.id),{c:p.c,at:Date.now()});b.update(doc(db,'stores',SID,'stock',p.id),{c:deleteField()})});b.commit().catch(function(){COSTMIG=''})}}
 // Fotos elegidas al cargar una compra: [{t: miniatura, hd: versión grande o ''}]. La primera es la principal.
 var PPS=[];
 function ppsHtml(){return '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px">'+PPS.map(function(x,i){return '<div style="position:relative;width:76px;height:76px"><img alt="" src="'+x.t+'" style="width:76px;height:76px;object-fit:cover;border-radius:12px'+(i?'':';outline:3px solid var(--btn)')+'">'+(i?'':'<span style="position:absolute;left:4px;bottom:4px;background:var(--btn);color:var(--btnink);font-size:10px;font-weight:800;border-radius:6px;padding:1px 5px">Principal</span>')+'<button type="button" class="x" data-rmp="'+i+'" aria-label="Quitar foto" style="position:absolute;top:-8px;right:-8px;width:26px;height:26px;border-radius:50%;background:#b3261e;color:#fff;font-size:17px;line-height:26px;text-decoration:none;padding:0">×</button></div>'}).join('')+
@@ -772,7 +781,7 @@ if(fs.length>ex.length)alert('Cada producto puede tener '+(XMAX+1)+' fotos: se g
 ex.forEach(function(x,i){b.set(xref(b0,nx0+i+1),{f:x.hd||x.t,t:x.t,at:Date.now()})});nx1=nx0+ex.length;
 if(ex.length)baseDocs(b0).forEach(function(d){b.set(doc(db,'stores',SID,'stock',d.id),{nx:nx1},{merge:true})})}
 list.forEach(function(mv){b.set(mref(mv.id),mv);
-var o={n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(sgn(mv.t)*mv.q)};if(mv.t=='c'){var qa=0,ta=0;M.forEach(function(x){if(esEnt(x)&&pk(x)==pk(mv)){qa+=x.q;ta+=x.q*x.u}});o.c=Math.round((ta+mv.q*mv.u)/((qa+mv.q)||1))}
+var o={n:mv.p,s:mv.s||'',z:mv.z||'',q:increment(sgn(mv.t)*mv.q)};if(mv.t=='c'){var qa=0,ta=0;M.forEach(function(x){if(esEnt(x)&&pk(x)==pk(mv)){qa+=x.q;ta+=x.q*x.u}});var cu=Math.round((ta+mv.q*mv.u)/((qa+mv.q)||1));if(COSTOK)b.set(cref(skey(pk(mv))),{c:cu,at:Date.now()});else o.c=cu}
 if(pr&&pr.pm)o.pm=pr.pm;if(pr&&pr.pn)o.pn=pr.pn;if(pr&&pr.mm)o.mm=pr.mm;if(pr&&pr.cat)o.cat=pr.cat;
 if(pr&&pr.img&&mv===list[0]&&!photoOf(key(mv.s||mv.p))){o.img=pr.img;if(pr.hd){o.hd=1;b.set(fref(key(mv.s||mv.p)),{f:pr.hd,at:Date.now()})}}
 if(ex.length&&key(mv.s||mv.p)==b0)o.nx=nx1;

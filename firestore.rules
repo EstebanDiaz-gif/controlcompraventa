@@ -265,6 +265,13 @@ service cloud.firestore {
         allow update, delete: if isAdmin(sid);
       }
 
+      // Costo de compra de cada producto (id = el del stock). Solo lo ve el equipo: el stock lo lee el catálogo público.
+      match /costos/{id} {
+        allow read: if isMember(sid);
+        allow create, update: if accessOk(sid) && (canLoad(sid)
+          || (isMember(sid) && trOk(sid, request.resource.data.get('tr', ''))));
+        allow delete: if isAdmin(sid);
+      }
       match /stock/{id} {
         allow read: if isMember(sid) || catalogReadsStock(sid);
         allow create: if accessOk(sid) && (canLoad(sid)

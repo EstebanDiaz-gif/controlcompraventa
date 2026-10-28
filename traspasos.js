@@ -156,11 +156,15 @@ export function createTraspasos(X) {
       const d = enDestino(it);
       if (d.nuevo) {
         const o = Object.assign({}, it.raw || {}, { n: it.n, s: it.s || '', q, tr: t.id });
-        if (ropa) o.z = it.z || ''; if (it.c) o.c = it.c;
+        if (ropa) o.z = it.z || '';
+        if (it.c) { if (X.costosOk && X.costosOk()) b.set(doc(db, 'stores', sid, 'costos', d.id), { c: it.c, tr: t.id, at: now }); else o.c = it.c; }
         b.set(sref(sid, d.id), o);
       } else {
         const o = { q: increment(q), tr: t.id };
-        if (it.c > 0) { const q0 = Math.max(0, d.q || 0), c0 = d.c || 0; o.c = Math.round(q0 + q > 0 ? (q0 * (c0 || it.c) + q * it.c) / (q0 + q) : it.c); }
+        if (it.c > 0) {
+          const q0 = Math.max(0, d.q || 0), c0 = d.c || (X.costoDe ? X.costoDe(d.id) : 0), cn = Math.round(q0 + q > 0 ? (q0 * (c0 || it.c) + q * it.c) / (q0 + q) : it.c);
+          if (X.costosOk && X.costosOk()) b.set(doc(db, 'stores', sid, 'costos', d.id), { c: cn, tr: t.id, at: now }); else o.c = cn;
+        }
         b.update(sref(sid, d.id), o);
       }
       if (ropa) b.set(doc(db, 'stores', sid, 'movs', String(now + i)), { id: now + i, t: 'te', d: X.today(), p: it.n, s: it.s, z: it.z, q, u: it.c || 0, k: '', tr: t.id, a: t.fromN || '', by: u.uid, bn: X.nm() });
