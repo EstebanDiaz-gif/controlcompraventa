@@ -10,6 +10,10 @@ FB_API_KEY = "AIzaSyDvPJSTst4xGQtzIegLkpftpi7sN6r78b4"
 ORIGINS = "https://pekeronapp.com,https://www.pekeronapp.com,https://estebandiaz-gif.github.io,http://localhost:8766"
 OWNER_UIDS = "MgqYIhoyV2gHVluyQBtz8A3LZsw1,w2jqVcijMyOytIdFqw2lPhPxQxr1"
 
+# Avisos de vencimiento y suspensión automática: 9, 12, 15 y 18 hs de Argentina
+[triggers]
+crons = ["0 12,15,18,21 * * *"]
+
 [[kv_namespaces]]
 binding = "MP"
 id = "__KV_ID__"

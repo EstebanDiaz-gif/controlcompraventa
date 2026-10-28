@@ -719,6 +719,7 @@ if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
 (sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
+if(s.data().susp){fail('Este catálogo no está disponible por el momento.');return}
 INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);almSetup();svSetup();rubroSetup();setTimeout(mpVuelta,300);if(INFO.ag)loadAg();
 onSnapshot(doc(db,'platform','tema'),function(sn){var GL2=sn.exists()?sn.data():null;tema(GL2)});
 // mostrar siempre el link lindo en la barra de direcciones
@@ -876,7 +877,7 @@ var id='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),t={id:i
 var b=writeBatch(db);b.set(doc(db,'stores',sid,'turnos',id),t);
 lockIds(d,e,i,f).forEach(function(k){b.set(doc(db,'stores',sid,'ocupado',k),{t:id,d:d,e:e,m:+k.split('_').pop()})});
 btn.disabled=true;btn.textContent='Reservando…';
-b.commit().then(function(){BK.done=t;var s=OCC[d];if(s)lockIds(d,e,i,f).forEach(function(k){s.add(k)});renderBook()}).catch(function(){
+b.commit().then(function(){BK.done=t;if(PAGOS_URL)fetch(PAGOS_URL+'/push/turno',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:id})}).catch(function(){});var s=OCC[d];if(s)lockIds(d,e,i,f).forEach(function(k){s.add(k)});renderBook()}).catch(function(){
 BK.m=null;alert('Ese horario se acaba de ocupar. Elegí otro, por favor.');loadSlots(true)})}
 
 // link directo a un producto (?p=...): se abre cuando ya cargaron los productos
@@ -984,6 +985,7 @@ function mpVuelta(){if(Q0.get('mp')!='pago')return;var st=Q0.get('status')||Q0.g
 try{o=JSON.parse(localStorage.getItem(mpKey())||'null')}catch(e){}
 try{history.replaceState(null,'',location.pathname+'?t='+sid)}catch(e){}
 var ok=st=='approved',pend=st=='pending'||st=='in_process',h='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div style="text-align:center;padding:6px 4px 0">';
+if(ok&&pid&&pid!='null')fetch(PAGOS_URL+'/push/pago',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:pid})}).catch(function(){});
 if(ok){var m=(o&&o.m?o.m+'\n':'')+'✅ Pagado con Mercado Pago'+(pid&&pid!='null'?' (operación N° '+pid+')':'');
 try{localStorage.removeItem(mpKey())}catch(e){}
 h+='<div class="okc">✓</div><b style="font-size:22px">¡Pago aprobado!</b><div class="k" style="color:var(--mut);margin-top:6px">'+(o?'Pagaste '+money(o.total)+'. ':'')+'Ahora mandá el pedido por WhatsApp así el negocio lo prepara.</div></div>'+

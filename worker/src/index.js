@@ -10,6 +10,9 @@
 // KV: MP  →  tok:{sid} = {at, rt, exp, mpuid, nick, conn}   st:{state} = {sid, uid, vuelta}   cfg:fee = {pct}
 import { calcularPedido, gruposStock, gruposLista } from '../../pedido.js';
 import * as SUS from './suscripciones.js';
+import * as AV from './avisos.js';
+import * as PUSH from './push.js';
+import { verificar } from './auth.js';
 
 const MP_API = 'https://api.mercadopago.com';
 const MP_AUTH = 'https://auth.mercadopago.com/authorization';
@@ -155,9 +158,10 @@ async function pagar(req, env) {
   const b = await req.json().catch(() => ({}));
   if (!sidOk(b.sid)) return err(req, env, 'Tienda inválida.');
   if (!urlPermitida(b.vuelta, env)) return err(req, env, 'Dirección de vuelta no permitida.');
-  const inf = await fsGet(env, 'stores/' + b.sid + '/public/info', null, ['enabled', 'alm', 'name', 'mode', 'minCart', 'env', 'pagos', 'mon']);
+  const inf = await fsGet(env, 'stores/' + b.sid + '/public/info', null, ['enabled', 'alm', 'name', 'mode', 'minCart', 'env', 'pagos', 'mon', 'susp']);
   const info = inf.data;
   if (!info || !info.enabled) return err(req, env, 'Este catálogo no está disponible.', 404);
+  if (info.susp) return err(req, env, 'Este catálogo no está disponible por el momento.', 403);
   if (!(info.pagos && info.pagos.mpa && info.pagos.mpa.on) || info.mon === 'USD') return err(req, env, 'Este negocio no tiene activado el pago online.', 403);
   const t = await claveDe(env, b.sid); if (!t) return err(req, env, 'Este negocio todavía no conectó su Mercado Pago.', 403);
   // productos y promos, con los mismos datos que ve el catálogo
@@ -184,6 +188,7 @@ async function pagar(req, env) {
     back_urls: { success: con(b.vuelta, 'mp=pago'), pending: con(b.vuelta, 'mp=pago'), failure: con(b.vuelta, 'mp=pago') },
     auto_return: 'approved',
     metadata: { sid: b.sid, ref },
+    notification_url: new URL(req.url).origin + '/mp/webhook?sid=' + encodeURIComponent(b.sid),
   };
   if (pct > 0) pref.marketplace_fee = Math.round(c.total * pct) / 100;
   const r = await fetch(MP_API + '/checkout/preferences', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t.at, 'X-Idempotency-Key': b.sid + '-' + ref + '-' + c.total }, body: JSON.stringify(pref) });
@@ -213,11 +218,35 @@ async function susRuta(req, env, path) {
   }
   return err(req, env, 'No encontrado.', 404);
 }
+// ---------- notificaciones al celular ----------
+async function pushRuta(req, env, path) {
+  const b = await req.json().catch(() => ({}));
+  if (path === '/push/clave') return json(req, env, { clave: (await PUSH.vapid(env)).pub });
+  if (!env.FB_SA) return json(req, env, { ok: false });
+  // Avisos que dispara el catálogo (sin sesión): el servidor verifica todo antes de mandar.
+  if (path === '/push/turno') { if (sidOk(b.sid)) { try { await AV.turnoNuevo(env, b.sid, String(b.id || '')); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
+  if (path === '/push/pago') { if (sidOk(b.sid)) { try { const t = await claveDe(env, b.sid); if (t) await AV.pagoCatalogo(env, b.sid, String(b.id || ''), t.at); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
+  const uid = await verificar(env, tokenDe(req)); if (!uid) return err(req, env, 'Iniciá sesión de nuevo.', 401);
+  try {
+    if (path === '/push/alta') return json(req, env, { ok: true, n: await PUSH.alta(env, uid, b.sub) });
+    if (path === '/push/baja') { await PUSH.baja(env, uid, String(b.endpoint || '')); return json(req, env, { ok: true }); }
+    if (path === '/push/prueba') return json(req, env, { n: await PUSH.enviar(env, [uid], { t: '🔔 Avisos activados', b: 'Así te van a llegar los avisos de Pekeron a este celular.', u: (env.APP_URL || 'https://pekeronapp.com') + '/app.html', tag: 'prueba' }) });
+    if (path === '/push/revisar') { if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403); return json(req, env, await AV.revisar(env)); }
+    if (path === '/push/nueva') { if (sidOk(b.sid)) await AV.negocioNuevo(env, uid, b.sid); return json(req, env, { ok: true }); }
+  } catch (e) { if (e.http) return err(req, env, e.message, e.http); throw e; }
+  return err(req, env, 'No encontrado.', 404);
+}
 async function webhook(req, env) {
   const u = new URL(req.url); let b = {};
   try { b = await req.json(); } catch (e) {}
   const tipo = String(b.type || b.topic || u.searchParams.get('type') || u.searchParams.get('topic') || '');
   const id = String((b.data && b.data.id) || u.searchParams.get('data.id') || u.searchParams.get('id') || '');
+  // Pago de un pedido del catálogo (cuenta de Mercado Pago de la tienda): aviso al negocio.
+  const sidCat = u.searchParams.get('sid');
+  if (sidCat) {
+    if (/payment/.test(tipo) && sidOk(sidCat) && env.FB_SA) { try { const t = await claveDe(env, sidCat); if (t) await AV.pagoCatalogo(env, sidCat, id, t.at); } catch (e) { console.error('aviso pago', e && e.message); } }
+    return new Response('ok');
+  }
   if (env.MP_ACCESS_TOKEN && env.FB_SA && /^[A-Za-z0-9_-]{1,64}$/.test(id)) { try { await SUS.aviso(env, tipo, id); } catch (e) { console.error('aviso', tipo, id, e && e.message); return new Response('reintentar', { status: 500 }); } }
   return new Response('ok');
 }
@@ -231,16 +260,23 @@ export default {
       if (path === '/mp/vuelta' && req.method === 'GET') return await vuelta(req, env);
       if (path === '/mp/comision') return await comision(req, env);
       if (path === '/mp/webhook') return await webhook(req, env);
+      if (path === '/push/clave') return await pushRuta(req, env, path);
       if (req.method !== 'POST') return err(req, env, 'Método no permitido.', 405);
       if (path === '/mp/conectar') return await conectar(req, env);
       if (path === '/mp/estado') return await estado(req, env);
       if (path === '/mp/desconectar') return await desconectar(req, env);
       if (path === '/pagar') return await pagar(req, env);
       if (path.startsWith('/sus/')) return await susRuta(req, env, path);
+      if (path.startsWith('/push/')) return await pushRuta(req, env, path);
       return err(req, env, 'No encontrado.', 404);
     } catch (e) {
       console.error(e && e.stack || e);
       return err(req, env, 'Ocurrió un error. Probá de nuevo.', 500);
     }
+  },
+  // Reloj del servidor (wrangler.toml → [triggers]): avisos de vencimiento y suspensión automática.
+  async scheduled(ev, env, ctx) {
+    if (!env.FB_SA) return;
+    ctx.waitUntil(AV.revisar(env).then((r) => console.log('revisar', JSON.stringify(r))).catch((e) => console.error('revisar', e && e.message)));
   },
 };

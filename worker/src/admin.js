@@ -74,3 +74,22 @@ export async function aWhere(env, coleccion, campo, valor) {
   const d = await r.json();
   return (Array.isArray(d) ? d : []).filter((x) => x.document).map((x) => x.document.name.split('/').pop());
 }
+
+// Cambia solo algunos campos (los que valen null se borran).
+export async function aMerge(env, path, obj) {
+  const keys = Object.keys(obj), fields = {};
+  keys.forEach((k) => { if (obj[k] !== null && obj[k] !== undefined) fields[k] = toFs(obj[k]); });
+  const q = keys.map((k) => 'updateMask.fieldPaths=' + encodeURIComponent(k)).join('&');
+  const r = await fetch(base(env) + '/' + path + '?' + q, { method: 'PATCH', headers: { Authorization: 'Bearer ' + await adminToken(env), 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
+  if (!r.ok) throw new Error('fs merge ' + r.status);
+}
+// Consulta con filtros de igualdad dentro de `parent` (ej. 'stores/abc' para sus members). Devuelve [{ id, path, x }].
+export async function aQuery(env, parent, coleccion, filtros, todas) {
+  const where = filtros && filtros.length ? (filtros.length === 1 ? { fieldFilter: { field: { fieldPath: filtros[0][0] }, op: 'EQUAL', value: toFs(filtros[0][1]) } }
+    : { compositeFilter: { op: 'AND', filters: filtros.map(([f, v]) => ({ fieldFilter: { field: { fieldPath: f }, op: 'EQUAL', value: toFs(v) } })) } }) : undefined;
+  const r = await fetch(base(env) + (parent ? '/' + parent : '') + ':runQuery', { method: 'POST', headers: { Authorization: 'Bearer ' + await adminToken(env), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: coleccion, allDescendants: !!todas }], ...(where ? { where } : {}) } }) });
+  if (!r.ok) throw new Error('fs query ' + r.status);
+  const d = await r.json();
+  return (Array.isArray(d) ? d : []).filter((x) => x.document).map((x) => { const p = x.document.name.split('/documents/')[1] || x.document.name; return { id: p.split('/').pop(), path: p, x: fromFs({ mapValue: { fields: x.document.fields || {} } }) }; });
+}

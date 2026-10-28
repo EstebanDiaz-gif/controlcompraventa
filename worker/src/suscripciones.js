@@ -6,6 +6,7 @@
 import { computeAccess, addPeriod } from '../../access.js';
 import { mergeConfig } from '../../plans.js';
 import { aGet, aSet, aWhere, TS } from './admin.js';
+import * as AV from './avisos.js';
 
 const MP = 'https://api.mercadopago.com';
 async function mp(env, path, o = {}) {
@@ -56,10 +57,14 @@ export async function sincronizar(env, sid) {
       const k = 'pay:' + p.id;
       if (await env.MP.get(k)) continue;
       await env.MP.put(k, String(Date.now()), { expirationTtl: 60 * 60 * 24 * 400 });
-      try { await extender(env, sid, id === s.id ? s.plan : (s.prevPlan || s.plan), p.id); }
+      const pl = id === s.id ? s.plan : (s.prevPlan || s.plan);
+      let nb;
+      try { nb = await extender(env, sid, pl, p.id); }
       catch (e) { await env.MP.delete(k); throw e; }
       s.pagos[p.id] = Date.now(); nuevos++;
+      try { await AV.reactivar(env, sid); await AV.debitoOk(env, sid, ((mergeConfig(await aGet(env, 'platform/config')).plans[pl]) || {}).name || pl, nb.paidUntilMs, p.transaction_amount || s.monto, p.id); } catch (e) { console.error('aviso debito', e && e.message); }
     }
+    for (const p of (r.results || []).filter((p) => p && p.payment && p.payment.status === 'rejected')) { try { await AV.debitoRech(env, sid, p.id); } catch (e) {} }
   }
   // Si cambió de plan y la suscripción nueva ya está autorizada, damos de baja la anterior.
   if (s.prev && s.st === 'authorized') { try { await mp(env, '/preapproval/' + s.prev, { method: 'PUT', body: JSON.stringify({ status: 'cancelled' }) }); } catch (e) {} s.prev = null; s.prevPlan = null; }

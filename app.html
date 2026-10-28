@@ -256,7 +256,7 @@ o.querySelector('#novok').onclick=fin;o.addEventListener('click',function(e){if(
 // Si el dueño cambia el rubro, el estilo del catálogo pasa al del rubro nuevo (lo puede cambiar a mano en Catálogo).
 function catTp(){var b=biz();if(CS&&CS.tipo&&tipoDe(CS.tipo))return CS.tipo;if(b=='almacen')return 'almacen';if(b=='productos'&&CS&&CS.rub&&tipoDe(CS.rub))return CS.rub;return ''}
 function syncCatRubro(){if(ROLE!='admin'||!PUB||!CS||!SID||!canWrite())return;var b=biz(),o={},sv=b=='servicios'||b=='ambos',tp=catTp(),t=tipoDe(tp);
-if(PUB.biz!==b)o.biz=b;if(!!PUB.alm!==(b=='almacen'))o.alm=b=='almacen';
+if(PUB.susp&&canWrite())o.susp=deleteField();if(PUB.biz!==b)o.biz=b;if(!!PUB.alm!==(b=='almacen'))o.alm=b=='almacen';
 if(tp&&PUB.tp!==tp){o.tp=tp;if(sv){if(t&&t[5]&&PUB.svs!==t[5])o.svs=t[5]}else if(PUB.tp&&PUB.est)o.est=''}
 else if(sv&&!PUB.svs&&t&&t[5])o.svs=t[5];
 if(!Object.keys(o).length)return;var k=SID+JSON.stringify(o);if(syncCatRubro.k==k)return;syncCatRubro.k=k;
@@ -277,7 +277,7 @@ role:function(){return ROLE},biz:function(){return biz()},cs:function(){return C
 // Estado de una tienda para el panel del dueño (mismo criterio que la lista de Empresas)
 function estadoTienda(x){var a=x.acc;if(!a)return 'free';var st=deriveState(a,Date.now());if(a.life&&st.state=='paid')return 'life';if(st.state=='expired'&&!a.paidUntilMs&&!a.trialStartMs)return 'paused';if(st.state=='expired'||st.state=='grace')return 'exp';if(st.state=='trial')return 'trial';if(st.state=='paid')return 'paid';return 'free'}
 var VD=createVendedores({db:db,esc:esc,money:money,today:today,fail:function(e){fail(e)},cfg:function(){return CFG},stores:function(){return PLL.list},estado:estadoTienda,
-base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:function(){if(TAB=='plat')drawPlatLite()},panelDraw:function(){var e=$('vpanel');if(e&&!e.hidden)e.innerHTML=VD.panel()}});
+base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:function(){if(TAB=='plat')drawPlatLite()},panelDraw:function(){var e=$('vpanel');if(e&&!e.hidden)e.innerHTML=VD.panel()+pushCard()}});
 VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
@@ -327,7 +327,7 @@ $('mk').onclick=function(){newStore()};
 $('jn').onclick=function(){joinStore()};
 // ---------- Panel del vendedor (vendUid/{uid} = {code}) ----------
 var VEND='';
-function openVend(){if(!VEND)return;gate('vpanel');$('vpanel').innerHTML=VD.panel();VD.panelCargar(VEND);try{window.scrollTo(0,0)}catch(e){}}
+function openVend(){if(!VEND)return;gate('vpanel');$('vpanel').innerHTML=VD.panel()+pushCard();VD.panelCargar(VEND);try{window.scrollTo(0,0)}catch(e){}}
 function vendWatch(u){var inv=VD.invDesdeLink(),first=true;
 if(inv)try{history.replaceState(null,'',location.pathname)}catch(e){}
 un.vend=onSnapshot(doc(db,'vendUid',u.uid),function(sn){var was=VEND;VEND=sn.exists()?(sn.data().code||''):'';$('vpb').hidden=!VEND;if(ROLE&&was!=VEND)drawHdr();
@@ -365,6 +365,32 @@ function precioPlan(p,mon){return mon=='USD'?'US$ '+(p.priceUSD!=null?p.priceUSD
 function payNote(mon){return mon=='USD'?'Los planes en dólares se pagan con un link internacional (tarjeta o PayPal). Escribinos y te lo pasamos; cuando se acredite el pago, activamos tu plan.':'Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.'}
 // ---------- Débito automático del abono (servidor de pagos: /sus/*) ----------
 // billing/sus = { id, plan, monto, st: pending|authorized|paused|cancelled, next, email }. Lo escribe solo el servidor.
+// ---------- Avisos en el celular (Web Push; los manda el servidor de pagos) ----------
+function pushFetch(path,body){return auth.currentUser.getIdToken().then(function(t){return fetch(PAGOS_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify(body||{})})}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Error');return d})})}
+function pushSop(){return 'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}
+function esIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)}
+function instalada(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}}
+function pushLS(k,v){try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}}
+function pushEst(){if(!PAGOS_URL)return 'no';if(!pushSop())return esIOS()&&!instalada()?'ios':'no';if(Notification.permission=='denied')return 'bloq';return Notification.permission=='granted'&&pushLS('pk_push_'+U.uid)?'on':'off'}
+function pushCard(){var e=pushEst();if(e=='no')return '';var h='<div class="card" id="pushc"><b>🔔 Avisos en este celular</b>';
+if(e=='on')return h+'<div class="k" style="margin-top:4px;color:var(--ok);font-weight:700">✓ Activados</div><div class="k" style="margin-top:4px">Te avisamos de pagos online, turnos nuevos y cuando tu plan está por vencer.</div><div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-push="prueba" style="margin:0">Probar</button><button class="go alt" data-push="baja" style="margin:0">Desactivar</button></div></div>';
+if(e=='ios')return h+'<div class="k" style="margin-top:6px">En iPhone los avisos llegan solo si instalás la app: tocá <b>Compartir</b> (el cuadrado con la flecha) → <b>Agregar a inicio</b>, abrí Pekeron desde ese ícono y activalos acá.</div></div>';
+if(e=='bloq')return h+'<div class="k" style="margin-top:6px">Los avisos están bloqueados en este navegador. Tocá el candado al lado de la dirección (o Configuración → Notificaciones) y permitilos para pekeronapp.com.</div></div>';
+return h+'<div class="k" style="margin-top:4px">Enterate al instante cuando te pagan desde el catálogo, cuando reservan un turno o cuando tu plan está por vencer, aunque tengas la app cerrada.</div><button class="go" data-push="alta">Activar avisos</button></div>'}
+function pushRedraw(){var e=$('pushc'),h=pushCard();if(e)e.outerHTML=h||'<div id="pushc"></div>'}
+function u8(b){b=b.replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';var r=atob(b),o=new Uint8Array(r.length);for(var i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o}
+function pushSub(){return fetch(PAGOS_URL+'/push/clave',{method:'POST'}).then(function(r){return r.json()}).then(function(d){var key=u8(d.clave);
+return navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription().then(function(s){
+if(s&&s.options&&s.options.applicationServerKey){var a=new Uint8Array(s.options.applicationServerKey);if(a.length==key.length&&a.every(function(x,i){return x==key[i]}))return s;return s.unsubscribe().then(function(){return null})}return s}).then(function(s){return s||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key})})})})
+.then(function(s){return pushFetch('/push/alta',{sub:s.toJSON()}).then(function(){pushLS('pk_push_'+U.uid,String(Date.now()));return s})})}
+function pushAlta(b){if(b){b.disabled=true;b.textContent='Activando…'}
+Notification.requestPermission().then(function(p){if(p!='granted'){pushRedraw();if(p=='denied')alert('Bloqueaste los avisos. Si te arrepentís, habilitalos desde el candado al lado de la dirección.');return}
+return pushSub().then(function(){pushRedraw();return pushFetch('/push/prueba')})}).catch(function(e){pushRedraw();alert('No se pudieron activar los avisos: '+(e.message||e))})}
+function pushRefrescar(){if(!U||pushEst()!='on')return;var t=+pushLS('pk_push_'+U.uid)||0;if(Date.now()-t<3*86400000)return;pushSub().catch(function(){})}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-push]');if(!b)return;var a=b.dataset.push;
+if(a=='alta')pushAlta(b);
+else if(a=='prueba')pushFetch('/push/prueba').then(function(d){if(!d.n)alert('No llegó el aviso de prueba. Desactivá y volvé a activar los avisos.')}).catch(function(x){alert(x.message)});
+else if(a=='baja')navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription()}).then(function(s){if(!s)return;var ep=s.endpoint;return s.unsubscribe().then(function(){return pushFetch('/push/baja',{endpoint:ep})})}).then(function(){pushLS('pk_push_'+U.uid,null);pushRedraw()}).catch(function(){pushLS('pk_push_'+U.uid,null);pushRedraw()})});
 var SUS=null,SUSY=0,SUSOK=false;
 if(PAGOS_URL)fetch(PAGOS_URL+'/').then(function(r){return r.json()}).then(function(d){SUSOK=!!d.sus;if(SUSOK&&TAB=='team')redrawData()}).catch(function(){});
 function susOn(){return !!PAGOS_URL&&SUSOK&&STMON!='USD'&&!STMAIN&&ROLE=='admin'&&!(ACC&&ACC.life)}
@@ -434,7 +460,7 @@ b.set(doc(db,'stores',sid,'members',U.uid),{role:'admin',email:U.email,name:nm()
 b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
 CREATING=sid;$('sn_ok').textContent='Creando tu tienda…';
-b.commit().then(function(){return setDoc(doc(db,'stores',sid,'cfg','servicios'),TC,{merge:true}).catch(function(){})}).then(function(){o.remove();CREATING=null;
+b.commit().then(function(){return setDoc(doc(db,'stores',sid,'cfg','servicios'),TC,{merge:true}).catch(function(){})}).then(function(){o.remove();CREATING=null;pushFetch('/push/nueva',{sid:sid}).catch(function(){});
 try{localStorage.setItem('cv_sid',sid)}catch(e){}openStore(sid);
 alert('¡Listo! Tu tienda ya está creada.');}).catch(function(e){CREATING=null;$('sn_ok').disabled=false;$('sn_ok').textContent='Crear mi tienda';fail(e)});return}
 callFn('createStore',{name:n,userName:nm(),plan:plan,biz:bz,pais:pais}).then(function(r){o.remove();
@@ -532,7 +558,7 @@ if(r.sid!=SID&&STORES.some(function(x){return x.id==r.sid}))openStore(r.sid)}).c
 onAuthStateChanged(auth,function(u){
 stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');stop('vend');VEND='';GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
 if(!u){gate('auth');return}
-gate('load');vendWatch(u);mpVuelta();susVuelta();
+gate('load');vendWatch(u);mpVuelta();susVuelta();setTimeout(pushRefrescar,4000);
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
@@ -1411,7 +1437,7 @@ limpiarCodigos();var INVa=INV.filter(function(v){return !v.exp||v.exp>Date.now()
 if(INVa.length){h+='<div class="card"><b>Códigos activos</b>';
 INVa.forEach(function(v){var c=invCode(v);h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.role=='admin'?'administrador':'empleado')+' · '+esc(SNAME)+(v.exp?' · vence el '+fdate(v.exp):'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Cada código sirve para una sola persona y vence a los '+CODE_DIAS+' días. Cuando la persona entra, el código se borra solo.</div></div>'}
-h+=planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
+h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open},true)}}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
