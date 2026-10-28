@@ -185,6 +185,7 @@ import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
 import {createRepartos} from './repartos.js';
 import {createVendedores} from './vendedores.js';
+import {PAGOS_URL} from './pagos-config.js';
 import {openScanner,scanButton,codeVariants,beep,canScan} from './scanner.js';
 import {makePhotos,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
@@ -496,7 +497,7 @@ if(r.sid!=SID&&STORES.some(function(x){return x.id==r.sid}))openStore(r.sid)}).c
 onAuthStateChanged(auth,function(u){
 stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');stop('vend');VEND='';GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
 if(!u){gate('auth');return}
-gate('load');vendWatch(u);
+gate('load');vendWatch(u);mpVuelta();
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
@@ -1454,25 +1455,58 @@ function pgOtLeer(){return Array.prototype.map.call(document.querySelectorAll('#
 function pgChk(id,lbl,on){return '<label style="display:flex;gap:10px;align-items:center;margin-top:16px;font-weight:700;font-size:16px"><input id="'+id+'" type="checkbox" style="width:auto"'+(on?' checked':'')+'> '+lbl+'</label>'}
 function pagosCard(){var P=(PUB&&PUB.pagos)||{},ef=P.ef||{},tr=P.tr||{},mp=P.mp||{},sn=P.sena||{},svc=biz()=='servicios'||biz()=='ambos';
 var h='<details class="card" id="pgc"'+(PGOPEN?' open':'')+'><summary style="cursor:pointer;list-style:none"><b>💳 Medios de pago del catálogo</b><div class="k" style="margin:4px 0 0">Cómo te pueden pagar. El cliente elige al hacer el pedido, ve el total (con descuento o a precio de lista) y los datos para pagar, y te llega en el mensaje.</div></summary>'+
-pgChk('pg_ef','💵 Efectivo',ef.on)+pgAj('pg_efa',ef.p)+
+mpOnlineHtml(P.mpa||{})+pgChk('pg_ef','💵 Efectivo',ef.on)+pgAj('pg_efa',ef.p)+
 pgChk('pg_tr','🏦 Transferencia',tr.on)+'<div class="row" style="gap:8px"><div><label>Alias</label><input id="pg_tra" maxlength="40" placeholder="mi.negocio.mp" value="'+esc(tr.alias||'')+'" autocomplete="off"></div><div><label>CBU / CVU</label><input id="pg_trc" maxlength="30" inputmode="numeric" placeholder="22 números" value="'+esc(tr.cbu||'')+'" autocomplete="off"></div></div><label>Titular de la cuenta</label><input id="pg_trt" maxlength="60" placeholder="Nombre como figura en el banco" value="'+esc(tr.tit||'')+'" autocomplete="off">'+pgAj('pg_tra2',tr.p)+
-pgChk('pg_mp','💙 Mercado Pago',mp.on)+'<label>Tu link de pago de Mercado Pago</label><input id="pg_mpl" maxlength="300" placeholder="https://link.mercadopago.com.ar/minegocio" value="'+esc(mp.link||'')+'" autocomplete="off"><div class="k" style="margin-top:4px">Lo sacás en la app de Mercado Pago → Cobrar → Link de pago (sin monto fijo).</div>'+pgAj('pg_mpa',mp.p)+
+pgChk('pg_mp','💙 Link de pago de Mercado Pago'+(PAGOS_URL?' (sin monto)':''),mp.on)+'<label>Tu link de pago de Mercado Pago</label><input id="pg_mpl" maxlength="300" placeholder="https://link.mercadopago.com.ar/minegocio" value="'+esc(mp.link||'')+'" autocomplete="off"><div class="k" style="margin-top:4px">Lo sacás en la app de Mercado Pago → Cobrar → Link de pago (sin monto fijo).</div>'+pgAj('pg_mpa',mp.p)+
 '<div style="margin-top:18px;font-weight:700;font-size:16px">💳 Otros medios</div><div class="k" style="margin-top:2px">Tarjetas con Payway, Getnet, Ualá Bis, MODO, Naranja X… Cargá el nombre y, si tenés, el link de pago. Si con tarjeta cobrás más, elegí <b>Precio de lista</b> y poné el %: el cliente ve directamente el total final.</div><div id="pg_ot">'+pgOtRows(P.ot||[])+'</div><button class="x" data-cat="pgadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:8px 0 4px">+ Agregar otro medio</button>'+
 (svc?'<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">'+pgChk('pg_sn','📅 Pedir seña para reservar turnos',sn.on).replace('margin-top:16px','margin-top:0')+'<div class="k" style="margin-top:4px">Después de reservar, el cliente ve cuánto señar y tus datos de transferencia o link de pago.</div><div class="row" style="gap:8px;margin-top:6px"><div><select id="pg_snt"><option value="%"'+(sn.t!='$'?' selected':'')+'>% del servicio</option><option value="$"'+(sn.t=='$'?' selected':'')+'>Monto fijo ($)</option></select></div><div style="flex:.6"><input id="pg_snv" type="number" inputmode="decimal" min="0" placeholder="Ej: 30" value="'+(sn.v||'')+'"></div></div></div>':'')+
 '<button class="go" data-cat="pgsave" style="margin-top:16px">Guardar medios de pago</button></details>';
 return h}
+// ---------- Cobro online con Mercado Pago (servidor de pagos, worker/) ----------
+// El negocio conecta su cuenta; en el catálogo el cliente toca "Pagar" y Mercado Pago abre con el monto ya cargado.
+var MPST={sid:'',busy:false,d:null},MPFEE=null;
+// Comisión de Pekeron por cada venta cobrada online (Mercado Pago la descuenta sola y la manda a la cuenta de la aplicación).
+function mpFeeCard(){if(!PAGOS_URL)return '';if(MPFEE===null){MPFEE=false;fetch(PAGOS_URL+'/mp/comision').then(function(r){return r.json()}).then(function(d){MPFEE=d.pct||0;if(TAB=='plat')drawPlatLite()}).catch(function(){MPFEE='x'});return ''}
+return '<div class="card"><b>💙 Comisión por ventas online</b><div class="k" style="margin:4px 0 8px">Un % de cada venta que tus clientes cobran con Mercado Pago desde su catálogo. Mercado Pago lo descuenta solo y te lo manda a tu cuenta. En 0% no se cobra nada.</div>'+
+(MPFEE==='x'?'<div class="k">No pude leerla. Probá de nuevo más tarde.</div>':'<div class="row" style="gap:8px;align-items:center"><div><input id="mpfee" type="number" inputmode="decimal" min="0" max="10" step="0.1" value="'+(+MPFEE||0)+'"></div><div style="flex:none;font-weight:800">%</div><div style="flex:1"><button class="go" id="mpfeeok" style="margin:0">Guardar</button></div></div>')+'</div>'}
+document.addEventListener('click',function(e){if(!e.target.closest||!e.target.closest('#mpfeeok'))return;var v=+$('mpfee').value||0;if(v<0||v>10){alert('Poné un número entre 0 y 10.');return}
+if(v>0&&!confirm('¿Cobrar '+v+'% de cada venta online de tus clientes?\n\nAvisales antes: lo van a ver en el detalle de cada cobro de Mercado Pago.'))return;
+auth.currentUser.getIdToken().then(function(t){return fetch(PAGOS_URL+'/mp/comision',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({pct:v})})}).then(function(r){return r.json()}).then(function(d){if(d.error)throw new Error(d.error);MPFEE=d.pct;alert('Guardado: '+d.pct+'%.');drawPlatLite()}).catch(function(e){alert(e.message||'No se pudo guardar.')})});
+function mpFetch(path,body){return auth.currentUser.getIdToken().then(function(t){return fetch(PAGOS_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify(body||{})})}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Error');return d})})}
+function mpEstado(force){if(!PAGOS_URL||ROLE!='admin')return;if(MPST.busy||(!force&&MPST.sid==SID&&MPST.d))return;MPST.busy=true;var sid=SID;
+mpFetch('/mp/estado',{sid:sid}).then(function(d){MPST={sid:sid,busy:false,d:d};var e=$('mpon');if(e)e.outerHTML=mpOnlineHtml(((PUB||{}).pagos||{}).mpa||{})},function(){MPST={sid:sid,busy:false,d:{err:1}};var e=$('mpon');if(e)e.outerHTML=mpOnlineHtml(((PUB||{}).pagos||{}).mpa||{})})}
+function mpOnlineHtml(m){if(!PAGOS_URL||ROLE!='admin')return '';if(MPST.sid!=SID||!MPST.d){setTimeout(function(){mpEstado()},0);return '<div id="mpon" class="k" style="margin-top:14px">Revisando Mercado Pago…</div>'}
+var d=MPST.d,h='<div id="mpon" style="margin-top:14px;padding:14px;border-radius:16px;background:var(--bg)"><b style="font-size:16px">💙 Cobrar online con Mercado Pago</b>';
+if(d.err)return h+'<div class="k" style="margin-top:6px">No pude revisar la conexión. Probá de nuevo en un rato.</div></div>';
+if(d.listo===false)return h+'<div class="k" style="margin-top:6px">Muy pronto: el cliente va a pagar con tarjeta, débito o dinero en cuenta, con el monto ya cargado.</div></div>';
+if(!d.on)return h+'<div class="k" style="margin-top:6px">El cliente paga desde el catálogo con tarjeta (en cuotas), débito o dinero en cuenta, <b>con el monto ya cargado</b>. La plata entra directo a tu cuenta de Mercado Pago.</div><button class="go" data-cat="mpcon" style="margin-top:10px">Conectar mi Mercado Pago</button></div>';
+return h+'<div class="k" style="margin-top:4px;color:var(--ok);font-weight:700">✓ Conectado'+(d.nick?' a '+esc(d.nick):'')+'</div>'+
+pgChk('pg_mpa','Mostrar "Pagar con Mercado Pago" en el catálogo',m.on!==false).replace('margin-top:16px','margin-top:8px')+pgAj('pg_mpaa',m.p)+
+'<button class="x" data-cat="mpdes" style="font-size:13px;text-decoration:underline;margin-top:10px">Desconectar Mercado Pago</button></div>'}
+// Vuelta de Mercado Pago a la app (app.html?mpsid=…&mp=ok)
+function mpVuelta(){var q;try{q=new URLSearchParams(location.search)}catch(e){return}var r=q.get('mp'),sid=q.get('mpsid');if(!r||!sid)return;
+try{history.replaceState(null,'',location.pathname)}catch(e){}
+var go=function(){if(SID!=sid||ROLE!='admin'){setTimeout(go,500);return}
+if(r=='ok'){var pg=((PUB||{}).pagos)||{},mpa=pg.mpa||{};setDoc(doc(db,'stores',SID,'public','info'),{pagos:{mpa:{on:true,p:+mpa.p||0}}},{merge:true}).catch(function(){});MPST.d=null;PGOPEN=true;show('team');setTimeout(function(){var c=$('pgc');if(c)c.scrollIntoView({behavior:'smooth'})},400);alert('¡Listo! Tu Mercado Pago quedó conectado. Tus clientes ya pueden pagar desde el catálogo con el monto cargado.')}
+else alert(r=='no'?'No se conectó Mercado Pago (cancelaste el permiso).':'No se pudo conectar Mercado Pago. Probá de nuevo.')};
+try{if(STORES.some(function(x){return x.id==sid})&&SID!=sid)openStore(sid)}catch(e){}setTimeout(go,800)}
 function catAction(a,i){
+if(a=='mpcon'){var bt=document.querySelector('[data-cat="mpcon"]');if(bt){bt.disabled=true;bt.textContent='Abriendo Mercado Pago…'}
+mpFetch('/mp/conectar',{sid:SID,vuelta:location.origin+location.pathname+'?mpsid='+encodeURIComponent(SID)}).then(function(d){location.href=d.url}).catch(function(e){if(bt){bt.disabled=false;bt.textContent='Conectar mi Mercado Pago'}alert(e.message||'No pude abrir Mercado Pago.')});return}
+if(a=='mpdes'){if(!confirm('¿Desconectar Mercado Pago? Tus clientes ya no van a poder pagar online desde el catálogo.'))return;
+mpFetch('/mp/desconectar',{sid:SID}).then(function(){MPST.d=null;var pg=((PUB||{}).pagos)||{};return setDoc(doc(db,'stores',SID,'public','info'),{pagos:{mpa:{on:false,p:+((pg.mpa||{}).p)||0}}},{merge:true})}).then(function(){PGOPEN=true;redrawData()}).catch(function(e){alert(e.message||'No pude desconectar.')});return}
 if(a=='pgadd'){var lo=pgOtLeer();if(lo.length>=6){alert('Podés cargar hasta 6 medios más.');return}lo.push({n:'',link:'',nota:'',p:0});$('pg_ot').innerHTML=pgOtRows(lo);return}
 if(a=='pgdel'){var ld=pgOtLeer();ld.splice(+i,1);$('pg_ot').innerHTML=pgOtRows(ld);return}
 if(a=='pgsave'){var ok=function(u){return !u||/^https:\/\/[^\s"'<>]+$/i.test(u)};
 var pg={ef:{on:$('pg_ef').checked,p:pgAjLeer('pg_efa')},tr:{on:$('pg_tr').checked,alias:$('pg_tra').value.trim(),cbu:$('pg_trc').value.replace(/\D/g,''),tit:$('pg_trt').value.trim(),p:pgAjLeer('pg_tra2')},
 mp:{on:$('pg_mp').checked,link:$('pg_mpl').value.trim(),p:pgAjLeer('pg_mpa')},ot:pgOtLeer().filter(function(o){return o.n})};
+if($('pg_mpa'))pg.mpa={on:$('pg_mpa').checked,p:pgAjLeer('pg_mpaa')};else if(PUB&&PUB.pagos&&PUB.pagos.mpa)pg.mpa=PUB.pagos.mpa;
 if(pg.tr.on&&!pg.tr.alias&&!pg.tr.cbu){alert('Para transferencia, poné el alias o el CBU/CVU.');return}
 if(pg.tr.cbu&&pg.tr.cbu.length!=22){alert('El CBU o CVU tiene 22 números. Revisalo.');return}
 if(pg.mp.on&&!/^https:\/\//i.test(pg.mp.link)){alert('Pegá tu link de pago de Mercado Pago (empieza con https://).');return}
 if(!ok(pg.mp.link)||pg.ot.some(function(o){return !ok(o.link)})){alert('Revisá los links de pago: tienen que empezar con https://');return}
 if($('pg_sn')){var sv=Math.max(0,+$('pg_snv').value||0),st=$('pg_snt').value;if($('pg_sn').checked&&!sv){alert('Poné de cuánto es la seña.');return}if(st=='%'&&sv>100){alert('La seña no puede ser más del 100%.');return}
-pg.sena={on:$('pg_sn').checked,t:st,v:sv};if(pg.sena.on&&!pg.tr.on&&!pg.mp.on&&!pg.ot.length){alert('Para pedir seña, activá transferencia, Mercado Pago u otro medio con link.');return}}
+pg.sena={on:$('pg_sn').checked,t:st,v:sv};if(pg.sena.on&&!pg.tr.on&&!pg.mp.on&&!(pg.mpa&&pg.mpa.on)&&!pg.ot.length){alert('Para pedir seña, activá transferencia, Mercado Pago u otro medio con link.');return}}
 PGOPEN=true;setDoc(doc(db,'stores',SID,'public','info'),{pagos:pg},{merge:true}).then(function(){alert('Medios de pago guardados.')}).catch(fail);return}
 if(a=='waadd'){var l0=readWas();if(l0.length>=6){alert('Podés cargar hasta 6 números.');return}l0.push({n:'',w:''});$('cat_was').innerHTML=waRows(l0);var ns=document.querySelectorAll('#cat_was .cw-n');if(ns.length)ns[ns.length-1].focus();return}
 if(a=='wadel'){var l1=readWas();l1.splice(+i,1);$('cat_was').innerHTML=waRows(l1);return}
@@ -1661,7 +1695,7 @@ var h='<div class="card"><b>Empresas inscriptas ('+cnt.all+')</b><div class="k" 
 '<input id="plq" placeholder="Buscar por nombre, email o código" value="'+esc(PLQ)+'" autocomplete="off" style="margin-top:10px">'+
 '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">'+fb('all','Todas',cnt.all)+fb('trial','En prueba',cnt.trial)+fb('paid','Pagando',cnt.paid)+fb('life','Pago único',cnt.life)+fb('paused','Pausadas',cnt.paused)+fb('exp','Vencidas',cnt.exp)+fb('free','Libres',cnt.free)+'</div>'+
 '<button class="go alt" data-lt="reload">Actualizar lista</button></div>';
-h+=VD.card();
+h+=VD.card()+mpFeeCard();
 var dl=dueList();if(dl.length)h+='<div class="card" style="border:2px solid var(--buy)"><b>⏰ Para cobrar o renovar</b><div class="k" style="margin-top:4px">Negocios que vencen en los próximos 7 días o que ya vencieron. Solo lo ves vos.</div>'+dl.map(function(r){return '<button class="pl" data-lt="find" data-f="'+esc(r.x.sid)+'"><span><b>'+esc(r.x.name)+'</b><small>'+r.t+' · '+fdate(r.u)+'</small></span><b style="color:'+(r.dias<=1?'#b3261e':'inherit')+';font-size:14px;text-align:right">'+dueTxt(r)+'</b></button>'}).join('')+'</div>';
 if(!list.length)h+='<div class="card"><div class="empty">No hay empresas en esta vista.</div></div>';
 list.forEach(function(r){var x=r.x,a=r.a,st=r.st;

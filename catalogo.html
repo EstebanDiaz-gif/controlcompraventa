@@ -470,6 +470,7 @@ select option{background-color:var(--card);color:var(--ink)}
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot,writeBatch,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {firebaseConfig} from './firebase-config.js';
+import {PAGOS_URL} from './pagos-config.js';
 import {fotoId} from './fotos.js';
 import {combos,cantidades,descuento,tituloCant,ahorro} from './promos.js';
 import {TEMAS,temaEfectivo,cuentaRegresiva,proxima,adornos,fechaTitulo} from './temas.js';
@@ -718,7 +719,7 @@ if(!sid&&!SLUG){fail('Falta el código de la tienda en el link.')}
 else{db=getFirestore(initializeApp(firebaseConfig));
 (sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
-INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);almSetup();svSetup();rubroSetup();if(INFO.ag)loadAg();
+INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);almSetup();svSetup();rubroSetup();setTimeout(mpVuelta,300);if(INFO.ag)loadAg();
 onSnapshot(doc(db,'platform','tema'),function(sn){var GL2=sn.exists()?sn.data():null;tema(GL2)});
 // mostrar siempre el link lindo en la barra de direcciones
 if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
@@ -935,7 +936,9 @@ function okLink(u){return /^https:\/\/[^\s"'<>]+$/i.test(String(u||''))}
 function medios(){var P=INFO.pagos||{},l=[],n=function(v){v=+v||0;return Math.max(-90,Math.min(90,v))};
 if(P.ef&&P.ef.on)l.push({id:'ef',n:'Efectivo',ic:'💵',p:n(P.ef.p),d:P.ef});
 if(P.tr&&P.tr.on&&(P.tr.alias||P.tr.cbu))l.push({id:'tr',n:'Transferencia',ic:'🏦',p:n(P.tr.p),d:P.tr});
-if(P.mp&&P.mp.on&&okLink(P.mp.link))l.push({id:'mp',n:'Mercado Pago',ic:'💙',p:n(P.mp.p),d:P.mp});
+var MPA=!!(PAGOS_URL&&P.mpa&&P.mpa.on&&INFO.mon!='USD');
+if(MPA)l.push({id:'mpa',n:'Mercado Pago',ic:'💙',p:n(P.mpa.p),d:{online:1}});
+else if(P.mp&&P.mp.on&&okLink(P.mp.link))l.push({id:'mp',n:'Mercado Pago',ic:'💙',p:n(P.mp.p),d:P.mp});
 (P.ot||[]).forEach(function(o,i){if(o&&o.n&&(!o.link||okLink(o.link)))l.push({id:'o'+i,n:String(o.n),ic:'💳',p:n(o.p),d:o})});return l}
 function pagoSel(){var l=medios();if(!l.length)return null;var m=l.filter(function(x){return x.id==PAGO})[0];if(!m){m=l[0];PAGO=m.id}return m}
 function ajuste(m,t){return m&&m.p?Math.round(t*m.p/100):0}
@@ -947,11 +950,12 @@ return MDS={p:mn,t:ns.length>2?ns.slice(0,-1).join(', ')+' o '+ns[ns.length-1]:n
 function dl(g){var d=mejorDesc();if(!d||!base(g))return '';return '<span class="pdt">'+money(Math.round(base(g)*(100+d.p)/100))+(g.w?'/kg':'')+' con '+esc(d.t)+'</span>'}
 // Seña para reservar turnos: % del servicio o un monto fijo. Se paga por transferencia o link (no en efectivo).
 function senaDe(x){var S=(INFO.pagos||{}).sena;if(!S||!S.on||!(+S.v>0))return 0;return S.t=='$'?Math.round(+S.v):Math.round((+x.p||0)*Math.min(100,+S.v)/100)}
-function mediosSena(){return medios().filter(function(m){return m.id!='ef'})}
+function mediosSena(){return medios().filter(function(m){return m.id!='ef'&&m.id!='mpa'})}
 function cpRow(lbl,v){return v?'<div class="pr2"><span><small>'+lbl+'</small>'+esc(v)+'</span><button class="cpb" data-cp="'+esc(v)+'">Copiar</button></div>':''}
 // Detalle del medio elegido: datos para transferir, botón al link de pago, etc.
 function pdet(m,monto,que){if(!m)return '';var d=m.d||{},h='<div class="pdet">';
-if(m.id=='ef')h+='<b>💵 Pagás en efectivo</b><p>'+(que=='sena'?'Llevá la seña al local.':'Pagás '+money(monto)+' al '+(envCosto()?'recibir':'retirar')+' el pedido.')+'</p>';
+if(m.id=='mpa')h+='<button class="lk" data-mpa="1" style="width:100%;border:0;font:inherit;font-weight:800;cursor:pointer">Pagar '+money(monto)+' con Mercado Pago</button><p>Tarjeta de crédito (en cuotas), débito o dinero en cuenta. El monto ya va cargado. Después volvés acá y mandás el pedido por WhatsApp.</p>';
+else if(m.id=='ef')h+='<b>💵 Pagás en efectivo</b><p>'+(que=='sena'?'Llevá la seña al local.':'Pagás '+money(monto)+' al '+(envCosto()?'recibir':'retirar')+' el pedido.')+'</p>';
 else if(m.id=='tr')h+='<b>Transferí '+money(monto)+'</b>'+cpRow('Alias',d.alias)+cpRow('CBU / CVU',d.cbu)+(d.tit?'<div class="pr2"><span><small>Titular</small>'+esc(d.tit)+'</span></div>':'')+'<p>Después mandá el comprobante por WhatsApp.</p>';
 else if(d.link)h+='<a class="lk" href="'+esc(d.link)+'" target="_blank" rel="noopener">Pagar '+money(monto)+(m.id=='mp'?' con Mercado Pago':' · '+esc(m.n))+' ↗</a>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>Si el link te pide el monto, poné '+money(monto)+'. Después mandá el comprobante por WhatsApp.</p>';
 else h+='<b>'+esc(m.n)+'</b>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>El negocio te confirma cómo pagar por WhatsApp.</p>';
@@ -959,6 +963,35 @@ return h+'</div>'}
 function paysHtml(l,sel,nob){return '<div class="pays">'+l.map(function(m){return '<label'+(m.id==sel?' class="on"':'')+'><input type="radio" name="pago" value="'+esc(m.id)+'"'+(m.id==sel?' checked':'')+'><span class="pi">'+m.ic+'</span><span class="pn">'+esc(m.n)+'</span>'+(nob?'':pbad(m))+'</label>'}).join('')+'</div>'}
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-cp]');if(!b)return;var v=b.dataset.cp;
 (navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).then(function(){b.textContent='¡Copiado!';setTimeout(function(){b.textContent='Copiar'},1500)},function(){prompt('Copiá:',v)})});
+// ---------- Pago online con Mercado Pago (servidor de pagos: worker/) ----------
+// El servidor recalcula el total con los datos del catálogo y abre Mercado Pago con ese monto.
+// Antes de ir guardamos el mensaje del pedido; al volver con el pago aprobado, se manda por WhatsApp.
+var LASTP=null;
+function mpKey(){return 'pk_mpord_'+sid}
+function mpPagar(btn){if(!LASTP)return;var r=LASTP.r,total=LASTP.total,ref=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+var items=CART.map(function(l){return {k:l.k,z:l.z||'',q:l.q,promo:l.promo||'',w:!!l.w}});
+var msg=decodeURIComponent((waLink(r,total).split('text=')[1]||''));
+try{localStorage.setItem(mpKey(),JSON.stringify({m:msg,total:total,ref:ref,at:Date.now()}))}catch(e){}
+btn.disabled=true;btn.textContent='Abriendo Mercado Pago…';
+var vuelta=location.origin+location.pathname.replace(/[^\/]*$/,'')+'catalogo.html?t='+sid;
+fetch(PAGOS_URL+'/pagar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,items:items,entrega:ENTREGA,total:Math.round(total),vuelta:vuelta,ref:ref})})
+.then(function(x){return x.json().then(function(d){return {ok:x.ok,d:d}})}).then(function(o){if(o.ok&&o.d.url){location.href=o.d.url;return}
+btn.disabled=false;btn.textContent='Pagar '+money(total)+' con Mercado Pago';alert(o.d.error||'No se pudo abrir Mercado Pago. Probá de nuevo.')})
+.catch(function(){btn.disabled=false;btn.textContent='Pagar '+money(total)+' con Mercado Pago';alert('No se pudo conectar. Revisá tu internet y probá de nuevo.')})}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-mpa]');if(b){e.preventDefault();mpPagar(b)}});
+// Vuelta de Mercado Pago: catalogo.html?t=…&mp=pago&status=approved&payment_id=…
+function mpVuelta(){if(Q0.get('mp')!='pago')return;var st=Q0.get('status')||Q0.get('collection_status')||'',pid=Q0.get('payment_id')||Q0.get('collection_id')||'',o=null;
+try{o=JSON.parse(localStorage.getItem(mpKey())||'null')}catch(e){}
+try{history.replaceState(null,'',location.pathname+'?t='+sid)}catch(e){}
+var ok=st=='approved',pend=st=='pending'||st=='in_process',h='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div style="text-align:center;padding:6px 4px 0">';
+if(ok){var m=(o&&o.m?o.m+'\n':'')+'✅ Pagado con Mercado Pago'+(pid&&pid!='null'?' (operación N° '+pid+')':'');
+try{localStorage.removeItem(mpKey())}catch(e){}
+h+='<div class="okc">✓</div><b style="font-size:22px">¡Pago aprobado!</b><div class="k" style="color:var(--mut);margin-top:6px">'+(o?'Pagaste '+money(o.total)+'. ':'')+'Ahora mandá el pedido por WhatsApp así el negocio lo prepara.</div></div>'+
+(WAS.length>1?waBtns(function(w){return waUrl(w,m)},'Enviar pedido a '):WAS.length?'<a class="wa" target="_blank" rel="noopener" style="margin-top:16px" href="'+esc(waUrl(WAS[0].w,m))+'">Enviar pedido por WhatsApp</a>':'')}
+else if(pend)h+='<div class="okc" style="background:#b7791f">…</div><b style="font-size:21px">Tu pago está en proceso</b><div class="k" style="color:var(--mut);margin-top:6px">Mercado Pago te avisa cuando se acredite. Mientras, podés avisarle al negocio.</div></div>'+(WAS.length&&o?'<a class="wa" target="_blank" rel="noopener" style="margin-top:16px" href="'+esc(waUrl(WAS[0].w,o.m+'\n⏳ Pago con Mercado Pago en proceso'+(pid&&pid!='null'?' (operación N° '+pid+')':'')))+'">Avisar al negocio por WhatsApp</a>':'');
+else h+='<b style="font-size:21px;display:block;margin-top:8px">El pago no se completó</b><div class="k" style="color:var(--mut);margin-top:6px">No se te cobró nada. Podés volver a armar el pedido y elegir otro medio de pago.</div></div>';
+h+='<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
+$('shc').innerHTML=h;$('sh').className='sheet';$('sh').hidden=false}
 // Envío a domicilio (lo configura el negocio): el cliente elige retiro o envío y se suma el costo.
 var ENTREGA='ret',EDIR='';function envOn(){return !!(INFO.env&&INFO.env.on)}function envCosto(){return envOn()&&ENTREGA=='env'?(+INFO.env.precio||0):0}
 function sheet(){OPEN='';$('sh').className='sheet';var r=lines();
@@ -975,9 +1008,9 @@ if(aj<0)h+='<div class="dsc"><span>🏷️ '+(-MP.p)+'% OFF pagando con '+esc(MP
 total+=aj;
 if(envCosto())h+='<div class="dsc"><span>🛵 Envío a domicilio</span><span>+'+money(envCosto())+'</span></div>';
 total+=envCosto();
-h+='<div class="tot"><span>Total'+(aj>0?' <small style="font-size:13px;font-weight:700;color:var(--mut)">precio de lista</small>':'')+'</span><span>'+money(total)+'</span></div>'+(MP?pdet(MP,total):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
+LASTP={r:r,total:total};h+='<div class="tot"><span>Total'+(aj>0?' <small style="font-size:13px;font-weight:700;color:var(--mut)">precio de lista</small>':'')+'</span><span>'+money(total)+'</span></div>'+(MP?pdet(MP,total):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
 (TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
-(WAS.length>1?'<div class="lbl" style="text-align:center">¿A quién le mandás el pedido?</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'">Enviar pedido por WhatsApp</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
+(WAS.length>1?'<div class="lbl" style="text-align:center">'+(MP&&MP.id=='mpa'?'O mandá el pedido sin pagar online:':'¿A quién le mandás el pedido?')+'</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'"'+(MP&&MP.id=='mpa'?' style="background:var(--soft);color:var(--ink)">Mandar el pedido sin pagar online':'>Enviar pedido por WhatsApp')+'</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
 $('shc').innerHTML=h;$('sh').hidden=false;
 Array.prototype.forEach.call(document.querySelectorAll('input[name=entr]'),function(x){x.onchange=function(){ENTREGA=this.value;sheet()}});
