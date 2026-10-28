@@ -513,6 +513,7 @@ otro:{b:'#2F3437',bg:'#FAFAF9',soft:'#F0F0EE',line:'#E7E7E4'}};
 var ALPAL={almacen:{ap:'#0E4D45',al:'#C8EE6E',ad:'#0E2E29',abg:'#F3F5F1',c:['#FBE7C4','#E2F2D5','#FFE0E0','#DCEBFA'],q:'Buscá yerba, gaseosa, galletitas…',h:'Hacé tu pedido y te lo preparamos'},
 kiosco:{ap:'#4A1F8C',al:'#FFD23F',ad:'#2A1252',abg:'#F6F3FB',c:['#FFE9A8','#EBDDFF','#FFD9E6','#D7ECFF'],q:'Buscá golosinas, bebidas, cargadores…',h:'Tu kiosco, a un mensaje de distancia'},
 super:{ap:'#B81D2E',al:'#FFE15A',ad:'#3A0D12',abg:'#F7F4F1',c:['#FFF0B3','#E3F1D6','#FFDCDC','#DCEAF8'],q:'Buscá yerba, lácteos, limpieza…',h:'Hacé las compras sin salir de casa'},
+panaderia:{ap:'#6B3E1F',al:'#F6C76B',ad:'#3A2010',abg:'#FBF5EC',c:['#FCE6C4','#F7DCC9','#FFF1CF','#EADBC8'],q:'Buscá pan, facturas, tortas, gaseosas…',h:'Pan calentito y facturas recién hechas'},
 carne:{ap:'#6B1424',al:'#F2C98A',ad:'#3B0B14',abg:'#F8F3EE',c:['#F7DCC7','#E3EED3','#FBE1D5','#EEE4D6'],q:'Buscá asado, vacío, pollo, verduras…',h:'Carne y verdura fresca, lista para vos'},
 farmacia:{ap:'#0A6B73',al:'#A8EBDD',ad:'#073C41',abg:'#F1F7F7',c:['#D6F1EA','#DCEBFA','#EFE3F7','#E6F3D9'],q:'Buscá perfumería, pañales, cuidado personal…',h:'Tu farmacia, cerca y online'},
 ferre:{ap:'#2B2D31',al:'#FF8A1F',ad:'#1A1B1E',abg:'#F3F2EF',c:['#FFE2C4','#E5E7EB','#FFF0B8','#DCE6F0'],q:'Buscá tornillos, pinturas, herramientas…',h:'Todo para tu obra y tu casa'}};
@@ -525,6 +526,7 @@ var RUB={
 almacen:{f:'Nunito',w:900,pat:'🥫🧉🍞🥛🧀🍝🥚🍪'},
 kiosco:{f:'Fredoka',w:700,pat:'🍬🍫🍭🥤🍟🍦🧃🔋',lay:'mini'},
 super:{f:'Archivo',w:900,pat:'🛒🥖🧀🍎🥛🧴🥫🍝'},
+panaderia:{f:'Fraunces',w:800,pat:'🥖🥐🍞🧁🥧🍩🎂🥨'},
 carne:{f:'Roboto Slab',w:800,pat:'🥩🍗🥕🍅🌭🔥🧅🥔'},
 farmacia:{f:'Quicksand',w:700,pat:'💊🩹🧴🪥🍼🌡️💧✚'},
 ferre:{f:'Oswald',w:700,u:1,pat:'🔧🔨🪛🔩🪚🧰📏💡',lay:'list'},
@@ -558,14 +560,14 @@ if(!INFO.tag&&C.h){$('htag').hidden=false;$('htag').textContent=C.h}
 if(C.q)$('sq').placeholder=C.q;
 if(C.view=='list'&&VIEW=='grid'){VIEW='list';$('vl').className='on';$('vg').className=''}}}
 // Ícono de cada categoría: primero los conocidos, después por palabras, si no el del rubro
-var CATK=[[/cerveza|vino|fernet|aperitiv|alcohol|licor/,'🍷'],[/bebida|gaseosa|jugo|agua mineral|aguas\b/,'🥤'],[/yerba|mate\b|infusi|caf[eé]|t[eé]\b/,'🧉'],[/galletit/,'🍪'],[/golosin|caramel|chicle|gomit/,'🍬'],[/chocolat|alfajor/,'🍫'],[/snack|papas|palitos/,'🍟'],[/helad/,'🍦'],
+var CATK=[[/factura|medialuna|criollo|bizcocho|vigilante/,'🥐'],[/torta|postre|tarta|lemon pie/,'🎂'],[/masa|confiter|pastel|cupcake|bomb[oó]n/,'🧁'],[/s[aá]nd(w|g)ich|salado|empanada|pizza/,'🥪'],[/bud[ií]n|pan dulce|magdalena/,'🍰'],[/cerveza|vino|fernet|aperitiv|alcohol|licor/,'🍷'],[/bebida|gaseosa|jugo|agua mineral|aguas\b/,'🥤'],[/yerba|mate\b|infusi|caf[eé]|t[eé]\b/,'🧉'],[/galletit/,'🍪'],[/golosin|caramel|chicle|gomit/,'🍬'],[/chocolat|alfajor/,'🍫'],[/snack|papas|palitos/,'🍟'],[/helad/,'🍦'],
 [/l[aá]cte|leche|yogur/,'🥛'],[/queso|fiambr/,'🧀'],[/pan\b|panader|factura/,'🥖'],[/verdu|fruta/,'🥕'],[/vacun|carne/,'🥩'],[/cerdo/,'🐖'],[/pollo/,'🍗'],[/embutid|chorizo|salchich/,'🌭'],[/asado|parrill|carb[oó]n/,'🔥'],[/congelad/,'🧊'],
 [/limpieza|lavand|deterg/,'🧽'],[/higiene|jab[oó]n|shampoo|desodor/,'🧼'],[/cigarr|tabaco/,'🚬'],[/mascot|perro|gato/,'🐾'],[/beb[eé]s?\b|pañal/,'🍼'],[/medicam|remedio|analg|farmac/,'💊'],[/primeros|botiqu|curit/,'🩹'],[/dermo|skin|facial/,'🧴'],[/maquill|labial/,'💄'],[/perfum|fragan/,'🌸'],
 [/herramient/,'🔨'],[/pintur/,'🎨'],[/el[eé]ctric|ilumin|l[aá]mpar|foco/,'💡'],[/plomer|sanitar|ca[ñn]er|grifer/,'🚰'],[/torn|bul[oó]n|clavo|fijaci/,'🔩'],[/jard[ií]n|plant|riego/,'🌱'],[/construc|cemento|ladrill|corral/,'🧱'],[/adhesiv|pegament|cinta/,'🩹'],
 [/zapatill/,'👟'],[/bota|borce/,'🥾'],[/sandal|ojota/,'🩴'],[/zapato|mocas|calzado/,'👞'],[/remera|camis|top\b|musculosa/,'👕'],[/jean|pantal|jogg|bermuda|short/,'👖'],[/buzo|campera|abrig|sweater|cardig/,'🧥'],[/vestido|pollera|falda/,'👗'],[/interior|lencer|boxer|ropa de ba/,'🩲'],[/media/,'🧦'],[/gorra|gorro|sombrer/,'🧢'],
 [/mochila|bolso|cartera|billeter/,'👜'],[/anteojo|lente/,'🕶️'],[/reloj/,'⌚'],[/aro|collar|anillo|pulser|bijou|joya/,'💍'],[/celular|smartphone|tel[eé]fono/,'📱'],[/funda|templad|protector/,'📱'],[/cargador|cable/,'🔌'],[/auricular|parlante|audio/,'🎧'],[/notebook|compu|pc\b|tablet/,'💻'],[/gamer|consola|joystick/,'🎮'],
 [/oferta|promo|liquid/,'🏷️'],[/novedad|nuevo|ingreso/,'✨'],[/niñ|infantil|kids|beb/,'🧸'],[/hombre/,'👔'],[/mujer/,'👚'],[/regal/,'🎁'],[/bazar|cocina/,'🍽️']];
-var RDEF={almacen:'🛒',kiosco:'🍬',super:'🛒',carne:'🥩',farmacia:'💊',ferre:'🔧'};
+var RDEF={panaderia:'🥐',almacen:'🛒',kiosco:'🍬',super:'🛒',carne:'🥩',farmacia:'💊',ferre:'🔧'};
 function catIcon(x){if(CATI[x])return CATI[x];var t=String(x||'').toLowerCase();for(var i=0;i<CATK.length;i++)if(CATK[i][0].test(t))return CATK[i][1];return RDEF[rubKey()]||'🛒'}
 function catIconT(x){var t=String(x||'').toLowerCase();for(var i=0;i<CATK.length;i++)if(CATK[i][0].test(t))return CATK[i][1];return ''}
 function tzHtml(g){if(!document.body.classList.contains('lay-tz')||!g.sz||!g.sz.length)return '';var l=g.sz.filter(function(z){return z.q>0&&z.z&&!/^(u|único|unico|-)$/i.test(z.z)});if(!l.length)return '';
@@ -742,7 +744,8 @@ return Promise.all(ps).then(function(r){G=[];r.forEach(function(d){((d.exists()&
 draw();loadImgs(L);return true})}).catch(function(){return false})}
 function loadImgs(L){var ps=[];for(var i=0;i<(L.ni||0);i++)ps.push(getDoc(doc(db,'stores',sid,'public','lista_i'+i)).catch(function(){return null}));
 Promise.all(ps).then(function(r){var by={};r.forEach(function(d){if(d&&d.exists())(d.data().f||[]).forEach(function(x){by[x.i]=x.f})});G.forEach(function(g){if(by[g.k])g.img=by[g.k]});draw();if(OPEN)prod(OPEN)})}
-function cats(){var o={};G.forEach(function(g){if(g.cat)o[g.cat]=1});return Object.keys(o).sort(function(a,b){var x=CORDER.indexOf(a),y=CORDER.indexOf(b);return (x<0?99:x)-(y<0?99:y)||a.localeCompare(b)})}
+var CORDER_T={panaderia:['Panadería','Facturas','Tortas y postres','Masas y confitería','Sándwiches y salados','Galletitas y budines','Bebidas','Almacén','Lácteos','Otros']};
+function cats(){var o={},CO=CORDER_T[INFO&&INFO.tp]||CORDER;G.forEach(function(g){if(g.cat)o[g.cat]=1});return Object.keys(o).sort(function(a,b){var x=CO.indexOf(a),y=CO.indexOf(b);return (x<0?99:x)-(y<0?99:y)||a.localeCompare(b)})}
 function drawCats(){if(ALM){almCats();return}var c=cats(),e=$('cats');e.hidden=c.length<2;if(c.length<2)return;
 e.innerHTML='<button class="chip'+(CAT?'':' on')+'" data-c="">Todo</button>'+c.map(function(x){return '<button class="chip'+(CAT==x?' on':'')+'" data-c="'+esc(x)+'">'+(catIconT(x)?catIconT(x)+' ':'')+esc(x)+'</button>'}).join('')}
 function cnt(l){return l.w?1:l.q}

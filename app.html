@@ -263,7 +263,7 @@ if(!Object.keys(o).length)return;var k=SID+JSON.stringify(o);if(syncCatRubro.k==
 setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(function(){})}
 // Estilos del catálogo que el dueño puede elegir a mano (vacío = el de su rubro)
 var ESTILOS={servicios:[['barber','Barbería · negro y dorado'],['nude','Peluquería · nude y caramelo'],['rosa','Estética y belleza · rosa'],['lila','Uñas y pestañas · lila'],['verde','Spa y masajes · verde'],['claro','Neutro claro']],
-almacen:[['almacen','Almacén · verde y lima'],['kiosco','Kiosco · violeta y amarillo'],['super','Minimercado · rojo y amarillo'],['carne','Carnicería / verdulería · bordó'],['farmacia','Farmacia · verde agua'],['ferre','Ferretería · gris y naranja']],
+almacen:[['almacen','Almacén · verde y lima'],['kiosco','Kiosco · violeta y amarillo'],['super','Minimercado · rojo y amarillo'],['carne','Carnicería / verdulería · bordó'],['panaderia','Panadería · chocolate y dorado'],['farmacia','Farmacia · verde agua'],['ferre','Ferretería · gris y naranja']],
 productos:[['ropa','Indumentaria · negro clásico'],['calzado','Calzado · azul noche'],['ropaycalz','Ropa y calzado · café'],['celus','Tecnología · azul eléctrico'],['acc','Accesorios y bijou · dorado'],['perf','Perfumería · ciruela'],['otro','Neutro']]};
 function estiloSel(p){var b=biz(),fam=b=='servicios'||b=='ambos'?'servicios':b=='almacen'?'almacen':'productos',sv=fam=='servicios',cur=(sv?p.svs:p.est)||'',t=tipoDe(catTp());
 return '<label>Estilo del catálogo</label><select id="'+(sv?'cat_svs':'cat_est')+'"><option value="">Según el rubro'+(t?' ('+t[1]+')':'')+'</option>'+ESTILOS[fam].map(function(o){return '<option value="'+o[0]+'"'+(cur==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+
@@ -341,7 +341,7 @@ $('vpanel').addEventListener('change',function(e){VD.panelChange(e)});
 
 /* ---------- tipo de negocio (grilla) ---------- */
 var TIPOS=[
-['Almacén y comercio',[['almacen','Almacén','🛒','almacen'],['kiosco','Kiosco / drugstore','🍫','almacen'],['super','Minimercado','🧺','almacen'],['carne','Carnicería / verdulería','🥩','almacen'],['farmacia','Farmacia','💊','almacen'],['ferre','Ferretería','🔧','almacen']]],
+['Almacén y comercio',[['almacen','Almacén','🛒','almacen'],['kiosco','Kiosco / drugstore','🍫','almacen'],['super','Minimercado','🧺','almacen'],['carne','Carnicería / verdulería','🥩','almacen'],['panaderia','Panadería / confitería','🥐','almacen'],['farmacia','Farmacia','💊','almacen'],['ferre','Ferretería','🔧','almacen']]],
 ['Tiendas',[['ropa','Indumentaria','👕','productos','ropa'],['calzado','Calzado','👟','productos','calzado'],['ropaycalz','Ropa y calzado','🛍️','productos','ropaycalz'],['celus','Celulares y tecnología','📱','productos','celus'],['acc','Accesorios y bijou','👜','productos','acc'],['perf','Perfumería y cosmética','🧴','productos','perf']]],
 ['Servicios y otros',[['barber','Barbería','💈','servicios','','barber'],['pelu','Peluquería','💇‍♀️','servicios','','nude'],['estetica','Estética y belleza','💆‍♀️','servicios','','rosa'],['unas','Uñas y pestañas','💅','servicios','','lila'],['spa','Spa y masajes','🧖‍♀️','servicios','','verde'],['otro','Otro','✨','productos','otro']]]];
 function tipoDe(id){var r=null;TIPOS.forEach(function(g){g[1].forEach(function(t){if(t[0]==id)r=t})});return r}

@@ -1,5 +1,10 @@
 // Cálculos del rubro almacén (sin Firebase, para poder probarlos con node --test).
 export const CATS = ['Almacén', 'Bebidas', 'Galletitas y golosinas', 'Lácteos', 'Fiambrería', 'Panadería', 'Verdulería', 'Congelados', 'Limpieza', 'Perfumería', 'Cigarrillos', 'Otros'];
+// Categorías sugeridas según el tipo de negocio (cfg/servicios.tipo). Si no tiene, las de almacén.
+export const CATS_TIPO = {
+  panaderia: ['Panadería', 'Facturas', 'Tortas y postres', 'Masas y confitería', 'Sándwiches y salados', 'Galletitas y budines', 'Bebidas', 'Almacén', 'Lácteos', 'Otros'],
+};
+export const catsFor = (tipo) => CATS_TIPO[tipo] || CATS;
 export const PAY = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / Mercado Pago', fi: 'Fiado' };
 // Medios que se pueden combinar con efectivo en un pago dividido.
 export const OTROS = ['tr', 'tj', 'qr'];

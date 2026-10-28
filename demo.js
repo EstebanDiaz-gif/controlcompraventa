@@ -43,6 +43,34 @@ const SETS = {
       ['Pasta dental 90 g', 'Perfumería', 1800, 1200, 15, 0, '🪥']
     ]
   },
+  panaderia: {
+    titulo: 'Panadería', tag: 'Pan calentito y facturas recién hechas', emoji: '🥐', fondo: ['#6B3E1F', '#A0612F'],
+    p: [
+      ['Pan francés', 'Panadería', 2400, 1300, 20, 1, '🥖', 1],
+      ['Pan de campo', 'Panadería', 3200, 1800, 8, 1, '🍞'],
+      ['Pan lactal casero', 'Panadería', 2800, 1500, 10, 0, '🍞'],
+      ['Medialunas de manteca x 6', 'Facturas', 3300, 1700, 15, 0, '🥐', 2, 3800],
+      ['Facturas surtidas x 12', 'Facturas', 6500, 3400, 10, 0, '🥐', 3],
+      ['Bolas de fraile x 6', 'Facturas', 3600, 1900, 8, 0, '🍩'],
+      ['Criollos', 'Facturas', 4200, 2200, 6, 1, '🥨'],
+      ['Torta selva negra', 'Tortas y postres', 28000, 15000, 2, 0, '🎂', 4],
+      ['Lemon pie', 'Tortas y postres', 18000, 9500, 3, 0, '🥧'],
+      ['Masas finas x 1/2 kg', 'Masas y confitería', 9500, 5200, 5, 0, '🧁'],
+      ['Alfajores de maicena x 6', 'Masas y confitería', 4500, 2300, 8, 0, '🍪'],
+      ['Sándwiches de miga x 12', 'Sándwiches y salados', 9000, 5000, 6, 0, '🥪', 5],
+      ['Empanadas x 6', 'Sándwiches y salados', 7200, 3900, 6, 0, '🥟'],
+      ['Budín de limón', 'Galletitas y budines', 4800, 2500, 6, 0, '🍰'],
+      ['Gaseosa cola 2,25 L', 'Bebidas', 3300, 2400, 12, 0, '🥤'],
+      ['Jugo de naranja 1 L', 'Bebidas', 1800, 1200, 12, 0, '🧃'],
+      ['Agua mineral 500 ml', 'Bebidas', 900, 550, 24, 0, '💧'],
+      ['Yerba mate 1 kg', 'Almacén', 4300, 3150, 10, 0, '🧉'],
+      ['Café molido 250 g', 'Almacén', 4600, 3300, 6, 0, '☕'],
+      ['Té en saquitos x 25', 'Almacén', 1500, 950, 10, 0, '🍵'],
+      ['Mate cocido x 25', 'Almacén', 1600, 1000, 10, 0, '🧉'],
+      ['Leche entera 1 L', 'Lácteos', 1300, 920, 12, 0, '🥛'],
+      ['Dulce de leche 400 g', 'Lácteos', 3200, 2200, 8, 0, '🍯']
+    ]
+  },
   carne: {
     titulo: 'Carnicería', tag: 'Cortes frescos todos los días', emoji: '🥩', fondo: ['#5C1A1B', '#9C2B23'],
     p: [
@@ -125,7 +153,7 @@ export async function cargarDemo({ db, sid, sname, tipo }) {
   const set = SETS[tipo] || SETS.super;
   const ops = set.p.map((r, i) => {
     const [n, cat, pn, c, q, w, em, dt, pa] = r, id = 'demo_' + tipo + '_' + i;
-    const o = { n, s: w ? '' : ean(i + 1 + (tipo === 'carne' ? 100 : tipo === 'kiosco' ? 200 : 0)), cat, pn, c, q, min: w ? 1 : 3, oh: false, alm: 1, w: !!w, img: foto(em, i), demo: 1 };
+    const o = { n, s: w ? '' : ean(i + 1 + (tipo === 'carne' ? 100 : tipo === 'kiosco' ? 200 : tipo === 'panaderia' ? 300 : 0)), cat, pn, c, q, min: w ? 1 : 3, oh: false, alm: 1, w: !!w, img: foto(em, i), demo: 1 };
     if (dt) o.dt = dt;
     if (pa) o.pa = pa;
     return [id, o];

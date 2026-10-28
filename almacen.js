@@ -12,7 +12,7 @@ import { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, writeBatch, in
 
 import { fotoId } from './fotos.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
-import { CATS, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
+import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
 import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
@@ -44,8 +44,9 @@ export function createAlmacen(X) {
   const now = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
   const dmy = (d) => String(d || '').split('-').reverse().join('/');
   const uid = () => Date.now() + '-' + X.rnd(4);
-  const cats = () => { const o = {}; CATS.forEach((c) => { o[c] = 0; }); P().forEach((p) => { if (p.cat) o[p.cat] = (o[p.cat] || 0) + 1; }); return o; };
-  const usedCats = () => { const o = cats(); return Object.keys(o).filter((c) => o[c] > 0).sort((a, b) => CATS.indexOf(a) - CATS.indexOf(b) || a.localeCompare(b)); };
+  const CATL = () => catsFor(X.cs && X.cs() && X.cs().tipo);
+  const cats = () => { const o = {}; CATL().forEach((c) => { o[c] = 0; }); P().forEach((p) => { if (p.cat) o[p.cat] = (o[p.cat] || 0) + 1; }); return o; };
+  const usedCats = () => { const o = cats(); return Object.keys(o).filter((c) => o[c] > 0).sort((a, b) => CATL().indexOf(a) - CATL().indexOf(b) || a.localeCompare(b)); };
   const priceTxt = (p) => (p.pn ? money(p.pn) + (p.w ? ' / kg' : '') : 'sin precio');
   const deny = (e) => e && /permission/.test(String(e.code || e.message));
   const rulesCard = () => '<div class="card"><b>Falta un paso</b><div class="k" style="margin-top:6px">Para usar el almacén hay que agregar las reglas nuevas en Firebase (archivo <b>ALMACEN-LEEME.md</b>, paso 2). Tus datos están a salvo.</div></div>';
@@ -676,7 +677,7 @@ export function createAlmacen(X) {
     if (id && !p) return;
     S.edit = { id: id || null, img: undefined };
     const c = p || { n: '', s: code || '', cat: S.stCat || '', w: false, pn: '', c: '', q: '', min: '' };
-    const catOpts = Array.from(new Set(CATS.concat(usedCats()))).map((x) => '<option value="' + esc(x) + '"' + (c.cat === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    const catOpts = Array.from(new Set(CATL().concat(usedCats()))).map((x) => '<option value="' + esc(x) + '"' + (c.cat === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
     let h = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver al stock</button><div class="card"><b style="font-size:19px">' + (p ? 'Editar producto' : 'Producto nuevo') + '</b>' +
       '<label>Nombre</label><input id="fn" autocomplete="off" maxlength="80" placeholder="Ej: Coca-Cola 2,25 L" value="' + esc(c.n) + '">' +
       '<label>Código de barras o código propio (opcional)</label><div style="display:flex;gap:8px;align-items:center"><input id="fs" autocomplete="off" maxlength="40" placeholder="Ej: 7790895000997" style="flex:1;min-width:0" value="' + esc(c.s) + '">' + scanButton('scanfs') + '</div>' +
@@ -1065,7 +1066,7 @@ export function createAlmacen(X) {
   // Formulario corto, reutilizado por la carga rápida y por la caja (código desconocido).
   function qkForm(box, code, cb) {
     const c = qkCfg(), p = code ? findByCode(P(), code) : null;
-    const catOpts = CATS.map((x) => '<option value="' + esc(x) + '"' + ((p ? p.cat : S.qkCat) === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    const catOpts = CATL().map((x) => '<option value="' + esc(x) + '"' + ((p ? p.cat : S.qkCat) === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
     box.innerHTML = '<div class="card" style="border:2px solid var(--ink)">' +
       (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · stock ' + fq(p.q, p.w) + '</div>'
         : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
