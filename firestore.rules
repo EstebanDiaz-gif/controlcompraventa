@@ -160,7 +160,8 @@ service cloud.firestore {
 
     match /stores/{sid} {
       // El vendedor que trajo la tienda ve sus datos básicos (nombre, alta), no lo de adentro.
-      allow read: if isMember(sid) || isPlatformOwner() || isVendOf(resource.data.get('vend', ''));
+      allow read: if isMember(sid) || isPlatformOwner() || isVendOf(resource.data.get('vend', ''))
+        || (signedIn() && resource.data.get('owner', '') == request.auth.uid);
       allow create: if signedIn() && request.resource.data.owner == request.auth.uid;
       allow update: if (isAdmin(sid) && request.resource.data.owner == resource.data.owner)
         || (isPlatformOwner() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vend']));

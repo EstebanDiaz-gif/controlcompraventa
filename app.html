@@ -562,6 +562,7 @@ gate('load');vendWatch(u);mpVuelta();susVuelta();setTimeout(pushRefrescar,4000);
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
+setTimeout(repararTiendas,1500);
 un.stores=onSnapshot(collection(db,'users',u.uid,'stores'),function(sn){
 STORES=[];sn.forEach(function(d){if(d.id!=CREATING)STORES.push({id:d.id,name:d.data().name||'Tienda',main:d.data().main||''})});
 var has=function(i){return STORES.some(function(s){return s.id==i})};
@@ -572,13 +573,26 @@ if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;if(VEND)openVend();e
 },function(){gate('nostore')})});
 
 var MECP=false; // permiso "puede cargar productos" de este empleado (members/{uid}.cp)
+// Tiendas que creaste vos (stores.owner = tu usuario): si te falta el acceso o desaparecieron de tu lista, se reparan solas.
+var REPAR=false;
+function repararTiendas(){if(!U||REPAR)return;REPAR=true;var uid=U.uid;
+getDocs(query(collection(db,'stores'),where('owner','==',uid))).then(function(sn){var ps=[];sn.forEach(function(d){var st=d.data(),id=d.id;
+if(STORES.some(function(x){return x.id==id}))return;
+ps.push(getDoc(doc(db,'stores',id,'members',uid)).then(function(m){var b=writeBatch(db);
+if(!m.exists())b.set(doc(db,'stores',id,'members',uid),{role:'admin',email:U.email||'',name:nm()});
+var o={name:st.name||'Tienda'};if(st.main)o.main=st.main;b.set(doc(db,'users',uid,'stores',id),o);return b.commit().then(function(){return st.name||'Tienda'})}).catch(function(){return null}))});
+return Promise.all(ps)}).then(function(l){l=(l||[]).filter(Boolean);if(l.length)alert('Recuperamos el acceso a '+(l.length==1?'tu tienda "'+l[0]+'"':'tus tiendas: '+l.join(', '))+'. Ya la podés elegir arriba, en el selector de tiendas.')}).catch(function(){})}
+// Antes de sacar una tienda de tu lista, se confirma con el servidor (y nunca si la tienda es tuya).
+function sinAcceso(sid){setTimeout(function(){if(!U)return;Promise.all([getDoc(doc(db,'stores',sid,'members',U.uid)),getDoc(doc(db,'stores',sid)).catch(function(){return null})]).then(function(r){
+if(r[0].exists())return;if(r[1]&&r[1].exists()&&r[1].data().owner==U.uid){REPAR=false;repararTiendas();return}
+deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}).catch(function(){})},2500)}
 function openStore(sid){
 stopStore();SID=sid;ROLE=null;MECP=false;SDTRY=0;FAMP=null;SUCCAT=null;clearTimeout(SDT);M=[];ST=[];MEM=[];INV=[];SNAME='';OWNER='';ACC=null;STQ='';SELQ='';EDK=null;$('s-stk').innerHTML='';$('s-caja').innerHTML='';$('s-fia').innerHTML='';$('s-res').innerHTML='';
 try{localStorage.setItem('cv_sid',sid)}catch(e){}
 un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';STMAIN=s.data().main||'';STPAIS=s.data().pais||'';STCREADA=s.data().created||0;if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
 if(s.exists()&&s.metadata.hasPendingWrites)return;
-if(!s.exists()){if(!s.metadata.fromCache){deleteDoc(doc(db,'users',U.uid,'stores',sid)).catch(function(){});alert('Ya no tenés acceso a esa tienda.')}return}
+if(!s.exists()){if(!s.metadata.fromCache)sinAcceso(sid);return}
 otrasSuc(s.data().otras);var r=s.data().role,cp=!!s.data().cp,chg=cp!=MECP;MECP=cp;if(r!=ROLE){ROLE=r;startData()}else if(chg&&biz()=='almacen'){ALM.resetView();ALM.redraw()}},function(){})}
 
 // Ropa/servicios: el administrador lee todos los movimientos. Almacén: no (lee por día y por mes, ver almacen.js).
