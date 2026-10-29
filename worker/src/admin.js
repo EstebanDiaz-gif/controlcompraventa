@@ -93,3 +93,16 @@ export async function aQuery(env, parent, coleccion, filtros, todas) {
   const d = await r.json();
   return (Array.isArray(d) ? d : []).filter((x) => x.document).map((x) => { const p = x.document.name.split('/documents/')[1] || x.document.name; return { id: p.split('/').pop(), path: p, x: fromFs({ mapValue: { fields: x.document.fields || {} } }) }; });
 }
+
+// Tiendas "huérfanas": el documento principal se borró pero sus datos (subcolecciones) siguen guardados.
+export async function aFaltantes(env, coleccion) {
+  const out = []; let tok = '';
+  for (let i = 0; i < 20; i++) {
+    const r = await fetch(base(env) + '/' + coleccion + '?showMissing=true&pageSize=300&mask.fieldPaths=name' + (tok ? '&pageToken=' + encodeURIComponent(tok) : ''), { headers: { Authorization: 'Bearer ' + await adminToken(env) } });
+    if (!r.ok) throw new Error('fs list ' + r.status);
+    const d = await r.json();
+    (d.documents || []).forEach((x) => { if (!x.createTime) out.push(x.name.split('/').pop()); });
+    if (!d.nextPageToken) break; tok = d.nextPageToken;
+  }
+  return out;
+}

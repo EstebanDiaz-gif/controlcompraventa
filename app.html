@@ -1798,7 +1798,16 @@ h+='<details class="card emp"'+(PLO[x.sid]?' open':'')+' data-sid="'+esc(x.sid)+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+(PAGOS_URL&&!(STORES||[]).some(function(z){return z.id==x.sid})?'<button class="go alt" data-lt="entrar" data-sid="'+esc(x.sid)+'">🔑 Entrar como administrador</button>':'')+
 '<button class="go alt" data-lt="llave" data-sid="'+esc(x.sid)+'">Llave en mano: instalación + 1 mes</button>'+(r.k=='life'?'':'<button class="go alt" data-lt="life" data-sid="'+esc(x.sid)+'">Pago único: habilitar de por vida</button>')+
 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:#b3261e;border-color:#b3261e" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></details>'});
-h+=gTemaCard();var SP=$('s-plat');SP.innerHTML=h;if(!SP._emt){SP._emt=1;SP.addEventListener('toggle',function(e){var t=e.target;VD.toggle(e);if(t.classList&&t.classList.contains('emp'))PLO[t.dataset.sid]=t.open},true)}var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
+h+=huerfCard()+gTemaCard();var SP=$('s-plat');SP.innerHTML=h;if(!SP._emt){SP._emt=1;SP.addEventListener('toggle',function(e){var t=e.target;VD.toggle(e);if(t.classList&&t.classList.contains('emp'))PLO[t.dataset.sid]=t.open},true)}var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
+// Tiendas cuyo documento principal se borró (por ejemplo con "Eliminar") pero sus datos siguen guardados: se pueden recuperar.
+var HUERF=null;
+function huerfCard(){if(!PAGOS_URL)return '';if(HUERF===null){HUERF=false;pushFetch('/admin/huerfanas',{}).then(function(d){HUERF=d.l||[];drawPlatLite()}).catch(function(){HUERF=[]});return ''}
+if(!HUERF||!HUERF.length)return '';
+return '<div class="card" style="border:2px solid #b7791f"><b>🧩 Tiendas para recuperar ('+HUERF.length+')</b><div class="k" style="margin:4px 0 8px">Se borró su ficha principal, pero sus productos, ventas, equipo y catálogo siguen guardados. Al recuperarla vuelve a aparecer para todo su equipo.</div>'+
+HUERF.map(function(t){return '<div class="it"><div><b>'+esc(t.name||'(sin nombre)')+'</b><small>'+esc((t.admins||[]).join(', ')||'sin administradores')+' · '+t.n+' persona'+(t.n==1?'':'s')+'</small></div><div><button class="go" data-huerf="'+esc(t.sid)+'" style="margin:0;padding:10px 14px">Recuperar</button></div></div>'}).join('')+'</div>'}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-huerf]');if(!b)return;var t=(HUERF||[]).filter(function(x){return x.sid==b.dataset.huerf})[0];if(!t)return;
+var n=prompt('Nombre de la tienda:',t.name||'');if(n===null)return;b.disabled=true;b.textContent='Recuperando…';
+pushFetch('/admin/restaurar',{sid:t.sid,name:n.trim()}).then(function(d){alert('¡Listo! "'+d.name+'" volvió a funcionar con todos sus datos ('+d.equipo+' persona'+(d.equipo==1?'':'s')+' en el equipo). Ya la podés elegir en el selector de tiendas.');HUERF=null;PLL.list=null;drawPlatLite()}).catch(function(x){b.disabled=false;b.textContent='Recuperar';alert(x.message||'No se pudo recuperar.')})});
 function litBuild(base){
 var c=computeAccess({nowMs:Date.now(),config:CFG,paidPlan:base.paidPlan||null,trialStartMs:base.trialStartMs==null?null:base.trialStartMs,paidUntilMs:base.paidUntilMs==null?null:base.paidUntilMs,ownerFree:false,grants:[]});
 var lim=c.graceUntilMs!=null?c.graceUntilMs:c.activeUntilMs,LO=base.lim||null;
@@ -1838,7 +1847,7 @@ if(a=='life'){var lp=$('lp_'+sid).value,amt=prompt('Licencia de por vida para "'
 if(amt===null)return;var am=parseInt(String(amt).replace(/\D/g,''),10)||0;
 if(!confirm('¿Confirmás la licencia de por vida (pago único) para "'+x.name+'"? No vence nunca.'))return;
 put(LB({paidPlan:lp,paidUntilMs:addPeriod(Date.now(),{years:100}),trialStartMs:old.trialStartMs==null?null:old.trialStartMs,chosenPlan:lp,life:{at:Date.now(),plan:lp,amt:am}})).then(done).catch(fail);return}
-if(a=='delete'){if(!confirm('¿Eliminar definitivamente la tienda "'+x.name+'" y todos sus datos? No se puede deshacer.'))return;
+if(a=='delete'){var ok=prompt('Vas a eliminar la tienda "'+x.name+'": deja de funcionar para todo su equipo y su catálogo.\n\nPara confirmar, escribí el nombre de la tienda:','');if(ok===null)return;if(ok.trim().toLowerCase()!==String(x.name).trim().toLowerCase()){alert('El nombre no coincide: no se eliminó nada.');return}
 deleteDoc(doc(db,'stores',sid)).then(done).catch(fail)}}
 function detailHtml(){
 var d=PL.detail,a=d.access||{},st=a.phases?deriveState(a,Date.now()):{state:'sin_inicializar'},L=a.limits||{};

@@ -13,7 +13,7 @@ import * as SUS from './suscripciones.js';
 import * as AV from './avisos.js';
 import * as PUSH from './push.js';
 import { verificar } from './auth.js';
-import { aGet, aSet } from './admin.js';
+import { aGet, aSet, aQuery, aFaltantes } from './admin.js';
 
 const MP_API = 'https://api.mercadopago.com';
 const MP_AUTH = 'https://auth.mercadopago.com/authorization';
@@ -243,6 +243,28 @@ async function pushRuta(req, env, path) {
       await aSet(env, 'users/' + uid + '/stores/' + b.sid, o);
       return json(req, env, { ok: true, name: o.name });
     }
+    if (path === '/admin/huerfanas' || path === '/admin/restaurar') {
+      if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403);
+      if (path === '/admin/huerfanas') {
+        const ids = await aFaltantes(env, 'stores'), l = [];
+        for (const sid of ids.slice(0, 50)) {
+          const [pi, mem, acc] = await Promise.all([aGet(env, 'stores/' + sid + '/public/info').catch(() => null), aQuery(env, 'stores/' + sid, 'members', []).catch(() => []), aGet(env, 'stores/' + sid + '/billing/access').catch(() => null)]);
+          if (!mem.length && !pi) continue;
+          l.push({ sid, name: (pi && pi.name) || '', admins: mem.filter((m) => m.x.role === 'admin').map((m) => m.x.email || m.x.name || m.id), n: mem.length, desde: (acc && (acc.trialStartMs || acc.updatedAt)) || null });
+        }
+        return json(req, env, { l });
+      }
+      if (!sidOk(b.sid)) return err(req, env, 'Tienda inválida.');
+      if (await aGet(env, 'stores/' + b.sid)) return err(req, env, 'Esa tienda ya existe.', 409);
+      const [pi, mem, acc, cfg] = await Promise.all([aGet(env, 'stores/' + b.sid + '/public/info').catch(() => null), aQuery(env, 'stores/' + b.sid, 'members', []), aGet(env, 'stores/' + b.sid + '/billing/access').catch(() => null), aGet(env, 'stores/' + b.sid + '/cfg/servicios').catch(() => null)]);
+      if (!mem.length) return err(req, env, 'No encontré el equipo de esa tienda.', 404);
+      const adm = mem.filter((m) => m.x.role === 'admin'), owner = (adm.find((m) => m.id === uid) || adm[0] || mem[0]).id;
+      const name = String(b.name || (pi && pi.name) || 'Tienda').slice(0, 60);
+      const st = { name, owner, created: (acc && acc.trialStartMs) || Date.now(), pais: 'AR', mon: 'ARS', restaurada: Date.now() };
+      await aSet(env, 'stores/' + b.sid, st);
+      for (const m of mem) await aSet(env, 'users/' + m.id + '/stores/' + b.sid, { name });
+      return json(req, env, { ok: true, name, owner, equipo: mem.length, tipo: (cfg && cfg.tipo) || '' });
+    }
     if (path === '/push/revisar') { if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403); return json(req, env, await AV.revisar(env)); }
     if (path === '/push/nueva') { if (sidOk(b.sid)) await AV.negocioNuevo(env, uid, b.sid); return json(req, env, { ok: true }); }
   } catch (e) { if (e.http) return err(req, env, e.message, e.http); throw e; }
@@ -290,7 +312,7 @@ export default {
       if (path === '/mp/desconectar') return await desconectar(req, env);
       if (path === '/pagar') return await pagar(req, env);
       if (path.startsWith('/sus/')) return await susRuta(req, env, path);
-      if (path.startsWith('/push/') || path === '/admin/entrar') return await pushRuta(req, env, path);
+      if (path.startsWith('/push/') || path.startsWith('/admin/')) return await pushRuta(req, env, path);
       return err(req, env, 'No encontrado.', 404);
     } catch (e) {
       console.error(e && e.stack || e);

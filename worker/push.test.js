@@ -179,3 +179,20 @@ test('soporte: el dueño de la plataforma entra como administrador a cualquier t
   assert.equal(docs['stores/pk/members/own'].role, 'admin');
   assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' });
 });
+
+test('recuperar una tienda cuya ficha principal se borró', async () => {
+  const docs = { 'stores/ok': { name: 'Otra', owner: 'z' }, 'stores/pk/public/info': { name: 'Pekeron', enabled: true }, 'stores/pk/members/own': { role: 'admin', email: 'jediaz159@gmail.com' },
+    'stores/pk/members/emp': { role: 'empleado', name: 'Lu' }, 'stores/pk/billing/access': { trialStartMs: 1700000000000 } };
+  const { env } = entorno(docs, {});
+  const f0 = globalThis.fetch;
+  globalThis.fetch = async (url, o) => { if (String(url).includes('/documents/stores?showMissing=true')) return Response.json({ documents: [{ name: 'p/documents/stores/ok', createTime: '2026-01-01T00:00:00Z' }, { name: 'p/documents/stores/pk' }] }); return f0(url, o); };
+  let r = await W.fetch(post('/admin/huerfanas', {}, await idToken('u5')), env); assert.equal(r.status, 403);
+  r = await W.fetch(post('/admin/huerfanas', {}, await idToken('own')), env);
+  const { l } = await r.json();
+  assert.equal(l.length, 1); assert.equal(l[0].sid, 'pk'); assert.equal(l[0].name, 'Pekeron'); assert.deepEqual(l[0].admins, ['jediaz159@gmail.com']); assert.equal(l[0].n, 2);
+  r = await W.fetch(post('/admin/restaurar', { sid: 'pk', name: 'Pekeron' }, await idToken('own')), env);
+  const d = await r.json();
+  assert.equal(d.ok, true); assert.equal(docs['stores/pk'].owner, 'own'); assert.equal(docs['stores/pk'].name, 'Pekeron'); assert.equal(docs['stores/pk'].created, 1700000000000);
+  assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' }); assert.deepEqual(docs['users/emp/stores/pk'], { name: 'Pekeron' });
+  r = await W.fetch(post('/admin/restaurar', { sid: 'pk' }, await idToken('own')), env); assert.equal(r.status, 409, 'no se pisa una que existe');
+});
