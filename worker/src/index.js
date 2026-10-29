@@ -13,6 +13,7 @@ import * as SUS from './suscripciones.js';
 import * as AV from './avisos.js';
 import * as PUSH from './push.js';
 import { verificar } from './auth.js';
+import { aGet, aSet } from './admin.js';
 
 const MP_API = 'https://api.mercadopago.com';
 const MP_AUTH = 'https://auth.mercadopago.com/authorization';
@@ -231,6 +232,17 @@ async function pushRuta(req, env, path) {
     if (path === '/push/alta') return json(req, env, { ok: true, n: await PUSH.alta(env, uid, b.sub) });
     if (path === '/push/baja') { await PUSH.baja(env, uid, String(b.endpoint || '')); return json(req, env, { ok: true }); }
     if (path === '/push/prueba') return json(req, env, { n: await PUSH.enviar(env, [uid], { t: '🔔 Avisos activados', b: 'Así te van a llegar los avisos de Pekeron a este celular.', u: (env.APP_URL || 'https://pekeronapp.com') + '/app.html', tag: 'prueba' }) });
+    // Soporte: el dueño de la plataforma entra como administrador a una tienda (si perdió el acceso o para ayudar a un cliente).
+    if (path === '/admin/entrar') {
+      if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403);
+      if (!sidOk(b.sid)) return err(req, env, 'Tienda inválida.');
+      const st = await aGet(env, 'stores/' + b.sid); if (!st) return err(req, env, 'No existe esa tienda.', 404);
+      const m = await aGet(env, 'stores/' + b.sid + '/members/' + uid);
+      if (!m || m.role !== 'admin') await aSet(env, 'stores/' + b.sid + '/members/' + uid, { ...(m || {}), role: 'admin', email: String(b.email || '').slice(0, 120), name: String(b.name || 'Soporte Pekeron').slice(0, 60) });
+      const o = { name: st.name || 'Tienda' }; if (st.main) o.main = st.main;
+      await aSet(env, 'users/' + uid + '/stores/' + b.sid, o);
+      return json(req, env, { ok: true, name: o.name });
+    }
     if (path === '/push/revisar') { if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403); return json(req, env, await AV.revisar(env)); }
     if (path === '/push/nueva') { if (sidOk(b.sid)) await AV.negocioNuevo(env, uid, b.sid); return json(req, env, { ok: true }); }
   } catch (e) { if (e.http) return err(req, env, e.message, e.http); throw e; }
@@ -278,7 +290,7 @@ export default {
       if (path === '/mp/desconectar') return await desconectar(req, env);
       if (path === '/pagar') return await pagar(req, env);
       if (path.startsWith('/sus/')) return await susRuta(req, env, path);
-      if (path.startsWith('/push/')) return await pushRuta(req, env, path);
+      if (path.startsWith('/push/') || path === '/admin/entrar') return await pushRuta(req, env, path);
       return err(req, env, 'No encontrado.', 404);
     } catch (e) {
       console.error(e && e.stack || e);

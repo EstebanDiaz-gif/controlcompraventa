@@ -1795,7 +1795,7 @@ h+='<details class="card emp"'+(PLO[x.sid]?' open':'')+' data-sid="'+esc(x.sid)+
 (hj.length?'<div class="k" style="margin-top:6px">Sucursales abiertas: '+hj.map(function(z){return esc(z.name)}).join(', ')+'</div>':'')+
 '<button class="go alt" data-lt="lim" data-sid="'+esc(x.sid)+'" style="margin-top:10px">Guardar reparto</button></div>':'')+
 '<div class="row" style="margin-top:10px"><div><select id="lp_'+esc(x.sid)+'">'+PLAN_IDS.map(function(k){return '<option value="'+k+'"'+((a&&(a.chosenPlan==k))?' selected':'')+'>'+esc(CFG.plans[k].name)+'</option>'}).join('')+'</select></div><div><input id="lm_'+esc(x.sid)+'" type="number" min="1" max="24" value="1" inputmode="numeric" placeholder="Meses"></div></div>'+
-'<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+
+'<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+(PAGOS_URL&&!(STORES||[]).some(function(z){return z.id==x.sid})?'<button class="go alt" data-lt="entrar" data-sid="'+esc(x.sid)+'">🔑 Entrar como administrador</button>':'')+
 '<button class="go alt" data-lt="llave" data-sid="'+esc(x.sid)+'">Llave en mano: instalación + 1 mes</button>'+(r.k=='life'?'':'<button class="go alt" data-lt="life" data-sid="'+esc(x.sid)+'">Pago único: habilitar de por vida</button>')+
 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:#b3261e;border-color:#b3261e" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></details>'});
 h+=gTemaCard();var SP=$('s-plat');SP.innerHTML=h;if(!SP._emt){SP._emt=1;SP.addEventListener('toggle',function(e){var t=e.target;VD.toggle(e);if(t.classList&&t.classList.contains('emp'))PLO[t.dataset.sid]=t.open},true)}var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
@@ -1808,6 +1808,8 @@ function litAction(a,sid,f){
 if(a=='filt'){PLF=f||'all';drawPlatLite();return}
 if(a=='find'){PLF='all';PLQ=f||'';PLO[f]=true;drawPlatLite();window.scrollTo(0,0);return}
 if(a=='reload'){PLL.list=null;VD.recargar();drawPlatLite();return}
+if(a=='entrar'){var xe=(PLL.list||[]).filter(function(y){return y.sid==sid})[0];if(!confirm('¿Entrar como administrador a "'+(xe?xe.name:sid)+'"? Vas a figurar en su equipo; después te podés quitar desde Equipo.'))return;
+pushFetch('/admin/entrar',{sid:sid,email:U.email||'',name:nm()}).then(function(d){alert('Listo: ya tenés acceso a "'+d.name+'". Elegila arriba, en el selector de tiendas.')}).catch(function(e){alert(e.message||'No se pudo.')});return}
 var x=PLL.list.filter(function(y){return y.sid==sid})[0];if(!x)return;
 var ref=doc(db,'stores',sid,'billing','access'),old=x.acc||{},done=function(){PLL.list=null;drawPlatLite()},cp=old.chosenPlan||null;
 if(x.main){alert('"'+x.name+'" es una sucursal: su plan se maneja desde la tienda principal.');return}

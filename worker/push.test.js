@@ -168,3 +168,14 @@ test('vencimientos: avisa antes, en la gracia y al suspender; suspende y reactiv
   await W.fetch(post('/push/revisar', {}, await idToken('own')), env);
   assert.equal('susp' in docs['stores/d/public/info'], false); assert.equal('susp' in docs['stores/d2/public/info'], false);
 });
+
+test('soporte: el dueño de la plataforma entra como administrador a cualquier tienda', async () => {
+  const docs = { 'stores/pk': { name: 'Pekeron', owner: 'otra' }, 'stores/pk/members/x': { role: 'admin' } };
+  const { env } = entorno(docs, {});
+  let r = await W.fetch(post('/admin/entrar', { sid: 'pk', email: 'a@b.com', name: 'Esteban' }, await idToken('u5')), env);
+  assert.equal(r.status, 403, 'otro usuario no');
+  r = await W.fetch(post('/admin/entrar', { sid: 'pk', email: 'a@b.com', name: 'Esteban' }, await idToken('own')), env);
+  assert.deepEqual(await r.json(), { ok: true, name: 'Pekeron' });
+  assert.equal(docs['stores/pk/members/own'].role, 'admin');
+  assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' });
+});
