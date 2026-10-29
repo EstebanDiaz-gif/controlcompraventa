@@ -175,7 +175,7 @@ test('soporte: el dueño de la plataforma entra como administrador a cualquier t
   let r = await W.fetch(post('/admin/entrar', { sid: 'pk', email: 'a@b.com', name: 'Esteban' }, await idToken('u5')), env);
   assert.equal(r.status, 403, 'otro usuario no');
   r = await W.fetch(post('/admin/entrar', { sid: 'pk', email: 'a@b.com', name: 'Esteban' }, await idToken('own')), env);
-  assert.deepEqual(await r.json(), { ok: true, name: 'Pekeron' });
+  const dj = await r.json(); assert.equal(dj.ok, true); assert.equal(dj.name, 'Pekeron');
   assert.equal(docs['stores/pk/members/own'].role, 'admin');
   assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' });
 });
@@ -195,4 +195,15 @@ test('recuperar una tienda cuya ficha principal se borró', async () => {
   assert.equal(d.ok, true); assert.equal(docs['stores/pk'].owner, 'own'); assert.equal(docs['stores/pk'].name, 'Pekeron'); assert.equal(docs['stores/pk'].created, 1700000000000);
   assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' }); assert.deepEqual(docs['users/emp/stores/pk'], { name: 'Pekeron' });
   r = await W.fetch(post('/admin/restaurar', { sid: 'pk' }, await idToken('own')), env); assert.equal(r.status, 409, 'no se pisa una que existe');
+});
+
+test('entrar por el link del catálogo (y recuperar si falta la ficha)', async () => {
+  const docs = { 'slugs/pekeron': { sid: 'pk' }, 'stores/pk/public/info': { name: 'Pekeron' }, 'stores/pk/members/w': { role: 'admin', email: 'esposa@x.com' } };
+  const { env } = entorno(docs, {});
+  const r = await W.fetch(post('/admin/entrar', { slug: 'https://pekeronapp.com/pekeron', email: 'e@x', name: 'Esteban' }, await idToken('own')), env);
+  const d = await r.json();
+  assert.equal(d.ok, true); assert.equal(d.name, 'Pekeron'); assert.equal(d.restaurada, true);
+  assert.equal(docs['stores/pk'].owner, 'w'); assert.equal(docs['stores/pk/members/own'].role, 'admin');
+  assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' }); assert.deepEqual(docs['users/w/stores/pk'], { name: 'Pekeron' });
+  const r2 = await W.fetch(post('/admin/entrar', { slug: 'noexiste' }, await idToken('own')), env); assert.equal(r2.status, 404);
 });

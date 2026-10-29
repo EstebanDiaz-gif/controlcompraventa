@@ -235,13 +235,30 @@ async function pushRuta(req, env, path) {
     // Soporte: el dueño de la plataforma entra como administrador a una tienda (si perdió el acceso o para ayudar a un cliente).
     if (path === '/admin/entrar') {
       if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403);
+      // Se puede buscar por el link del catálogo (slug): pekeronapp.com/minombre
+      let diag = {};
+      if (b.slug) {
+        const sl = String(b.slug).toLowerCase().replace(/^.*pekeronapp\.com\/?/, '').replace(/^.*[?&]s=/, '').replace(/[^a-z0-9-].*$/, '');
+        const d = sl && await aGet(env, 'slugs/' + sl); if (!d || !d.sid) return err(req, env, 'No encontré ninguna tienda con el link "' + sl + '".', 404);
+        b.sid = d.sid; diag.slug = sl;
+      }
       if (!sidOk(b.sid)) return err(req, env, 'Tienda inválida.');
-      const st = await aGet(env, 'stores/' + b.sid); if (!st) return err(req, env, 'No existe esa tienda.', 404);
+      let st = await aGet(env, 'stores/' + b.sid);
+      if (!st) {
+        // La ficha principal se borró: se rearma con lo que quedó guardado.
+        const [pi, mem, acc] = await Promise.all([aGet(env, 'stores/' + b.sid + '/public/info').catch(() => null), aQuery(env, 'stores/' + b.sid, 'members', []).catch(() => []), aGet(env, 'stores/' + b.sid + '/billing/access').catch(() => null)]);
+        const adm = mem.filter((x) => x.x.role === 'admin'), own = (adm.find((x) => x.id === uid) || adm[0] || mem[0] || { id: uid }).id;
+        st = { name: String((pi && pi.name) || b.slug || 'Tienda').slice(0, 60), owner: own, created: (acc && acc.trialStartMs) || Date.now(), pais: 'AR', mon: 'ARS', restaurada: Date.now() };
+        await aSet(env, 'stores/' + b.sid, st);
+        for (const x of mem) await aSet(env, 'users/' + x.id + '/stores/' + b.sid, { name: st.name });
+        diag.restaurada = true; diag.equipo = mem.length;
+      }
+      diag.main = st.main || ''; diag.sid = b.sid;
       const m = await aGet(env, 'stores/' + b.sid + '/members/' + uid);
       if (!m || m.role !== 'admin') await aSet(env, 'stores/' + b.sid + '/members/' + uid, { ...(m || {}), role: 'admin', email: String(b.email || '').slice(0, 120), name: String(b.name || 'Soporte Pekeron').slice(0, 60) });
       const o = { name: st.name || 'Tienda' }; if (st.main) o.main = st.main;
       await aSet(env, 'users/' + uid + '/stores/' + b.sid, o);
-      return json(req, env, { ok: true, name: o.name });
+      return json(req, env, { ok: true, name: o.name, ...diag });
     }
     if (path === '/admin/huerfanas' || path === '/admin/restaurar') {
       if (!await esDueno(env, tokenDe(req))) return err(req, env, 'Sin permiso.', 403);
