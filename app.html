@@ -56,6 +56,18 @@ select{appearance:none;-webkit-appearance:none;background-image:url("data:image/
 select.chip{margin-bottom:16px;font-weight:800;font-stretch:112%;font-size:17px;padding:15px 44px 15px 18px}
 .row{display:flex;gap:10px}.row>div{flex:1}
 .seg{display:flex;gap:8px}
+/* Selector visual para vender: un bloque por modelo (foto, nombre, precio) y un botón por talle con su stock */
+.pkl{max-height:440px;overflow-y:auto;margin-top:6px;border-radius:16px;-webkit-overflow-scrolling:touch}
+.pkg{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin-bottom:8px}
+.pkh{display:flex;gap:10px;align-items:center}
+.pkh img,.pkh .pki{width:48px;height:48px;border-radius:12px;object-fit:cover;flex:none;background:var(--line);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--mut)}
+.pkh b{display:block;font-size:15.5px;line-height:1.2}.pkh small{display:block;color:var(--mut);font-size:13px;margin-top:2px}
+.pkz{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pkb{border:2px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:6px 10px;font:inherit;font-weight:800;font-size:15px;min-width:54px;cursor:pointer;line-height:1.1}
+.pkb small{display:block;font-weight:600;font-size:11px;color:var(--mut);margin-top:2px}
+.pkb.sin{opacity:.45;text-decoration:line-through}.pkb.sin small{text-decoration:none}
+.pkb.on{border-color:var(--btn);background:var(--btn);color:var(--btnink)}.pkb.on small{color:var(--btnink);opacity:.85}
+.pksel{margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--line);font-weight:700;font-size:15px}
 .seg button{flex:1;padding:15px;border-radius:16px;border:0;background:var(--line);color:var(--mut);font:inherit;font-weight:800;font-stretch:112%;font-size:15px}
 .seg .c.on{background:var(--buy);color:var(--onc)}
 .seg .v.on{background:var(--sell);color:var(--onc)}
@@ -972,18 +984,37 @@ if(d.cb&&d.cb!=code&&!confirm('Ese talle ya tenía el código '+d.cb+'. ¿Reempl
 setDoc(doc(db,'stores',SID,'stock',d.id),{cb:code},{merge:true}).catch(fail);d.cb=code;o.remove();if(cb)cb(d)}}
 // Para vender: primero lo que tiene stock; los talles agotados van aparte. La ficha general de un modelo con talles
 // (sin talle: guarda la foto y los precios) no se muestra, porque no es algo que se venda.
+var PKMAX=40;
+function pickHtml(){var conT={},G={},orden=[],s=$('es'),sel=s?s.value:'';ST.forEach(function(d){if(d.z)conT[key(d.s||d.n)]=1});
+ST.filter(function(d){return selMatch(d)&&(d.z||!conT[key(d.s||d.n)])}).forEach(function(d){var k=key(d.s||d.n);if(!G[k]){G[k]={n:d.n,s:d.s,l:[]};orden.push(k)}G[k].l.push(d)});
+var disp=function(g){return g.l.some(function(d){return d.q>0})?1:0};
+orden.sort(function(a,b){return disp(G[b])-disp(G[a])||G[a].n.localeCompare(G[b].n)});
+if(!orden.length)return '<div class="k" style="padding:8px 2px">No encontré productos con esa búsqueda.</div>';
+var h=orden.slice(0,PKMAX).map(function(k){var g=G[k],im=photoOf(k),pr=(g.l.filter(function(d){return d.pn})[0]||{}).pn||0;
+g.l.sort(function(a,b){return String(a.z).localeCompare(String(b.z),undefined,{numeric:true})});
+return '<div class="pkg"><div class="pkh">'+(im?'<img alt="" src="'+esc(im)+'">':'<span class="pki">'+esc((g.n||'?')[0].toUpperCase())+'</span>')+'<div><b>'+esc(g.n)+'</b><small>'+(g.s?esc(g.s)+' · ':'')+(pr?money(pr):'sin precio')+'</small></div></div>'+
+'<div class="pkz">'+g.l.map(function(d){return '<button type="button" class="pkb'+(d.q>0?'':' sin')+(d.id==sel?' on':'')+'" data-pk="'+esc(d.id)+'">'+(d.z?esc(d.z):'Elegir')+'<small>'+(d.q>0?d.q+' disp.':'sin stock')+'</small></button>'}).join('')+'</div></div>'}).join('');
+if(orden.length>PKMAX)h+='<div class="k" style="text-align:center;margin:6px 0">Hay '+(orden.length-PKMAX)+' modelos más: buscalos arriba por nombre, código o talle.</div>';
+return h}
+function pickMark(){var s=$('es'),pk=$('epk');if(!s||!pk)return;var v=s.value;Array.prototype.forEach.call(pk.querySelectorAll('.pkb'),function(b){b.classList.toggle('on',b.dataset.pk==v)});
+var d=ST.filter(function(x){return x.id==v})[0],e=$('epks');if(e){e.hidden=!d;if(d)e.innerHTML='✓ '+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+' <span style="font-weight:600;color:var(--mut)">('+(d.q>0?d.q+' en stock':'sin stock')+')</span>'}}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-pk]');if(!b)return;var s=$('es');if(!s)return;
+var d=ST.filter(function(x){return x.id==b.dataset.pk})[0];if(!d)return;if(!Array.prototype.some.call(s.options,function(o){return o.value==d.id}))s.insertAdjacentHTML('beforeend','<option value="'+esc(d.id)+'">'+esc(d.n)+'</option>');
+s.value=d.id;var u=$('eu');if(u&&u.dataset.auto=='1')u.value='';autoP();var q=$('eq');if(q&&!q.value){q.value=1;q.dispatchEvent(new Event('input'))}});
 function sellOpts(){var conT={};ST.forEach(function(d){if(d.z)conT[key(d.s||d.n)]=1});
 var L=ST.filter(function(d){return selMatch(d)&&(d.z||!conT[key(d.s||d.n)])}).sort(function(a,b){return a.n.localeCompare(b.n)||String(a.z).localeCompare(String(b.z),undefined,{numeric:true})});
 var op=function(d){return '<option value="'+esc(d.id)+'">'+esc(d.n)+(d.z?' · talle '+esc(d.z):'')+(d.s?' · '+esc(d.s):'')+' (stock '+d.q+')</option>'};
 var hay=L.filter(function(d){return d.q>0}),sin=L.filter(function(d){return !(d.q>0)});
-var h=hay.map(op).join('')+(sin.length?'<optgroup label="Sin stock">'+sin.map(op).join('')+'</optgroup>':'');return h||'<option value="">Sin resultados</option>'}
-function autoP(){var s=$('es'),u=$('eu'),k=$('ek');if(!s||!u||!k)return;var d=null;ST.forEach(function(x){if(x.id==s.value)d=x});var pv=$('esp');if(pv){var im=d?photoOf(key(d.s||d.n)):'';if(im){pv.src=im;pv.style.display=''}else{pv.removeAttribute('src');pv.style.display='none'}}if(!d)return;if(u.value&&u.dataset.auto!='1')return;var v=k.value=='mayor'?d.pm:d.pn;if(v){u.value=v;u.dataset.auto='1';var q=+$('eq').value;$('etot').textContent=q?'Total: '+money(q*v):''}}
-function refreshSell(){var s=$('es');if(!s)return;var v=s.value,et=$('etot'),msg=et&&/✓/.test(et.textContent)?et.textContent:'';s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;autoP();if(msg&&et&&!et.textContent)et.textContent=msg}
+var h=hay.map(op).join('')+(sin.length?'<optgroup label="Sin stock">'+sin.map(op).join('')+'</optgroup>':'');return '<option value="">— Elegí el producto —</option>'+h}
+function autoP(){pickMark();var s=$('es'),u=$('eu'),k=$('ek');if(!s||!u||!k)return;var d=null;ST.forEach(function(x){if(x.id==s.value)d=x});var pv=$('esp');if(pv){var im=d?photoOf(key(d.s||d.n)):'';if(im){pv.src=im;pv.style.display=''}else{pv.removeAttribute('src');pv.style.display='none'}}if(!d)return;if(u.value&&u.dataset.auto!='1')return;var v=k.value=='mayor'?(d.pm||d.pn):d.pn;if(v){u.value=v;u.dataset.auto='1';var q=+$('eq').value;$('etot').textContent=q?'Total: '+money(q*v):''}}
+function refreshSell(){var s=$('es');if(!s)return;var v=s.value,et=$('etot'),msg=et&&/✓/.test(et.textContent)?et.textContent:'';s.innerHTML=sellOpts();if(v)s.value=v;if(s.selectedIndex<0)s.selectedIndex=0;
+if(!s.value&&SELQ){var dis=Array.prototype.filter.call(s.options,function(o){return o.value&&!/\(stock (0|-)/.test(o.textContent)});if(dis.length==1)s.value=dis[0].value}
+var pk=$('epk');if(pk)pk.innerHTML=pickHtml();autoP();if(msg&&et&&!et.textContent)et.textContent=msg}
 function drawSell(){
 var adm=ROLE=='admin',box=ventaEnCaja()?$('s-caja'):(adm?$('s-add'):$('s-sell'));
 if(!canWrite()){box.innerHTML=blockedCard();return}
 if(!ST.length){box.innerHTML=(ventaEnCaja()?(CJ.listen(),CJ.bar()):'')+'<div class="card"><div class="empty">Todavía no hay productos cargados. '+(adm?'Cargalos en la pestaña <b>Cargar</b> (con la compra).':'Un administrador tiene que cargar primero las compras.')+'</div></div>'+(ventaEnCaja()?'<div id="cjdet">'+CJ.vista(true)+'</div>':'');return}
-CJ.listen();if(adm)CJ.listenMes(month);box.innerHTML=CJ.bar()+'<div class="card">'+(adm&&!ventaEnCaja()?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'<b style="font-size:18px">Nueva venta</b>')+'<label>Buscar producto</label><div style="display:flex;gap:8px;align-items:center"><input id="esq" type="search" enterkeyhint="go" placeholder="Nombre, código o talle (o escaneá)" autocomplete="off" value="'+esc(SELQ)+'" style="flex:1;min-width:0">'+scanButton('rscan')+'</div><label>Producto</label><select id="es">'+sellOpts()+'</select><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
+CJ.listen();if(adm)CJ.listenMes(month);box.innerHTML=CJ.bar()+'<div class="card">'+(adm&&!ventaEnCaja()?'<div class="seg"><button class="c" data-y="c">Compré</button><button class="v on" data-y="v">Vendí</button></div>':'<b style="font-size:18px">Nueva venta</b>')+'<label>Buscar producto</label><div style="display:flex;gap:8px;align-items:center"><input id="esq" type="search" enterkeyhint="go" placeholder="Nombre, código o talle (o escaneá)" autocomplete="off" value="'+esc(SELQ)+'" style="flex:1;min-width:0">'+scanButton('rscan')+'</div><label>Elegí el producto y el talle</label><div class="pkl" id="epk">'+pickHtml()+'</div><select id="es" hidden>'+sellOpts()+'</select><div class="pksel" id="epks" hidden></div><img id="esp" alt="" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:14px;margin-top:10px">'+
 '<div class="row"><div><label>Cantidad</label><input id="eq" type="number" inputmode="numeric" min="1" placeholder="0"></div><div><label>Precio por unidad</label><input id="eu" type="number" inputmode="decimal" min="0" placeholder="0"></div></div>'+
 '<label>Tipo de venta</label><select id="ek"><option value="mayor">Por mayor</option><option value="menor">Por menor</option></select>'+
 '<label id="epayl">¿Cómo pagó?</label><select id="epay">'+payOpts()+'</select>'+
