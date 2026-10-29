@@ -17,7 +17,7 @@ import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals,
 import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
-import { CAMPOS, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
+import { CAMPOS, CAMPOS_FIADO, filas, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
 import { cargarDemo, borrarDemo, DEMO_TIPOS } from './demo.js';
 export { CATS, PAY };
 
@@ -537,7 +537,7 @@ export function createAlmacen(X) {
     if (!$('fiq')) {
       box.innerHTML = '<div class="card hero"><div class="k">Total que te deben</div><div class="big" id="fitot"></div><div class="k" id="ficnt"></div></div>' +
         '<input id="fiq" type="search" placeholder="Buscar cliente" autocomplete="off" value="' + esc(S.fq) + '" style="margin-bottom:12px">' +
-        '<button class="go alt" data-al="newcli" style="margin:0 0 14px">+ Cliente nuevo</button><div id="filist"></div>';
+        '<div class="row" style="gap:8px;margin:0 0 14px"><button class="go alt" data-al="newcli" style="margin:0">+ Cliente nuevo</button>' + (adm() && X.canWrite() ? '<button class="go alt" data-al="impcli" style="margin:0">📥 Importar de Excel</button>' : '') + '</div><div id="filist"></div>';
       $('fiq').oninput = function () { S.fq = this.value; renderFiList(); };
     }
     renderFiList();
@@ -975,6 +975,42 @@ export function createAlmacen(X) {
       .catch(() => { S.dayV = []; if (X.tab() === 'res') drawRes(); });
   }
 
+  // ---------- importar clientes con fiado (libreta / cuenta corriente de otro sistema) ----------
+  // Cada cliente con deuda entra con un movimiento "Deuda anterior (importada)". Si el cliente ya existe (mismo nombre), se le suma.
+  function impClientes() {
+    let items = [];
+    const o = modal('<b style="font-size:19px">📥 Importar clientes con fiado</b><div class="k" style="margin-top:4px">Una planilla con una fila por cliente: <b>nombre</b>, <b>teléfono</b> (opcional) y <b>cuánto debe</b>. Sirve la que exporta tu sistema anterior o una de Excel.</div>' +
+      '<input id="icf" type="file" accept=".xlsx,.csv,.txt" style="margin-top:12px"><div id="icv" style="margin-top:12px"></div>' +
+      '<button class="go" id="icok" disabled>Importar</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    o.querySelector('#icf').onchange = function () {
+      const f = this.files && this.files[0]; if (!f) return; const v = o.querySelector('#icv'); v.innerHTML = '<div class="k">Leyendo…</div>';
+      leerArchivo(f).then((rows) => {
+        const d = detectar(rows, CAMPOS_FIADO), r = filas(rows, d.head, d.map, CAMPOS_FIADO); items = r.items.slice(0, 3000);
+        const con = items.filter((x) => x.d > 0), tot = con.reduce((a, x) => a + x.d, 0);
+        v.innerHTML = '<div class="k"><b>' + items.length + ' clientes</b>, ' + con.length + ' con deuda · total ' + money(tot) + (d.map.d == null || d.map.d < 0 ? '<br><span style="color:#b3261e">No encontré la columna de la deuda: se importan solo los nombres.</span>' : '') + '</div>' +
+          items.slice(0, 6).map((x) => '<div class="it"><div><b>' + esc(x.n) + '</b><small>' + esc(x.t || '') + '</small></div><div class="amt"><b>' + money(x.d || 0) + '</b></div></div>').join('') +
+          (items.length > 6 ? '<div class="k" style="text-align:center">… y ' + (items.length - 6) + ' más</div>' : '') + (r.errores.length ? '<div class="k" style="color:#b3261e">' + r.errores.length + ' filas sin nombre (se saltean)</div>' : '');
+        const b = o.querySelector('#icok'); b.disabled = !items.length; b.textContent = 'Importar ' + items.length + ' cliente' + (items.length === 1 ? '' : 's');
+      }).catch((e) => { v.innerHTML = '<div class="k" style="color:#b3261e">' + esc((e && e.message) || 'No pude leer el archivo. Probá guardarlo como .xlsx o .csv.') + '</div>'; });
+    };
+    o.querySelector('#icok').onclick = function () {
+      const b = this; b.disabled = true; b.textContent = 'Importando…';
+      const sid = X.sid(), u = X.user(), d = X.today(), m = d.slice(0, 7), ops = [], porN = {};
+      (S.cl || []).forEach((c) => { porN[String(c.n || '').trim().toLowerCase()] = c; });
+      let n = 0, tot = 0;
+      items.forEach((x) => {
+        const a = Math.round(x.d || 0), tel = String(x.t || '').replace(/\D/g, ''), ex = porN[x.n.trim().toLowerCase()];
+        const id = ex ? ex.id : 'c_' + X.rnd(10);
+        if (!ex) { const c = { id, n: x.n, tel, s: a > 0 ? a : 0, u: Date.now() }; if (a > 0) c.fd = d; porN[x.n.trim().toLowerCase()] = c; ops.push((bt) => bt.set(doc(db, 'stores', sid, 'clientes', id), c)); }
+        else if (a > 0) ops.push((bt) => bt.update(doc(db, 'stores', sid, 'clientes', id), Object.assign({ s: increment(a), u: Date.now() }, tel && !ex.tel ? { tel } : {})));
+        if (a > 0) { n++; tot += a; const fid = uid(); ops.push((bt) => bt.set(doc(db, 'stores', sid, 'fiado', fid), { id: fid, cid: id, t: 'f', a, d, m, det: 'Deuda anterior (importada)', imp: 1, by: u.uid, bn: X.nm() })); }
+      });
+      let p = Promise.resolve();
+      for (let i = 0; i < ops.length; i += 400) { const l = ops.slice(i, i + 400); p = p.then(() => { const bt = writeBatch(db); l.forEach((f) => f(bt)); return bt.commit(); }); }
+      p.then(() => { o.remove(); alert('¡Listo! Se importaron ' + items.length + ' clientes' + (n ? ', ' + n + ' con deuda por un total de ' + money(tot) : '') + '. Están en la pestaña Fiado.'); })
+        .catch((e) => { b.disabled = false; b.textContent = 'Reintentar'; alert('Se cortó a mitad: ' + ((e && e.message) || e) + '. Lo que ya se guardó quedó bien.'); });
+    };
+  }
   // ---------- carga rápida escaneando (cargar el negocio desde cero) ----------
   // Cámara abierta dentro de la pantalla: cada producto que se escanea abre un formulario corto.
   // Nuevo: nombre (se busca solo en Open Food Facts / Open Beauty Facts), precio, costo y cuántos hay.
@@ -1454,6 +1490,7 @@ export function createAlmacen(X) {
     else if (a === 'cjver') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { if (c.st === 'open') cajaClose(); else cajaVer(c); } }
     else if (a === 'delv') delVenta(id);
     else if (a === 'newcli') cliDlg(null, !!el.dataset.pick);
+    else if (a === 'impcli') impClientes();
     else if (a === 'opencli') openCli(id);
     else if (a === 'closecli') closeCli();
     else if (a === 'pago') movDlg('p');

@@ -58,3 +58,24 @@ test('planilla: compara con lo que ya existe por código o por nombre', () => {
   assert.deepEqual(actualizar.map((x) => x.p.id), ['a', 'b']);
   assert.deepEqual(nuevos.map((x) => x.n), ['Fideos']);
 });
+
+test('ropa: detecta modelo, talle, mayorista y código de barras', async () => {
+  const { detectar, filas, CAMPOS_ROPA } = await import('./planilla.js');
+  const rows = [['Mi planilla de stock'], ['Artículo', 'Cód.', 'Talle', 'Cód. barras', 'Cantidad', 'Precio mayorista', 'Precio', 'Costo', 'Rubro'],
+    ['Zapatilla Urbana', 'ZU-1', '38', '7791234567893', '2', '$ 60.000', '$ 89.000', '45000', 'Zapatillas'], ['Zapatilla Urbana', 'ZU-1', 39, '', 1, '60000', '89000', '45000', 'Zapatillas'], ['', '', '', '', '', '', '', '', ''], ['', 'X', '40', '', 3, '', '1000', '', '']];
+  const d = detectar(rows, CAMPOS_ROPA);
+  assert.equal(d.head, 1);
+  assert.deepEqual([d.map.n, d.map.s, d.map.z, d.map.cb, d.map.q, d.map.pm, d.map.pn, d.map.c, d.map.cat], [0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  const r = filas(rows, d.head, d.map, CAMPOS_ROPA);
+  assert.equal(r.items.length, 2); assert.equal(r.errores.length, 1);
+  assert.deepEqual(r.items[0], { fila: 3, n: 'Zapatilla Urbana', s: 'ZU-1', z: '38', cb: '7791234567893', q: 2, pm: 60000, pn: 89000, c: 45000, cat: 'Zapatillas' });
+  assert.equal(r.items[1].z, '39');
+});
+test('fiado: detecta cliente, teléfono y saldo', async () => {
+  const { detectar, filas, CAMPOS_FIADO } = await import('./planilla.js');
+  const rows = [['Apellido y nombre', 'Celular', 'Saldo'], ['Pérez Juan', '381 555 1234', '12.500,50'], ['Ana', '', '0']];
+  const d = detectar(rows, CAMPOS_FIADO);
+  const r = filas(rows, d.head, d.map, CAMPOS_FIADO);
+  assert.deepEqual(r.items[0], { fila: 2, n: 'Pérez Juan', t: '381 555 1234', d: 12500.5 });
+  assert.equal(r.items[1].d, 0);
+});

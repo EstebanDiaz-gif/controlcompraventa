@@ -16,6 +16,47 @@ export const CAMPOS = [
   { k: 'w', t: 'Se vende por peso (kg)', alias: ['por peso', 'pesable', 'granel', 'suelto', 'unidad de medida', 'unidad', 'kg'] }
 ];
 
+// Tiendas de ropa y calzado: un renglón por talle (el mismo modelo se repite con distintos talles).
+// Van primero los campos más específicos ("Precio mayorista" antes que "Precio", "Código de barras" antes que "Código").
+export const CAMPOS_ROPA = [
+  { k: 'n', t: 'Producto / modelo', req: true, alias: ['producto', 'modelo', 'nombre', 'descripcion', 'descripción', 'articulo', 'artículo', 'detalle', 'item', 'prenda'] },
+  { k: 'cb', t: 'Código de barras', pri: ['barra', 'ean', 'upc', 'gtin'], alias: ['codigo de barras', 'código de barras', 'cod barras', 'barras', 'ean', 'ean13'] },
+  { k: 's', t: 'Código del modelo', alias: ['codigo', 'código', 'cod', 'sku', 'cod articulo', 'codigo interno', 'ref', 'referencia'] },
+  { k: 'z', t: 'Talle', alias: ['talle', 'talla', 'numero', 'número', 'nro', 'size', 'medida', 'tamaño', 'tam'] },
+  { k: 'q', t: 'Stock', alias: ['stock', 'cantidad', 'existencia', 'existencias', 'unidades', 'cant', 'cant.', 'inventario'] },
+  { k: 'pm', t: 'Precio mayorista', alias: ['precio mayorista', 'mayorista', 'por mayor', 'precio x mayor', 'p. mayor', 'mayor'] },
+  { k: 'pn', t: 'Precio de venta', alias: ['precio de venta', 'precio venta', 'venta', 'pvp', 'precio publico', 'precio público', 'precio minorista', 'minorista', 'precio final', 'precio'] },
+  { k: 'c', t: 'Costo', alias: ['costo', 'precio de costo', 'precio costo', 'compra', 'precio de compra', 'p. costo', 'costo unitario'] },
+  { k: 'cat', t: 'Categoría', alias: ['categoria', 'categoría', 'rubro', 'familia', 'seccion', 'sección', 'tipo', 'grupo'] }
+];
+// Clientes con deuda (fiado / cuenta corriente / libreta).
+export const CAMPOS_FIADO = [
+  { k: 'n', t: 'Cliente', req: true, alias: ['cliente', 'nombre', 'nombre y apellido', 'apellido y nombre', 'razon social', 'razón social', 'apellido'] },
+  { k: 't', t: 'Teléfono', alias: ['telefono', 'teléfono', 'celular', 'whatsapp', 'wsp', 'tel', 'movil', 'móvil', 'cel'] },
+  { k: 'd', t: 'Deuda', alias: ['deuda', 'saldo', 'debe', 'adeudado', 'monto', 'importe', 'total', 'saldo deudor', 'cuenta'] }
+];
+// Arma los renglones con los campos que se hayan encontrado (texto o número, según el campo).
+const NUMS = ['pn', 'pm', 'c', 'q', 'd'];
+export function filas(rows, head, map, campos) {
+  const out = [], errores = [], req = campos.filter((f) => f.req).map((f) => f.k);
+  for (let i = head + 1; i < rows.length; i++) {
+    const r = rows[i], fila = i + 1, o = { fila };
+    let vacia = true;
+    campos.forEach((f) => {
+      const ix = map[f.k]; if (ix == null || ix < 0) return;
+      const v = r[ix]; if (v != null && String(v).trim() !== '') vacia = false;
+      if (NUMS.indexOf(f.k) >= 0) { const x = num(v); if (!isNaN(x)) o[f.k] = Math.round(x * 100) / 100; }
+      else if (f.k === 'cb') { const c = codigo(v); if (c) o.cb = c; }
+      else { const t = String(v == null ? '' : v).trim().replace(/\s+/g, ' '); if (t) o[f.k] = t.slice(0, f.k === 'n' ? 80 : 40); }
+    });
+    if (vacia) continue;
+    const falta = req.filter((k) => !o[k]);
+    if (falta.length) { errores.push({ fila, motivo: 'Falta ' + campos.find((f) => f.k === falta[0]).t.toLowerCase() }); continue; }
+    out.push(o);
+  }
+  return { items: out, errores };
+}
+
 // ---------- lógica pura ----------
 const sinAcento = (s) => String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -64,12 +105,13 @@ export function parseCsv(text) {
 }
 
 // Busca la fila de títulos (entre las primeras 15) y adivina qué columna es cada campo.
-export function detectar(rows) {
+export function detectar(rows, campos) {
+  campos = campos || CAMPOS;
   let best = { head: -1, map: {}, score: 0 };
   for (let r = 0; r < Math.min(rows.length, 15); r++) {
     const cells = rows[r].map(sinAcento), map = {}, used = new Set();
     let score = 0;
-    CAMPOS.forEach((f) => {
+    campos.forEach((f) => {
       // primero coincidencia exacta, después "contiene"
       // los alias van en orden de prioridad ("código de barras" antes que "código")
       let ix = -1;
