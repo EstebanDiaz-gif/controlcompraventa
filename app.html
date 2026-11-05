@@ -616,9 +616,9 @@ ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
 function startData(){
-['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
+['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;CSOK=false;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
 costosEscuchar();un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||''})});if(biz()=='almacen')ALM.publishSoon();costosMover();redrawData()},sdErr);
-un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);CS=sn.exists()?sn.data():null;syncBiz();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){syncBiz();sdErr(e)});
+un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);var cs1=!CSOK;CS=sn.exists()?sn.data():null;CSOK=true;syncBiz();if(cs1||biz()!=ob)costosEscuchar();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){if(!CSOK){CSOK=true;costosEscuchar()}syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
 SUS=null;un.sus=onSnapshot(doc(db,'stores',SID,'billing','sus'),function(sn){SUS=sn.exists()?sn.data():null;if(TAB=='team'){var e=$('susbox');if(e)e.outerHTML=susHtml()}},function(){SUS=null});
@@ -789,12 +789,17 @@ function mref(id){return doc(db,'stores',SID,'movs',String(id))}
 function sref(k){return doc(db,'stores',SID,'stock',skey(k))}
 // Costo de compra: en stores/{sid}/costos/{id del stock} (solo lo lee el equipo), no en el stock, que el catálogo hace público.
 // COSTOK = las reglas ya lo permiten. Mientras tanto se sigue guardando como antes; al publicarlas, el administrador lo mueve solo.
-var COSTS={},COSTOK=false,COSTMIG='';
+var COSTS={},COSTOK=false,COSTMIG='',CSOK=false;
 function cref(id){return doc(db,'stores',SID,'costos',id)}
-function costosEscuchar(){stop('costos');COSTS={};COSTOK=false;if(!SID||biz()=='almacen')return;var sid=SID;
+// Hasta que llega la config del negocio (CS) no se sabe el rubro: no se escucha ni se mueve ningún costo.
+function costosEscuchar(){stop('costos');COSTS={};COSTOK=false;if(!SID||!CSOK)return;var sid=SID;
 un.costos=onSnapshot(collection(db,'stores',sid,'costos'),function(sn){if(sid!=SID)return;COSTS={};sn.forEach(function(d){COSTS[d.id]=d.data().c||0});COSTOK=true;costosMover()},function(){COSTOK=false})}
 function costoDe(id){return COSTS[id]||0}
-function costosMover(){if(!COSTOK||ROLE!='admin'||!canWrite()||COSTMIG==SID)return;var l=ST.filter(function(p){return p.c>0});if(!l.length){if(ST.length)COSTMIG=SID;return}COSTMIG=SID;
+// Almacén: el costo vive en el producto (stock/{id}.c). Si alguna vez se movió a /costos por error, se devuelve.
+function costosMover(){if(!CSOK||!COSTOK||ROLE!='admin'||!canWrite()||COSTMIG==SID)return;
+if(biz()=='almacen'){if(!ST.length)return;COSTMIG=SID;var r=ST.filter(function(p){return !(p.c>0)&&COSTS[p.id]>0});
+for(var j=0;j<r.length;j+=200){var bb=writeBatch(db);r.slice(j,j+200).forEach(function(p){bb.update(doc(db,'stores',SID,'stock',p.id),{c:COSTS[p.id]});bb.delete(cref(p.id))});bb.commit().catch(function(){COSTMIG=''})}return}
+var l=ST.filter(function(p){return p.c>0});if(!l.length){if(ST.length)COSTMIG=SID;return}COSTMIG=SID;
 for(var i=0;i<l.length;i+=200){var b=writeBatch(db);l.slice(i,i+200).forEach(function(p){if(!COSTS[p.id])b.set(cref(p.id),{c:p.c,at:Date.now()});b.update(doc(db,'stores',SID,'stock',p.id),{c:deleteField()})});b.commit().catch(function(){COSTMIG=''})}}
 // Fotos elegidas al cargar una compra: [{t: miniatura, hd: versión grande o ''}]. La primera es la principal.
 var PPS=[];

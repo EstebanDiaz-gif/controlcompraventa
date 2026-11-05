@@ -1386,7 +1386,9 @@ export function createAlmacen(X) {
   }
   function setCode(p, code) {
     setDoc(ref('stock', p.id), { s: code }, { merge: true }).then(() => {
-      if (S.repo) { S.repo.id = p.id; S.repo.note = 0; renderRepo(); }
+      if (S.repo) { S.repo.id = p.id; S.repo.note = 0; renderRepo(); return; }
+      // Desde Stock: se abre la ficha del producto para cargar precio de venta y stock contado sin buscarlo de nuevo.
+      prodForm(p.id); const f = $('fs'); if (f) f.value = code;
     }).catch(failW);
   }
   // Desde el filtro "Sin código": escanear el código de un producto puntual.
