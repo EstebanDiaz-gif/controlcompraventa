@@ -1,4 +1,4 @@
-var C='ventas-v101',G='https://www.gstatic.com/firebasejs/10.12.2/';
+var C='ventas-v102',G='https://www.gstatic.com/firebasejs/10.12.2/';
 var F=['./','./index.html','./app.html','./firebase-config.js','./access.js','./plans.js','./almacen.js','./almacen-calc.js','./caja.js','./traspasos.js','./repartos.js','./vendedores.js','./pagos-config.js','./scanner.js','./planilla.js','./agenda.js','./turnos.js','./fotos.js','./temas.js','./intro.js','./promos.js','./promos-ui.js','./demo.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 var X=[G+'firebase-app.js',G+'firebase-auth.js',G+'firebase-firestore.js',G+'firebase-functions.js'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(C).then(function(c){return Promise.all(F.map(function(u){return fetch(u,{cache:'reload'}).then(function(r){return c.put(u,r)})})).then(function(){return Promise.all(X.map(function(u){return c.add(u).catch(function(){})}))})}));self.skipWaiting()});
@@ -8,6 +8,12 @@ self.addEventListener('push',function(e){var d={};try{d=e.data?e.data.json():{}}
 e.waitUntil(self.registration.showNotification(d.t||'Pekeron',{body:d.b||'',icon:'./icon-192.png',tag:d.tag||undefined,renotify:!!d.tag,data:{u:d.u||'./app.html'}}))});
 self.addEventListener('notificationclick',function(e){e.notification.close();var u=(e.notification.data&&e.notification.data.u)||'./app.html';
 e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(function(l){for(var i=0;i<l.length;i++){if(l[i].url.indexOf('app.html')>=0&&'focus' in l[i])return l[i].focus()}return self.clients.openWindow(u)}))});
+// Abrir rápido: los archivos de la app (lista F) se sirven de la copia guardada de ESTA versión, sin esperar a internet.
+// Cuando se sube una versión nueva cambia C: el navegador baja el sw.js nuevo, guarda todo de nuevo y la app se recarga sola (app.html).
+var PRE={};F.forEach(function(u){PRE[new URL(u,self.location).href]=1});
+// Espera a internet como mucho `ms`; si tarda más y hay copia guardada, usa la copia (la respuesta de internet igual se guarda cuando llega).
+function conTiempo(req,ms,red){return new Promise(function(ok,mal){var listo=false,t=setTimeout(function(){caches.match(req,{ignoreSearch:true}).then(function(r){if(r&&!listo){listo=true;ok(r)}})},ms);
+red.then(function(res){clearTimeout(t);if(!listo){listo=true;ok(res)}},function(e){clearTimeout(t);if(!listo){listo=true;mal(e)}})})}
 self.addEventListener('fetch',function(e){
 var u=e.request.url;
 if(e.request.method!=='GET')return;
@@ -16,12 +22,16 @@ e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request
 return}
 if(u.indexOf(self.location.origin)!==0)return;
 var guardar=function(req,res){if(res&&res.ok&&res.type==='basic'&&!res.redirected){var cp=res.clone();caches.open(C).then(function(c){c.put(req,cp)})}return res};
-// Páginas (abrir un link, el catálogo, pekeronapp.com/minombre): nunca dejamos al navegador sin respuesta.
-// 1) se pide normal; 2) si falla, se reintenta sin caché; 3) la copia guardada; 4) un cartel de "sin conexión" con reintentar.
+var sin=u.split('?')[0].split('#')[0];
+if(PRE[sin]){
+e.respondWith(caches.open(C).then(function(c){return c.match(sin)}).then(function(r){return r||fetch(e.request).then(function(res){return guardar(new Request(sin),res)})}).catch(function(){return caches.match(e.request,{ignoreSearch:true}).then(function(r){return r||new Response(OFF,{status:503,headers:{'Content-Type':'text/html; charset=utf-8'}})})}));
+return}
+// Otras páginas (el catálogo, pekeronapp.com/minombre): internet primero, pero si tarda más de 4 s se usa la copia guardada.
+// Si no hay copia: se reintenta sin caché y, si tampoco, un cartel de "sin conexión" con reintentar.
 if(e.request.mode==='navigate'){
-e.respondWith(fetch(e.request).then(function(res){return guardar(e.request,res)}).catch(function(){
+e.respondWith(conTiempo(e.request,4000,fetch(e.request).then(function(res){return guardar(e.request,res)})).catch(function(){
 return fetch(u,{cache:'no-store',credentials:'same-origin'}).then(function(res){if(res.redirected)return Response.redirect(res.url,302);return guardar(e.request,res)})}).catch(function(){
 return caches.match(e.request).then(function(r){return r||caches.match(e.request,{ignoreSearch:true})}).then(function(r){return r||new Response(OFF,{status:503,headers:{'Content-Type':'text/html; charset=utf-8'}})})}));
 return}
-e.respondWith(fetch(e.request,{cache:'no-cache'}).then(function(res){return guardar(e.request,res)}).catch(function(){return caches.match(e.request,{ignoreSearch:true}).then(function(r){return r||fetch(e.request)})}))});
+e.respondWith(conTiempo(e.request,4000,fetch(e.request,{cache:'no-cache'}).then(function(res){return guardar(e.request,res)})).catch(function(){return caches.match(e.request,{ignoreSearch:true}).then(function(r){return r||fetch(e.request)})}))});
 var OFF='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sin conexión</title><style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f6f4;color:#16161a;text-align:center;padding:90px 22px}b{display:block;font-size:22px;margin:14px 0 8px}p{color:#666;margin:0 0 18px;line-height:1.4}button{border:0;border-radius:14px;background:#111;color:#fff;font:inherit;font-weight:800;padding:14px 26px}</style></head><body><div style="font-size:46px">📶</div><b>No se pudo cargar la página</b><p>Revisá tu conexión a internet y probá de nuevo.</p><button onclick="location.reload()">Reintentar</button><script>addEventListener("online",function(){location.reload()})</script></body></html>';
