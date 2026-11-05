@@ -166,9 +166,9 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <button class="go alt" id="areg">Crear cuenta nueva</button>
 <div class="tot" id="amsg"></div>
 <button class="x" id="areset" style="font-size:14px;margin-top:8px;text-decoration:underline">Olvidé mi contraseña</button></div>
-<div class="card" id="ecard"><h1 style="margin-top:0">¿Sos empleado?</h1><div class="k">Entrá con el código que te pasó el negocio. No necesitás email ni contraseña.</div>
+<div class="card" id="ecard"><h1 style="margin-top:0">¿Sos empleado?</h1><div class="k">Entrá con tu código de empleado. Es siempre el mismo: lo usás cada vez que entrás, desde el celu o la compu. No necesitás email ni contraseña.</div>
 <label>Código</label><input id="ecod" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej: K7QM" style="text-transform:uppercase;letter-spacing:6px;font-weight:800;font-size:22px">
-<label>Tu nombre</label><input id="enom" maxlength="40" autocomplete="given-name" placeholder="Ej: Juan">
+<label>Tu nombre <span style="font-weight:400">(solo la primera vez)</span></label><input id="enom" maxlength="40" autocomplete="given-name" placeholder="Ej: Juan">
 <button class="go" id="ego">Entrar a la tienda</button><div class="tot" id="emsg"></div></div></section>
 <section id="nostore" hidden><div class="splash"><div class="brand lg"><b>PEKERON</b><span><i></i>APP<i></i></span></div></div><div class="card"><h1 style="margin-top:0">Tu tienda</h1>
 <div class="k">Creá tu tienda, o unite a una con el código que te dio un administrador.</div>
@@ -343,7 +343,7 @@ sendPasswordResetEmail(auth,m).then(function(){say('Te mandamos un mail para cam
 $('lo0').onclick=function(){salir()};
 /* ---------- empleados: entrar solo con el código (cuenta "invitada" de este celular, sin email ni contraseña) ---------- */
 // Link de invitación: app.html?c=CODE. El empleado escribe su nombre y entra; la sesión queda guardada en el celular.
-var ECOD=(function(){try{var m=location.search.match(/[?&]c=([A-Za-z0-9]{4})(?:&|$)/);return m?m[1].toUpperCase():''}catch(e){return ''}})(),EPEND=null,JOINING=false;
+var ECOD=(function(){try{var m=location.search.match(/[?&]c=([A-Za-z0-9]{4})(?:&|$)/);return m?m[1].toUpperCase():''}catch(e){return ''}})(),JOINING=false;
 if(ECOD){$('ecod').value=ECOD;var ec=$('ecard');ec.parentNode.insertBefore(ec,ec.parentNode.querySelector('.card'));var ah=$('aem').closest('.card').querySelector('h1');if(ah&&ah.textContent=='Entrá a tu cuenta')ah.textContent='¿Sos el dueño o administrador?'}
 function esay(t){$('emsg').textContent=t}
 // Ojito: mostrar u ocultar la contraseña mientras se escribe.
@@ -351,32 +351,42 @@ var OJO_NO='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="
 $('apwv').onclick=function(){var i=$('apw'),ver=i.type=='password';i.type=ver?'text':'password';this.innerHTML=ver?OJO_NO:OJO_SI;this.setAttribute('aria-label',ver?'Ocultar contraseña':'Mostrar contraseña');this.setAttribute('aria-pressed',ver?'true':'false');try{i.focus({preventScroll:true})}catch(e){}};
 $('eir').onclick=function(){$('ecard').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(function(){$('ecod').focus()},350)};if(ECOD)$('eir').hidden=true;
 function limpiarURL(){if(!ECOD)return;ECOD='';try{history.replaceState(null,'',location.pathname)}catch(e){}}
+// Empleado con código fijo: cada código de empleado es una cuenta propia (email interno <código>.<id>@e.pekeronapp.com),
+// así entra siempre con el mismo código desde cualquier celu o compu. Deja de servir cuando el administrador lo quita del equipo.
+function esEmp(u){u=u||U;return !!u&&(u.isAnonymous||/@e\.pekeronapp\.com$/i.test(u.email||''))}
 function salir(){if(U&&U.isAnonymous&&!confirm('Entraste con un código, sin email. Si salís, para volver a entrar en este celular vas a necesitar un código nuevo de tu administrador.\n\n¿Salir igual?'))return;signOut(auth)}
+function empCuenta(c,k){return {em:(c+'.'+k.iid).toLowerCase()+'@e.pekeronapp.com',pw:'pk-'+c+'-'+k.iid}}
+var NOCUENTA=/user-not-found|invalid-credential|invalid-login-credentials|wrong-password/;
+function empLogin(c,n){JOINING=true;gate('load');var K=null,yaEra=false;
+// 1) Para leer el código hace falta una sesión: se usa una invitada que se borra enseguida.
+return signInAnonymously(auth).then(function(r){return leerCodigo(c).then(function(k){K=k;return r.user.delete().catch(function(){return signOut(auth)})},function(e){return r.user.delete().catch(function(){}).then(function(){throw e})})})
+.then(function(){if(K.role=='admin')throw {m:'Ese código es para un administrador: tiene que entrar con su email (arriba, "Crear cuenta nueva").'};
+var A=empCuenta(c,K);
+return signInWithEmailAndPassword(auth,A.em,A.pw).then(function(){yaEra=true},function(e){var k=(e&&e.code)||'';if(!NOCUENTA.test(k))throw e;
+if(n.length<2)throw {m:'Es la primera vez que entrás con este código: escribí tu nombre.',nom:1};
+return createUserWithEmailAndPassword(auth,A.em,A.pw).then(function(r){return updateProfile(r.user,{displayName:n}).catch(function(){})})})})
+// 2) Ya con su cuenta: si todavía no está en la tienda, se suma; si ya estaba, entra directo.
+.then(function(){return getDoc(doc(db,'stores',K.sid,'members',U.uid)).then(function(m){if(!m.exists())return unirConCodigo(K);
+return getDoc(doc(db,'users',U.uid,'stores',K.sid)).then(function(x){if(!x.exists())return getDoc(doc(db,'stores',K.sid)).then(function(st){var sd=st.data()||{},v={name:sd.name||'Tienda'};if(sd.main)v.main=sd.main;return setDoc(doc(db,'users',U.uid,'stores',K.sid),v)})})},function(){return unirConCodigo(K)})})
+.then(function(){JOINING=false;limpiarURL();try{localStorage.setItem('cv_sid',K.sid)}catch(e){}if(SID!=K.sid&&STORES.some(function(x){return x.id==K.sid}))openStore(K.sid);else if(!SID&&!STORES.length)gate('nostore')})
+.catch(function(e){JOINING=false;var k=(e&&e.code)||'',m=(e&&e.m)||(/operation-not-allowed|admin-restricted/.test(k)?'El ingreso con código todavía no está activado. Avisale a Pekeron App.':/network/.test(k)?'Sin conexión. Conectate a internet para entrar.':/too-many/.test(k)?'Demasiados intentos. Esperá unos minutos y probá de nuevo.':'No se pudo entrar. Revisá el código y probá de nuevo.');
+return (auth.currentUser?signOut(auth):Promise.resolve()).catch(function(){}).then(function(){gate('auth');$('ego').disabled=false;esay(m);if(e&&e.nom)$('enom').focus()})})}
 $('ego').onclick=function(){var c=$('ecod').value.replace(/\s/g,'').toUpperCase(),n=$('enom').value.trim().replace(/\s+/g,' ');
 if(!/^[A-Z0-9]{4}$/.test(c)){esay('El código tiene 4 letras o números.');return}
-if(n.length<2){esay('Escribí tu nombre.');$('enom').focus();return}
-esay('Entrando…');this.disabled=true;EPEND={c:c,n:n};
-signInAnonymously(auth).catch(function(e){EPEND=null;$('ego').disabled=false;var k=(e&&e.code)||'';
-esay(/operation-not-allowed|admin-restricted/.test(k)?'El ingreso con código todavía no está activado. Avisale a Pekeron App.':/network/.test(k)?'Sin conexión. Conectate a internet para entrar.':'No se pudo entrar. Probá de nuevo.')})};
-$('ecod').onkeydown=$('enom').onkeydown=function(e){if(e.key=='Enter'){e.preventDefault();if(this.id=='ecod')$('enom').focus();else $('ego').click()}};
+esay('Entrando…');this.disabled=true;empLogin(c,n)};
+$('ecod').onkeydown=$('enom').onkeydown=function(e){if(e.key=='Enter'){e.preventDefault();if(this.id=='ecod'&&!$('enom').value)$('enom').focus();else $('ego').click()}};
 // Suma a la persona a la tienda del código (codes/{CODE} = {sid, iid, role, exp}).
-function unirConCodigo(k){var o={role:k.role,email:U.email||'',name:nm(),code:k.iid};if(U.isAnonymous)o.an=true;
+function unirConCodigo(k){var o={role:k.role,email:esEmp()?'':(U.email||''),name:nm(),code:k.iid};if(esEmp())o.an=true;
 return setDoc(doc(db,'stores',k.sid,'members',U.uid),o)
 .then(function(){return getDoc(doc(db,'stores',k.sid))})
 .then(function(st){var sd=st.data()||{},v={name:sd.name||'Tienda'};if(sd.main)v.main=sd.main;return setDoc(doc(db,'users',U.uid,'stores',k.sid),v)})
 .then(function(){try{localStorage.setItem('cv_sid',k.sid)}catch(e){}})}
-function leerCodigo(c){return getDoc(doc(db,'codes',c)).then(function(s){if(!s.exists())throw {m:'Ese código no existe o ya lo anularon. Pedile uno nuevo a quien te invitó.'};
+function leerCodigo(c){return getDoc(doc(db,'codes',c)).then(function(s){if(!s.exists())throw {m:'Ese código no está activo: está mal escrito o tu administrador te quitó del equipo.'};
 var k=s.data();if(k.exp&&k.exp<Date.now())throw {m:'Ese código ya venció. Pedile uno nuevo a quien te invitó.'};return k})}
-function empEntrar(u,P){JOINING=true;
-updateProfile(u,{displayName:P.n}).catch(function(){}).then(function(){return leerCodigo(P.c)}).then(function(k){
-if(k.role=='admin')throw {m:'Ese código es para un administrador: tiene que entrar con su email (arriba, "Crear cuenta nueva").'};return unirConCodigo(k)})
-.then(function(){JOINING=false;limpiarURL()})
-.catch(function(e){JOINING=false;var m=(e&&e.m)||'No pude unirte. Revisá el código y que tengas internet.';
-var del=u.delete?u.delete():Promise.reject();del.catch(function(){return signOut(auth)}).then(function(){gate('auth');$('ego').disabled=false;esay(m)})})}
 // Alguien que ya tiene sesión abre un link de invitación: se le ofrece sumarse.
 function codigoDelLink(){var c=ECOD;if(!c||!U)return;limpiarURL();
 leerCodigo(c).then(function(k){if(STORES.some(function(x){return x.id==k.sid})){openStore(k.sid);return}
-if(U.isAnonymous&&k.role=='admin'){alert('Ese código es para un administrador: tiene que entrar con su email.');return}
+if(esEmp()&&k.role=='admin'){alert('Ese código es para un administrador: tiene que entrar con su email.');return}
 if(!confirm('¿Sumarte a la tienda con el código '+c+'?'))return;return unirConCodigo(k)}).catch(function(e){alert((e&&e.m)||'No pude unirte. Revisá que el código siga activo y que tengas internet.')})}
 $('mk').onclick=function(){newStore()};
 $('jn').onclick=function(){joinStore()};
@@ -555,8 +565,8 @@ return getDoc(doc(db,'stores',m,'billing','access')).then(function(s){return s.e
 // Cuenta administradores y empleados (personas distintas) y códigos activos en la principal y todas sus sucursales.
 function contarFam(){var adm={},emp={},inv={admin:0,empleado:0},now=Date.now();
 return Promise.all(familia().map(function(id){return Promise.all([getDocs(collection(db,'stores',id,'members')),getDocs(collection(db,'stores',id,'invites'))]).then(function(r){
-r[0].forEach(function(d){var x=d.data();if(x.role=='admin')adm[d.id]=1;else emp[d.id]=1});
-r[1].forEach(function(d){var x=d.data();if(x.re)return;if(!x.exp||x.exp>now)inv[x.role=='admin'?'admin':'empleado']++})},function(){})})).then(function(){
+var uso={};r[0].forEach(function(d){var x=d.data();if(x.code)uso[x.code]=1;if(x.role=='admin')adm[d.id]=1;else emp[d.id]=1});
+r[1].forEach(function(d){var x=d.data();if(x.re||uso[d.id]||x.u)return;if(!x.exp||x.exp>now)inv[x.role=='admin'?'admin':'empleado']++})},function(){})})).then(function(){
 Object.keys(adm).forEach(function(k){delete emp[k]});return {admins:Object.keys(adm).length,empleados:Object.keys(emp).length,inv:inv}})}
 // Link al catálogo de cada sucursal (public/info es público): para ver si hay un producto y a qué precio en la otra.
 var SUCCAT=null;
@@ -592,7 +602,7 @@ var vm=c.toUpperCase().match(/[A-Z0-9]{3,10}-[A-Z0-9]{6}/);if(vm&&VD.esInvitacio
 if(/^[A-Za-z0-9]{4}$/.test(c.replace(/\s/g,''))||/(^|[^A-Za-z0-9])[A-Za-z0-9]{4}([^A-Za-z0-9]|$)/.test(c)&&!/[a-z0-9]{17}/i.test(c)){var cc=(c.replace(/\s/g,'').length==4?c.replace(/\s/g,''):(c.match(/(?:^|[^A-Za-z0-9])([A-Za-z0-9]{4})(?=[^A-Za-z0-9]|$)/)||[])[1]||'').toUpperCase();
 if(cc){getDoc(doc(db,'codes',cc)).then(function(s){if(!s.exists()){alert('Ese código no existe o ya lo anularon. Pedile uno nuevo al administrador.');return}var k=s.data();
 if(k.exp&&k.exp<Date.now()){alert('Ese código ya venció. Pedile uno nuevo al administrador.');return}
-if(U.isAnonymous&&k.role=='admin'){alert('Ese código es para un administrador: tiene que entrar con su email.');return}
+if(esEmp()&&k.role=='admin'){alert('Ese código es para un administrador: tiene que entrar con su email.');return}
 return unirConCodigo(k)}).catch(function(){alert('No pude unirte. Revisá que el código esté bien y que siga activo, y que tengas internet.')});return}}
 c=extractCode(c);
 if(!SERVER_MODE){
@@ -610,19 +620,19 @@ if(r.sid!=SID&&STORES.some(function(x){return x.id==r.sid}))openStore(r.sid)}).c
 
 onAuthStateChanged(auth,function(u){
 stopStore();stop('stores');stop('owner');stop('cfg');stop('glob');stop('vend');VEND='';GLOB=null;U=u;STORES=[];SID=null;ROLE=null;IS_OWNER=false;ACC=null;PL={q:'',list:null,detail:null};
-if(!u){gate('auth');return}
-gate('load');if(u.isAnonymous&&EPEND){var EP=EPEND;EPEND=null;empEntrar(u,EP)}else if(ECOD)setTimeout(codigoDelLink,1200);vendWatch(u);mpVuelta();susVuelta();setTimeout(pushRefrescar,4000);
+if(!u){if(!JOINING)gate('auth');return}
+gate('load');if(ECOD&&!JOINING)setTimeout(codigoDelLink,1200);vendWatch(u);mpVuelta();susVuelta();setTimeout(pushRefrescar,4000);
 IS_OWNER=OWNER_UIDS.indexOf(u.uid)>=0;un.owner=onSnapshot(doc(db,'platform_owners',u.uid),function(sn){var v=sn.exists()||OWNER_UIDS.indexOf(u.uid)>=0;if(v!=IS_OWNER){IS_OWNER=v;if(ROLE)buildTabs()}},function(){});
 un.glob=onSnapshot(doc(db,'platform','tema'),function(sn){GLOB=sn.exists()?sn.data():null;applyTema();if(TAB=='team')drawTeam();if(TAB=='plat')drawPlat()},function(){});
 un.cfg=onSnapshot(doc(db,'platform','config'),function(sn){CFG=mergeConfig(sn.exists()?sn.data():null);if(TAB=='team')redrawData()},function(){});
 setTimeout(repararTiendas,1500);
-un.stores=onSnapshot(collection(db,'users',u.uid,'stores'),function(sn){
+un.stores=onSnapshot(collection(db,'users',u.uid,'stores'),function(sn){if(U!==u||JOINING&&u.isAnonymous)return;
 STORES=[];sn.forEach(function(d){if(d.id!=CREATING)STORES.push({id:d.id,name:d.data().name||'Tienda',main:d.data().main||''})});
 var has=function(i){return STORES.some(function(s){return s.id==i})};
 var sv=null;try{sv=localStorage.getItem('cv_sid')}catch(e){}
 var pick=has(sv)?sv:(has(SID)?SID:(STORES[0]&&STORES[0].id));
 if(pick&&pick==SID){if(ROLE)drawHdr();return}
-if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;if(JOINING)return;if(VEND)openVend();else{gate('nostore');var an=!!(U&&U.isAnonymous);$('mk').hidden=an;$('nostore').querySelector('.k').textContent=an?'Ya no estás en ninguna tienda. Pedile un código nuevo a tu administrador y tocá "Unirme con un código".':'Creá tu tienda, o unite a una con el código que te dio un administrador.'}}
+if(pick)openStore(pick);else{stopStore();SID=null;ROLE=null;if(JOINING)return;if(VEND)openVend();else{gate('nostore');var an=esEmp();$('mk').hidden=an;$('nostore').querySelector('.k').textContent=an?'Ya no estás en ninguna tienda. Pedile un código nuevo a tu administrador y tocá "Unirme con un código".':'Creá tu tienda, o unite a una con el código que te dio un administrador.'}}
 },function(){gate('nostore')})});
 
 var MECP=false; // permiso "puede cargar productos" de este empleado (members/{uid}.cp)
@@ -815,7 +825,7 @@ var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#FFD6AA','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v=='__vend'){this.value=SID;openVend()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
-a.innerHTML=esc(U.isAnonymous?nm()+' · entró con código':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
+a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
 $('out').onclick=function(){salir()};
 if($('instb'))$('instb').onclick=function(){if(!INSTP)return;INSTP.prompt();INSTP.userChoice.finally(function(){INSTP=null;drawAcct()})}}
 // Instalar como app (en la compu queda con su ventana propia y su ícono, como un programa).
@@ -1572,18 +1582,21 @@ h+='</div>';$('xglist').innerHTML=h}
 // Borra los códigos ya usados (la persona entró) o vencidos.
 function limpiarCodigos(){if(ROLE!='admin')return;var now=Date.now(),usados={};MEM.forEach(function(m){if(m.code)usados[m.code]=1});
 INV.forEach(function(v){if(v._del)return;if(usados[v.id]&&v.re&&MEM.some(function(m){return m.id==v.re&&m.code!=v.id}))deleteDoc(doc(db,'stores',SID,'members',v.re)).catch(function(){});
-if(usados[v.id]||(v.exp&&v.exp<now)){v._del=1;deleteDoc(doc(db,'stores',SID,'invites',v.id)).catch(function(){});if(v.code)deleteDoc(doc(db,'codes',v.code)).catch(function(){})}})}
+if(v.perm){if(usados[v.id]){if(!v.u){v.u=1;setDoc(doc(db,'stores',SID,'invites',v.id),{u:1},{merge:true}).catch(function(){})}return}
+if(!v.u)return}   // código fijo de alguien que ya no está en el equipo: se borra
+if(v.perm||usados[v.id]||(v.exp&&v.exp<now)){v._del=1;deleteDoc(doc(db,'stores',SID,'invites',v.id)).catch(function(){});if(v.code)deleteDoc(doc(db,'codes',v.code)).catch(function(){})}})}
 function drawTeam(){
 var h='<div class="card"><b>Personas de '+esc(SNAME)+'</b>';
 MEM.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'')}).forEach(function(m){
-h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+(m.an?'entró con código':esc(m.email))+' · '+(m.role=='admin'?'administrador':'empleado')+(m.id==U.uid?' · vos':'')+'</small>'+
-(m.role!='admin'&&biz()=='almacen'?'<label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:14px;font-weight:600;color:var(--ink)"><input type="checkbox" data-mcp="'+esc(m.id)+'" style="width:auto"'+(m.cp?' checked':'')+'> Puede cargar productos</label><small style="margin-top:2px">Carga y edita productos, precios y stock (carga rápida, Reponer, Excel). No ve ganancias ni gastos.</small>':'')+(m.an&&m.id!=U.uid?'<button class="x" data-reinv="'+esc(m.id)+'" style="display:block;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">🔑 Código para que vuelva a entrar</button><small style="margin-top:2px">Si cambió de celular o salió de la app. Al entrar con el código nuevo, reemplaza a este.</small>':'')+'</div>'+(m.id!=U.uid&&m.id!=OWNER?'<button class="x" data-rm="'+esc(m.id)+'" aria-label="Quitar">×</button>':'')+'</div>'});
-h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin:4px 0 0">Se genera un código con un link. El <b>empleado</b> toca el link, escribe su nombre y entra: no necesita email ni contraseña. Un <b>administrador</b> sí entra con su email.</div>'+
+h+='<div class="it"><div><b>'+esc(m.name||m.email)+'</b><small>'+(m.an?'entra con código':esc(m.email))+' · '+(m.role=='admin'?'administrador':'empleado')+(m.id==U.uid?' · vos':'')+'</small>'+
+(m.role!='admin'&&biz()=='almacen'?'<label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:14px;font-weight:600;color:var(--ink)"><input type="checkbox" data-mcp="'+esc(m.id)+'" style="width:auto"'+(m.cp?' checked':'')+'> Puede cargar productos</label><small style="margin-top:2px">Carga y edita productos, precios y stock (carga rápida, Reponer, Excel). No ve ganancias ni gastos.</small>':'')+(m.an&&m.id!=U.uid&&INV.some(function(v){return v.id==m.code&&v.code})?(function(){var c=INV.filter(function(v){return v.id==m.code})[0].code;return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px"><span class="code" style="font-size:16px">'+esc(c)+'</span><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Enviar</button></div><small style="margin-top:2px">Su código para entrar. Deja de servir cuando lo quitás.</small>'})():
+m.an&&m.id!=U.uid?'<button class="x" data-reinv="'+esc(m.id)+'" style="display:block;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">🔑 Código para que vuelva a entrar</button><small style="margin-top:2px">Si cambió de celular o salió de la app. Al entrar con el código nuevo, reemplaza a este.</small>':'')+'</div>'+(m.id!=U.uid&&m.id!=OWNER?'<button class="x" data-rm="'+esc(m.id)+'" aria-label="Quitar">×</button>':'')+'</div>'});
+h+='</div><div class="card"><b>Invitar a alguien</b><div class="k" style="margin:4px 0 0">Cada <b>empleado</b> recibe un código fijo: entra siempre con ese código, desde el celu o la compu, sin email ni contraseña. Deja de servir cuando lo quitás del equipo. Un <b>administrador</b> entra con su email.</div>'+
 '<button class="go" data-inv="empleado">Invitar empleado</button><button class="go alt" data-inv="admin">Invitar administrador</button></div>';
-limpiarCodigos();var INVa=INV.filter(function(v){return !v.exp||v.exp>Date.now()});
+limpiarCodigos();var USO={};MEM.forEach(function(m){if(m.code)USO[m.code]=1});var INVa=INV.filter(function(v){return !v._del&&!USO[v.id]&&!v.u&&(!v.exp||v.exp>Date.now())});
 if(INVa.length){h+='<div class="card"><b>Códigos activos</b>';
 INVa.forEach(function(v){var c=invCode(v);h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.re?'para que vuelva a entrar '+esc(((MEM.filter(function(m){return m.id==v.re})[0])||{}).name||''):(v.role=='admin'?'administrador':'empleado'))+' · '+esc(SNAME)+(v.exp?' · vence el '+fdate(v.exp):'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
-h+='<div class="k" style="margin-top:6px">Cada código sirve para una sola persona y vence a los '+CODE_DIAS+' días. Cuando la persona entra, el código se borra solo.</div></div>'}
+h+='<div class="k" style="margin-top:6px">Cada código es para una sola persona. El de <b>empleado</b> no vence: es con lo que entra siempre. El de <b>administrador</b> vence a los '+CODE_DIAS+' días y se borra cuando la persona entra.</div></div>'}
 h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open},true)}}
@@ -1816,7 +1829,7 @@ return h+'</div>'}
 function shareCode(c,role){if(!role){var iv=INV.filter(function(v){return v.code==c})[0];role=iv?iv.role:'empleado'}
 var appLink=catBase()+'app.html?c='+c;
 var msg=role=='admin'?'¡Hola! Te comparto el código para sumarte como administrador a '+SNAME+' en Pekeron App.\n\n🔐 *Código:* '+c+'\n\n📱 Entrá acá:\n'+appLink+'\n\n1️⃣ Creá tu cuenta con tu email y una contraseña\n2️⃣ Te va a preguntar si querés sumarte: tocá Aceptar\n\nCualquier duda ¡te ayudo!'
-:'¡Hola! Te sumo al equipo de '+SNAME+' en Pekeron App.\n\n📱 Tocá este link:\n'+appLink+'\n\n✍️ Escribí tu nombre y tocá *Entrar a la tienda*. No necesitás email ni contraseña.\n\n🔐 Si te lo pide, el código es: *'+c+'*';
+:'¡Hola! Te sumo al equipo de '+SNAME+' en Pekeron App.\n\n🔐 *Tu código para entrar:* '+c+'\nEs siempre el mismo: guardalo. Lo usás cada vez que entrás, desde el celu o la compu.\n\n📱 Entrá acá:\n'+appLink+'\n\n1️⃣ El código ya viene puesto\n2️⃣ La primera vez escribí tu nombre\n3️⃣ Tocá *Entrar a la tienda*\n\nNo necesitás email ni contraseña.';
 var o=document.createElement('div');o.id='cdlg';o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px';
 o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:22px;padding:22px;max-width:420px;width:100%"><b style="font-size:18px">Código de invitación</b><div class="code" style="font-size:22px;margin:16px 0;padding:14px;background:var(--bg);border-radius:14px;text-align:center;user-select:all">'+esc(c)+'</div><button class="go" id="cdc" style="margin-top:0">Copiar código</button><button class="go" id="cdw" style="background:#3156E8;color:#fff;margin-top:8px">Enviar por WhatsApp</button><button class="go alt" id="cds" style="margin-top:8px">Enviar instrucciones</button><button class="x" id="cdx" style="display:block;margin:14px auto 0;font-size:14px;text-decoration:underline">Cerrar</button></div>';
 document.body.appendChild(o);
@@ -2044,14 +2057,16 @@ if(d.inv){
 if(!SERVER_MODE){var role=d.inv;Promise.all([contarFam(),limitesFam()]).then(function(r){var C=r[0],L=r[1]||{},k=role=='admin'?'admins':'empleados',max=L[k],usados=C[k]+C.inv[role];
 if(max!=null&&usados>=max){alert('Ya tenés '+C[k]+' '+(role=='admin'?'administrador'+(C[k]==1?'':'es'):'empleado'+(C[k]==1?'':'s'))+(C.inv[role]?' y '+C.inv[role]+' código'+(C.inv[role]==1?'':'s')+' sin usar':'')+'. Tu plan permite '+max+' en total'+(familia().length>1?' sumando todas las sucursales':'')+'. Anulá un código sin usar o hablá con Pekeron App para ampliar el plan.');return}
 return newShortCode().then(function(cd){var iid=(role=='admin'?'a':'e')+rnd(6),now=Date.now(),exp=now+CODE_DIAS*86400000,bt=writeBatch(db);
-bt.set(doc(db,'stores',SID,'invites',iid),{role:role,created:now,code:cd,exp:exp});
-bt.set(doc(db,'codes',cd),{sid:SID,iid:iid,role:role,created:now,exp:exp});
+// Empleado: código fijo, no vence (es con lo que entra siempre). Administrador: vence y se borra al usarlo (entra con su email).
+var iv=role=='admin'?{role:role,created:now,code:cd,exp:exp}:{role:role,created:now,code:cd,perm:true},cv={sid:SID,iid:iid,role:role,created:now};if(role=='admin')cv.exp=exp;
+bt.set(doc(db,'stores',SID,'invites',iid),iv);
+bt.set(doc(db,'codes',cd),cv);
 return bt.commit().then(function(){shareCode(cd,role)})})}).catch(fail);return}
 callFn('createInvite',{sid:SID,role:d.inv}).then(function(r){shareCode(r.code)}).catch(fail);return}
 if(d.reinv){var mo=MEM.filter(function(m){return m.id==d.reinv})[0];if(!mo)return;
 newShortCode().then(function(cd){var iid='e'+rnd(6),now=Date.now(),exp=now+CODE_DIAS*86400000,bt=writeBatch(db);
-bt.set(doc(db,'stores',SID,'invites',iid),{role:mo.role||'empleado',created:now,code:cd,exp:exp,re:mo.id});
-bt.set(doc(db,'codes',cd),{sid:SID,iid:iid,role:mo.role||'empleado',created:now,exp:exp});
+bt.set(doc(db,'stores',SID,'invites',iid),{role:mo.role||'empleado',created:now,code:cd,perm:true,re:mo.id});
+bt.set(doc(db,'codes',cd),{sid:SID,iid:iid,role:mo.role||'empleado',created:now});
 return bt.commit().then(function(){shareCode(cd,mo.role||'empleado')})}).catch(fail);return}
 if(d.cp){shareCode(d.cp);return}
 if(d.sendCode){shareCode(d.sendCode);return}
@@ -2059,7 +2074,8 @@ if(d.an){if(confirm('¿Anular este código?')){var iv=INV.filter(function(v){ret
 if(d.nsuc){nuevaSucursal();return}
 if(d.famadd){sumarFam(d.famadd);return}
 if(d.ost){openStore(d.ost);return}
-if(d.rm){if(confirm('¿Quitar a esta persona de '+SNAME+'?')){var rmu=d.rm;deleteDoc(doc(db,'stores',SID,'members',rmu)).catch(fail);var sid0=SID;familia().forEach(function(id){if(id==sid0)return;var mr=doc(db,'stores',id,'members',rmu);getDoc(mr).then(function(x){if(x.exists())return setDoc(mr,{otras:{[sid0]:false}},{merge:true})}).catch(function(){})});FAMP=null}return}
+if(d.rm){if(confirm('¿Quitar a esta persona de '+SNAME+'?'+(MEM.some(function(m){return m.id==d.rm&&m.an})?' Su código deja de servir.':''))){var rmu=d.rm;deleteDoc(doc(db,'stores',SID,'members',rmu)).catch(fail);
+var mrm=MEM.filter(function(m){return m.id==rmu})[0],vrm=mrm&&mrm.code&&INV.filter(function(v){return v.id==mrm.code})[0];if(vrm){vrm._del=1;deleteDoc(doc(db,'stores',SID,'invites',vrm.id)).catch(function(){});if(vrm.code)deleteDoc(doc(db,'codes',vrm.code)).catch(function(){})}var sid0=SID;familia().forEach(function(id){if(id==sid0)return;var mr=doc(db,'stores',id,'members',rmu);getDoc(mr).then(function(x){if(x.exists())return setDoc(mr,{otras:{[sid0]:false}},{merge:true})}).catch(function(){})});FAMP=null}return}
 if(d.em){editMov(d.em);return}
 if(d.emd){var mv2=null;M.forEach(function(x){if(String(x.id)==d.emd)mv2=x});if(mv2&&confirm('¿Borrar este movimiento ('+tipoTxt(mv2).toLowerCase()+') de '+mv2.q+' unidad(es)? El stock se ajusta solo.')){delMov(mv2);afterDel()}return}
 if(d.del){var mv=null;M.forEach(function(x){if(String(x.id)==d.del)mv=x});if(mv&&confirm('¿Borrar este movimiento?'))delMov(mv);return}
