@@ -1133,14 +1133,14 @@ export function createAlmacen(X) {
   }
   function qkLog() {
     const e = $('qklog'); if (!e || !S.qk) return;
-    e.innerHTML = S.qk.n ? '<div class="card"><b>Cargados ahora: ' + S.qk.n + '</b>' + S.qk.log.slice(0, 10).map((p) => '<div class="it"><div><b>' + esc(p.n) + '</b><small>' + (p.s ? esc(p.s) + ' · ' : '') + (p.ce ? 'costo estimado' : p.c ? 'costo ' + money(p.c) : 'sin costo') + '</small></div><div class="amt"><b>' + (p.pn ? money(p.pn) : 'sin precio') + '</b><small>stock ' + fq(p.q, p.w) + '</small></div></div>').join('') + '</div>' : '';
+    e.innerHTML = S.qk.n ? '<div class="card"><b>Cargados ahora: ' + S.qk.n + '</b>' + S.qk.log.slice(0, 10).map((p) => '<div class="it"><div><b>' + esc(p.n) + '</b><small>' + (p.s ? esc(p.s) + ' · ' : '') + (p.ce ? 'costo estimado' : p.c ? 'costo ' + money(p.c) : 'sin costo') + '</small></div><div class="amt"><b>' + (p.pn ? money(p.pn) : 'sin precio') + '</b><small>' + (p.ns ? 'sin control de stock' : 'stock ' + fq(p.q, p.w)) + '</small></div></div>').join('') + '</div>' : '';
   }
   // Formulario corto, reutilizado por la carga rápida y por la caja (código desconocido).
   function qkForm(box, code, cb) {
     const c = qkCfg(), p = code ? findByCode(P(), code) : null;
     const catOpts = CATL().map((x) => '<option value="' + esc(x) + '"' + ((p ? p.cat : S.qkCat) === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
     box.innerHTML = '<div class="card" style="border:2px solid var(--ink)">' +
-      (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · stock ' + fq(p.q, p.w) + '</div>'
+      (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · ' + (p.ns ? 'sin control de stock' : 'stock ' + fq(p.q, p.w)) + '</div>'
         : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
           '<label>Nombre</label><input id="qk_n" maxlength="80" autocomplete="off" placeholder="' + (code ? 'Buscando el nombre…' : 'Ej: Queso cremoso') + '"><div class="k" id="qk_nf" style="margin-top:4px"></div><div id="qk_ph"></div>' +
           '<label>Categoría</label><select id="qk_c"><option value="">Sin categoría</option>' + catOpts + '</select>' +
@@ -1148,7 +1148,8 @@ export function createAlmacen(X) {
       '<div class="row"><div><label id="qk_lp">Precio de venta</label><input id="qk_p" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (p && p.pn ? p.pn : '') + '"></div>' +
       '<div><label id="qk_lc">Costo' + (p ? '' : ' (opcional)') + '</label><input id="qk_co" type="number" inputmode="decimal" min="0" placeholder="' + (p && p.c ? p.c : 'si no sabés, vacío') + '" value=""></div></div>' +
       '<div class="k" id="qk_hint" style="margin-top:6px"></div>' +
-      '<label id="qk_lq">' + (p ? '¿Cuántos hay? (stock contado)' : '¿Cuántos hay?') + '</label><input id="qk_q" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (p ? n3(p.q) : '') + '" enterkeyhint="done">' +
+      '<label class="row" style="align-items:flex-start;gap:8px;margin-top:12px;font-weight:600;color:var(--ink)"><input id="qk_ns" type="checkbox" style="width:auto;margin-top:3px"' + (p && p.ns ? ' checked' : '') + '><span>Sin control de stock (siempre disponible)<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Para fiambres, sueltos o cosas que no sabés cuántas hay.</small></span></label>' +
+      '<div id="qk_qrow"' + (p && p.ns ? ' hidden' : '') + '><label id="qk_lq">' + (p ? '¿Cuántos hay? (stock contado)' : '¿Cuántos hay?') + '</label><input id="qk_q" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + (p && !p.ns ? n3(p.q) : '') + '" enterkeyhint="done"></div>' +
       '<div class="row" style="gap:8px"><button class="go" id="qk_ok">Guardar</button><button class="go alt" id="qk_x">' + (cb.cancelTxt || 'Saltear') + '</button></div></div>';
     const q = (id) => box.querySelector('#' + id);
     let pTouched = !!(p && p.pn);
@@ -1163,7 +1164,8 @@ export function createAlmacen(X) {
     q('qk_p').oninput = () => { pTouched = q('qk_p').value !== ''; hint(); };
     if (!p) { q('qk_w').onchange = labels; q('qk_c').onchange = () => { S.qkCat = q('qk_c').value; }; }
     labels(); hint();
-    const first = p ? q('qk_q') : q('qk_n');
+    q('qk_ns').onchange = function () { q('qk_qrow').hidden = this.checked; if (!this.checked) q('qk_q').focus(); };
+    const first = p ? (p.ns ? q('qk_p') : q('qk_q')) : q('qk_n');
     setTimeout(() => { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }, 120);
     let FOTO = null;
     const fotoDraw = () => { const e = q('qk_ph'); if (!e) return; e.innerHTML = FOTO ? '<div style="display:flex;align-items:center;gap:12px;margin-top:10px"><img src="' + FOTO.thumb + '" alt="" style="width:72px;height:72px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--line)"><div class="k" style="margin:0">📷 Foto encontrada: se usa en el catálogo.<br><button class="x" id="qk_phx" style="font-size:13px;text-decoration:underline">Quitar foto</button></div></div>' : ''; const x = q('qk_phx'); if (x) x.onclick = () => { FOTO = null; fotoDraw(); }; };
@@ -1177,7 +1179,7 @@ export function createAlmacen(X) {
     q('qk_q').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('qk_ok').click(); } };
     q('qk_x').onclick = () => cb.onCancel();
     q('qk_ok').onclick = () => {
-      const pr = +q('qk_p').value || 0, coIn = q('qk_co').value === '' ? null : +q('qk_co').value, qs = q('qk_q').value.trim(), cant = qs === '' ? null : r3(pnum(qs)), w = isW();
+      const pr = +q('qk_p').value || 0, coIn = q('qk_co').value === '' ? null : +q('qk_co').value, ns = q('qk_ns').checked, qs = ns ? '' : q('qk_q').value.trim(), cant = qs === '' ? null : r3(pnum(qs)), w = isW();
       if (pr < 0 || (coIn != null && coIn < 0)) { alert('Los precios no pueden ser negativos.'); return; }
       if (/^\d{8,14}$/.test(qs)) { q('qk_q').value = ''; beep(false); alert('Eso parece un código de barras, no una cantidad. Terminá este producto (escribí cuántos hay y tocá Guardar) antes de pasar el siguiente.'); q('qk_q').focus(); return; }
       if (cant != null && (isNaN(cant) || cant < 0)) { alert('Revisá la cantidad (usá números, por ejemplo 12 o 1,5).'); return; }
@@ -1187,7 +1189,8 @@ export function createAlmacen(X) {
         if (pr > 0 && pr !== p.pn) o.pn = pr;
         if (coIn != null && coIn > 0) { o.c = coIn; o.ce = deleteField(); }
         if (cant != null) o.q = cant;
-        const done = Object.assign({}, p, { pn: o.pn || p.pn, c: o.c || p.c, q: cant != null ? cant : p.q, ce: o.c ? 0 : p.ce });
+        if (ns !== !!p.ns) o.ns = ns;
+        const done = Object.assign({}, p, { pn: o.pn || p.pn, c: o.c || p.c, q: cant != null ? cant : p.q, ce: o.c ? 0 : p.ce, ns });
         if (!Object.keys(o).length) { cb.onDone(done); return; }
         q('qk_ok').disabled = true;
         setDoc(ref('stock', p.id), o, { merge: true }).catch(failW); cb.onDone(done); return;
@@ -1197,6 +1200,7 @@ export function createAlmacen(X) {
       if (code && findByCode(P(), code)) { alert('Ese código ya está cargado.'); return; }
       const ce = coIn == null && pr > 0, co = coIn != null ? coIn : (pr > 0 ? costoDesde(pr, c) : 0);
       const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
+      if (ns) o.ns = true;
       if (ce) o.ce = 1;
       if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; }
       q('qk_ok').disabled = true;
