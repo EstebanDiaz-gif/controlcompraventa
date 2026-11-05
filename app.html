@@ -158,7 +158,8 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 </style></head><body><main>
 <div id="load" class="empty">Cargando…</div>
 <section id="auth" hidden><div class="splash"><div class="brand lg"><b>PEKERON</b><span><i></i>APP<i></i></span></div></div><div class="card"><h1 style="margin-top:0">Entrá a tu cuenta</h1>
-<div class="k">Usá tu email y contraseña. Cada persona del negocio entra con su propia cuenta.</div>
+<div class="k">Usá tu email y contraseña.</div>
+<button class="go alt" id="eir" style="margin:12px 0 4px">👤 Soy empleado: entrar con código</button>
 <label>Email</label><input id="aem" type="email" inputmode="email" autocomplete="username">
 <label>Contraseña</label><input id="apw" type="password" autocomplete="current-password">
 <button class="go" id="alogin">Entrar</button>
@@ -345,6 +346,7 @@ $('lo0').onclick=function(){salir()};
 var ECOD=(function(){try{var m=location.search.match(/[?&]c=([A-Za-z0-9]{4})(?:&|$)/);return m?m[1].toUpperCase():''}catch(e){return ''}})(),EPEND=null,JOINING=false;
 if(ECOD){$('ecod').value=ECOD;var ec=$('ecard');ec.parentNode.insertBefore(ec,ec.parentNode.querySelector('.card'));var ah=$('aem').closest('.card').querySelector('h1');if(ah&&ah.textContent=='Entrá a tu cuenta')ah.textContent='¿Sos el dueño o administrador?'}
 function esay(t){$('emsg').textContent=t}
+$('eir').onclick=function(){$('ecard').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(function(){$('ecod').focus()},350)};if(ECOD)$('eir').hidden=true;
 function limpiarURL(){if(!ECOD)return;ECOD='';try{history.replaceState(null,'',location.pathname)}catch(e){}}
 function salir(){if(U&&U.isAnonymous&&!confirm('Entraste con un código, sin email. Si salís, para volver a entrar en este celular vas a necesitar un código nuevo de tu administrador.\n\n¿Salir igual?'))return;signOut(auth)}
 $('ego').onclick=function(){var c=$('ecod').value.replace(/\s/g,'').toUpperCase(),n=$('enom').value.trim().replace(/\s+/g,' ');
