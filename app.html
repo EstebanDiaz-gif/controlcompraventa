@@ -161,7 +161,7 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <div class="k">Usá tu email y contraseña.</div>
 <button class="go alt" id="eir" style="margin:12px 0 4px">👤 Soy empleado: entrar con código</button>
 <label>Email</label><input id="aem" type="email" inputmode="email" autocomplete="username">
-<label>Contraseña</label><input id="apw" type="password" autocomplete="current-password">
+<label for="apw">Contraseña</label><div style="position:relative"><input id="apw" type="password" autocomplete="current-password" style="padding-right:54px"><button type="button" class="x" id="apwv" aria-label="Mostrar contraseña" aria-pressed="false" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);width:46px;height:46px;display:flex;align-items:center;justify-content:center;color:var(--mut);margin:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
 <button class="go" id="alogin">Entrar</button>
 <button class="go alt" id="areg">Crear cuenta nueva</button>
 <div class="tot" id="amsg"></div>
@@ -346,6 +346,9 @@ $('lo0').onclick=function(){salir()};
 var ECOD=(function(){try{var m=location.search.match(/[?&]c=([A-Za-z0-9]{4})(?:&|$)/);return m?m[1].toUpperCase():''}catch(e){return ''}})(),EPEND=null,JOINING=false;
 if(ECOD){$('ecod').value=ECOD;var ec=$('ecard');ec.parentNode.insertBefore(ec,ec.parentNode.querySelector('.card'));var ah=$('aem').closest('.card').querySelector('h1');if(ah&&ah.textContent=='Entrá a tu cuenta')ah.textContent='¿Sos el dueño o administrador?'}
 function esay(t){$('emsg').textContent=t}
+// Ojito: mostrar u ocultar la contraseña mientras se escribe.
+var OJO_NO='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7c2 0 3.7.7 5.1 1.6M22 12s-3.6 7-10 7c-2 0-3.7-.7-5.1-1.6"/><circle cx="12" cy="12" r="3"/><path d="M3 3l18 18"/></svg>',OJO_SI=$('apwv').innerHTML;
+$('apwv').onclick=function(){var i=$('apw'),ver=i.type=='password';i.type=ver?'text':'password';this.innerHTML=ver?OJO_NO:OJO_SI;this.setAttribute('aria-label',ver?'Ocultar contraseña':'Mostrar contraseña');this.setAttribute('aria-pressed',ver?'true':'false');try{i.focus({preventScroll:true})}catch(e){}};
 $('eir').onclick=function(){$('ecard').scrollIntoView({behavior:'smooth',block:'start'});setTimeout(function(){$('ecod').focus()},350)};if(ECOD)$('eir').hidden=true;
 function limpiarURL(){if(!ECOD)return;ECOD='';try{history.replaceState(null,'',location.pathname)}catch(e){}}
 function salir(){if(U&&U.isAnonymous&&!confirm('Entraste con un código, sin email. Si salís, para volver a entrar en este celular vas a necesitar un código nuevo de tu administrador.\n\n¿Salir igual?'))return;signOut(auth)}
