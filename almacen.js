@@ -333,8 +333,31 @@ export function createAlmacen(X) {
     if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) { beep(false); if (load() && confirm('El código ' + q + ' no está cargado. ¿Lo cargás ahora?')) qkModal(q, (np) => addProd(np)); } // código que no existe
   }
   function clearSearch(noFocus) { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); if (!noFocus) qi.focus(); } }
+  // Producto sin precio: se lo pone ahí mismo, al cobrar. Quien puede cargar productos lo deja guardado en el producto;
+  // si no, el precio vale solo para esta venta.
+  function precioDlg(p, done) {
+    const c = qkCfg(), guarda = load(), sug = p.c > 0 ? roundPrice(p.c * (1 + c.m / 100), c.r) : 0;
+    const o = modal('<b style="font-size:19px">' + esc(p.n) + '</b><div class="k">Todavía no tiene precio de venta' + (p.c > 0 ? ' · costo ' + money(p.c) + (p.w ? ' el kilo' : '') : '') + '.</div>' +
+      '<label>Precio de venta' + (p.w ? ' (por kilo)' : '') + '</label><input id="pzp" type="number" inputmode="decimal" min="0" placeholder="0" autocomplete="off" value="' + (sug || '') + '">' +
+      (sug ? '<div class="k" style="margin-top:4px">Sugerido: costo + ' + c.m + '% de ganancia.</div>' : '') +
+      '<div class="k" id="pzm" style="margin-top:4px;font-weight:700"></div>' +
+      '<div class="k" style="margin-top:10px">' + (guarda ? 'Queda guardado en el producto: la próxima vez ya sale con este precio.' : 'Vale solo para esta venta. Avisale a quien carga los productos para que le ponga precio.') + '</div>' +
+      '<button class="go" id="pzok">' + (guarda ? 'Guardar y agregar' : 'Agregar a la venta') + '</button>' +
+      '<button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const i = o.querySelector('#pzp'), m = o.querySelector('#pzm');
+    const mg = () => { const v = +i.value; m.textContent = v > 0 && p.c > 0 ? (v > p.c ? 'Ganás ' + money(v - p.c) + ' (' + Math.round((v - p.c) / v * 100) + '%)' : '⚠️ Está por debajo del costo') : ''; };
+    const ok = () => {
+      const v = r2(+i.value); if (!(v > 0)) { i.focus(); return; }
+      if (guarda) setDoc(doc(db, 'stores', X.sid(), 'stock', p.id), { pn: v }, { merge: true }).catch(failW);
+      o.remove(); done(Object.assign({}, p, { pn: v }));
+    };
+    i.oninput = mg; mg();
+    i.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ok(); } };
+    o.querySelector('#pzok').onclick = ok;
+    setTimeout(() => { i.focus(); i.select(); }, 60);
+  }
   function addProd(p, noFocus) {
-    if (!p.pn) { alert('"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.'); return; }
+    if (!p.pn) { precioDlg(p, (np) => addProd(np, noFocus)); return; }
     if (p.w) { weightDlg(p); return; }
     const l = S.cart.find((x) => x.id === p.id && !x.w);
     if (l) l.q += 1; else S.cart.push({ id: p.id, n: p.n, q: 1, u: p.pn, c: p.c || 0, w: false });
@@ -926,7 +949,7 @@ export function createAlmacen(X) {
     const b = balanza(code, cfgBal()); if (!b) return null;
     const p = porPlu(P(), b.plu);
     if (!p) return { err: 'Es una etiqueta de balanza del producto ' + (+b.plu) + ', pero ningún producto tiene ese código. Poné ' + (+b.plu) + ' como código del producto (Stock → Editar).' };
-    if (!p.pn) return { err: '"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.' };
+    if (!p.pn) return { err: '"' + p.n + '" no tiene precio de venta. Buscalo por nombre en la caja y ponéselo ahí, o en Stock → Editar.' };
     const q = b.kg != null ? b.kg : r3(b.importe / p.pn);
     if (!(q > 0)) return { err: 'La etiqueta no trae un peso válido.' };
     const u = b.importe != null ? b.importe / q : p.pn;   // con importe, el total queda igual al de la etiqueta
@@ -1416,7 +1439,7 @@ export function createAlmacen(X) {
         if (!p) { const bl = balLine(code); if (bl) { if (bl.err) return { ok: false, msg: bl.err }; S.cart.push(bl.line); S.last = ''; later(() => renderCart()); return { ok: true, msg: '✓ ' + bl.line.n + ' · ' + fq(bl.line.q, true) + ' · ' + money(lineTotal(bl.line)) }; } }
         if (!p && load()) { later(() => qkModal(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: cargalo y sigue la venta' }; }
         if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + '. Avisale a quien carga los productos.' };
-        if (!p.pn) return { ok: false, msg: '"' + p.n + '" no tiene precio de venta. Cargalo en Stock → Editar.' };
+        if (!p.pn) { later(() => precioDlg(p, (np) => addProd(np, true))); return { ok: true, close: true, msg: p.n + ': ponele el precio' }; }
         if (p.w) { later(() => weightDlg(p)); return { ok: true, close: true, msg: p.n }; }
         addProd(p, true);
         let u = 0; S.cart.forEach((l) => { u += l.w ? 1 : l.q; });
