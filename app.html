@@ -1259,7 +1259,7 @@ function szLine(g){return '<small>Talles: '+g.sz.map(function(z){return esc(z.z)
 // Publicar un modelo en Instagram: foto, nombre, precio de venta y los talles que hay.
 function instaRopa(b){var g=stkRows().filter(function(x){return x.b==b})[0];if(!g)return;var L=catLink();
 var tz=g.sz.filter(function(z){return z.q>0}).map(function(z){return z.z});
-abrirInsta({nombre:g.n,precio:g.pn||g.pm,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),tienda:SNAME,money:money,
+abrirInsta({nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tienda:SNAME,money:money,
 link:L+(L.indexOf('?')>=0?'&':'?')+'p='+encodeURIComponent(b),fotoHD:function(){return getDoc(fref(b)).then(function(s){return (s.exists()&&s.data().f)||''}).catch(function(){return ''})}})}
 function stkBody(){
 var all=stkRows(),rows=all.filter(stkMatch),adm=ROLE=='admin';
