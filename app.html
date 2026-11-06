@@ -1895,6 +1895,12 @@ h+=gTemaCard()+cfgHtml()+'<div class="card"><b>Mantenimiento</b><div class="k" s
 $('s-plat').innerHTML=h;togglePlat()}
 /* ---------- Panel del propietario sin servidor (plan Spark) ---------- */
 // Las sucursales usan el mismo plan que su tienda principal: el panel del dueño copia el acceso de la principal.
+// Accesos con la fecha de vencimiento rota (un mapa en vez de una fecha de Firebase, o vacía teniendo plan):
+// Firebase los toma como vencidos aunque la app los muestre activos. Se rehace la fecha a partir de los datos que sí están bien.
+function repararAccesos(){(PLL.list||[]).forEach(function(y){var a=y.acc;if(!a||a.unlimited)return;var au=a.activeUntil,ok=au&&typeof au.toMillis=='function';
+if(ok)return;var ms=a.graceUntilMs!=null?a.graceUntilMs:a.activeUntilMs;if(ms==null)return;
+var nb=Object.assign({},a,{activeUntil:Timestamp.fromMillis(ms),updatedAt:Timestamp.now()});
+setDoc(doc(db,'stores',y.sid,'billing','access'),nb).then(function(){y.acc=nb;console.log('Acceso reparado:',y.name)}).catch(function(e){console.warn('No pude reparar el acceso de',y.name,e&&e.code)})})}
 function syncSucursales(){(PLL.list||[]).forEach(function(y){if(!y.main)return;var m=PLL.list.filter(function(z){return z.sid==y.main})[0];if(!m)return;
 var k=function(a){return a?JSON.stringify([a.state,a.activeUntilMs,a.paidUntilMs,a.graceUntilMs,a.paused,a.life&&a.life.at,a.lim,a.paidPlan]):'-'};
 if(k(m.acc)==k(y.acc))return;var r=doc(db,'stores',y.sid,'billing','access');
@@ -1906,7 +1912,7 @@ var ps=[];sn.forEach(function(d){var st=d.data();
 ps.push(Promise.all([getDoc(doc(db,'stores',d.id,'billing','access')),getDocs(collection(db,'stores',d.id,'members')),PAGOS_URL&&!st.main?getDoc(doc(db,'stores',d.id,'billing','sus')).catch(function(){return null}):Promise.resolve(null)]).then(function(r){
 var ad=[];r[1].forEach(function(m){var x=m.data();if(x.role=='admin')ad.push(x.email||x.name||m.id)});
 return {sid:d.id,name:st.name||'(sin nombre)',created:st.created||0,mon:st.mon||'ARS',pais:st.pais||'',main:st.main||'',vend:st.vend||'',admins:ad,n:r[1].size,acc:r[0].exists()?r[0].data():null,sus:r[2]&&r[2].exists()?r[2].data():null}}))});
-return Promise.all(ps)}).then(function(l){PLL.list=l.sort(function(a,b){return a.name.localeCompare(b.name)});PLL.busy=false;syncSucursales();drawPlatLite();drawBanner()}).catch(function(e){PLL.busy=false;PLL.list=[];fail(e)})}
+return Promise.all(ps)}).then(function(l){PLL.list=l.sort(function(a,b){return a.name.localeCompare(b.name)});PLL.busy=false;repararAccesos();syncSucursales();drawPlatLite();drawBanner()}).catch(function(e){PLL.busy=false;PLL.list=[];fail(e)})}
 function drawPlatLite(){
 if(!PLL.list){$('s-plat').innerHTML='<div class="card"><div class="empty">Cargando empresas…</div></div>';loadLite();return}
 var now=Date.now(),cnt={all:PLL.list.length,trial:0,paid:0,life:0,paused:0,free:0,exp:0};
@@ -1978,7 +1984,9 @@ if(a=='lim'){var pl0=old.effectivePlan||cp||'inicial',P0=CFG.plans[pl0]||CFG.pla
 if(!(na>=1)||!(ne>=0)||!(ns>=1)){alert('Revisá los números: al menos 1 administrador y 1 sucursal.');return}
 if(na+ne!=P0.admins+P0.empleados&&!confirm('El plan '+P0.name+' trae '+(P0.admins+P0.empleados)+' personas y pusiste '+(na+ne)+'. ¿Guardar igual?'))return;
 if(!x.acc){alert('Esta tienda no tiene plan (está libre, sin límites): no hace falta repartir personas.');return}
-var nb=JSON.parse(JSON.stringify(old));nb.lim={plan:pl0,admins:na,empleados:ne,sucursales:ns};nb.limits=Object.assign({},old.limits||{},{admins:na,empleados:ne,sucursales:ns});
+// Se reconstruye con litBuild (antes se copiaba con JSON y las fechas de Firebase quedaban rotas: Firebase veía la tienda vencida).
+var nb=LB({paidPlan:old.paidPlan||null,paidUntilMs:old.paidUntilMs==null?null:old.paidUntilMs,trialStartMs:old.trialStartMs==null?null:old.trialStartMs,chosenPlan:cp,life:old.life||null,paused:old.paused||null,llave:old.llave||null,lim:{plan:pl0,admins:na,empleados:ne,sucursales:ns}});
+if(old.auto)nb.auto=old.auto;
 put(nb).then(done).catch(fail);return}
 if(a=='free'){if(!confirm('¿Dejar libre a "'+x.name+'"? Vuelve a funcionar sin vencimiento.'))return;Promise.all([deleteDoc(ref)].concat(hijas.map(function(y){return deleteDoc(doc(db,'stores',y.sid,'billing','access'))}))).then(done).catch(fail);return}
 if(a=='pause'){if(!confirm('¿Pausar "'+x.name+'"? Se bloquean todas las pantallas de la app para todo su equipo hasta que la habilites de nuevo. Sus datos no se borran.'))return;
