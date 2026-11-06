@@ -142,7 +142,7 @@ export function createAlmacen(X) {
       return;
     }
     e.innerHTML = '<div class="card" style="padding:12px 16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>🟢 Caja abierta</b><small style="display:block;color:var(--mut)">desde las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' · ' + esc(c.bn || '') + '</small></span>' +
-      (veEsp() ? '<span style="text-align:right"><small style="display:block;color:var(--mut)">Efectivo en caja</small><b style="font-size:20px' + (esperado(c) < 0 ? ';color:#b3261e' : '') + '">' + money(esperado(c)) + '</b>' + (esperado(c) < 0 ? '<small style="display:block;color:#b3261e;font-weight:700">Salió más de lo que entró: revisalo en Cerrar caja</small>' : '') + '</span>' : '<span style="text-align:right"><small style="display:block;color:var(--mut)">Ventas</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
+      (veEsp() ? '<span style="text-align:right"><small style="display:block;color:var(--mut)">Efectivo en caja</small><b style="font-size:20px' + (esperado(c) < 0 ? ';color:#b3261e' : '') + '">' + money(esperado(c)) + '</b>' + (esperado(c) < 0 ? '<small style="display:block;color:#b3261e;font-weight:700">Salió más de lo que entró</small>' : '') + '<button class="x" data-al="cjdet" style="display:block;margin-left:auto;font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">Ver detalle</button></span>' : '<span style="text-align:right"><small style="display:block;color:var(--mut)">Ventas</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="go alt" data-al="cjmov" style="margin:0">Sacar / poner</button><button class="go" data-al="cjclose" style="margin:0">Cerrar caja</button></div></div>';
   }
   function cajaOpen() {
@@ -192,6 +192,12 @@ export function createAlmacen(X) {
     };
     setTimeout(() => o.querySelector('#cma').focus(), 50);
   }
+  // Un renglón de los movimientos de la caja. t: r = sacó, i = puso, b = borró una venta, bc = borró un cobro de fiado.
+  function mvHtml(m) {
+    const bor = m.t === 'b' || m.t === 'bc', t = m.t === 'r' ? 'Sacó ' + money(m.a) : m.t === 'b' ? '🗑️ Borró una venta de ' + money(m.a) : m.t === 'bc' ? '🗑️ Borró un cobro de ' + money(m.a) : 'Puso ' + money(m.a);
+    return '<div class="it"><div><b' + (bor ? ' style="color:#b3261e"' : '') + '>' + t + '</b><small>' + esc(m.h || '') + (bor && m.pay ? ' · ' + (PAY[m.pay] || m.pay) : '') + (m.r ? ' · ' + esc(m.r) : '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>';
+  }
+  function cajaDet() { const c = S.caja; if (!c) return; modal('<b style="font-size:19px">Detalle de la caja</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + ' por ' + esc(c.bn || '') + '</div>' + cajaRows(c) + '<button class="go" data-close="1" style="margin-top:16px">Listo</button>'); }
   function cajaRows(c) {
     const p = c.p || {}, cb = c.c || {}, r = (t, v, cls) => '<div class="r2"><span>' + t + '</span><b class="' + (cls || '') + '" style="font-size:16px">' + v + '</b></div>';
     let h = '<div class="rows" style="margin:10px 0 0">' + (c.prev != null && c.prev !== c.ini ? r((c.prevBn ? esc(c.prevBn) + ' dejó' : 'Quedó en el cierre anterior') + '<small style="color:#b3261e">' + esc(c.bn || '') + ' contó ' + money(c.ini || 0) + ' al abrir: ' + (c.ini < c.prev ? 'faltan ' + money(c.prev - c.ini) : 'sobran ' + money(c.ini - c.prev)) + ' entre turnos</small>', money(c.prev)) : '') + r('Efectivo inicial' + (c.prev != null && c.prev !== c.ini ? '<small style="color:' + (c.ini < c.prev ? '#b3261e' : 'var(--sell)') + '">' + (c.ini < c.prev ? 'abrió con ' + money(c.prev - c.ini) + ' menos' : 'abrió con ' + money(c.ini - c.prev) + ' más') + '</small>' : ''), money(c.ini || 0)) + r('Ventas en efectivo', '+ ' + money(p.ef || 0)) +
@@ -200,7 +206,7 @@ export function createAlmacen(X) {
     const otros = ['tr', 'tj', 'qr', 'fi'].filter((k) => (p[k] || 0) || (cb[k] || 0));
     if (otros.length) h += '<div class="k" style="margin-top:12px"><b>Otros medios</b> (no van al cajón)</div><div class="rows" style="margin:4px 0 0">' + otros.map((k) => r(PAY[k], money((p[k] || 0) + (cb[k] || 0)))).join('') + '</div>';
     const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(a.h).localeCompare(String(b.h)));
-    if (mv.length) h += '<div class="k" style="margin-top:12px"><b>Movimientos</b></div>' + mv.map((m) => '<div class="it"><div><b>' + (m.t === 'r' ? 'Sacó' : 'Puso') + ' ' + money(m.a) + '</b><small>' + esc(m.h || '') + ' · ' + esc(m.r || '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>').join('');
+    if (mv.length) h += '<div class="k" style="margin-top:12px"><b>Movimientos</b></div>' + mv.map(mvHtml).join('');
     return h;
   }
   const difHtml = (d) => d === 0 ? '<b style="color:#1a8f4c">Justo ✓</b>' : d < 0 ? '<b style="color:#b3261e">Faltan ' + money(-d) + '</b>' : '<b style="color:var(--sell)">Sobran ' + money(d) + '</b>';
@@ -553,7 +559,8 @@ export function createAlmacen(X) {
     const prDec = {}; (v.it || []).forEach((x) => { if (!x.id) return; const o = prDec[x.id] || (prDec[x.id] = { q: 0, v: 0 }); o.q = r3(o.q + x.q); o.v += Math.round(x.q * x.u); });
     Object.keys(prDec).forEach((k) => { prDec[k] = { q: increment(-prDec[k].q), v: increment(-prDec[k].v) }; });
     b.set(doc(db, 'stores', sid, 'totales', v.m || v.d.slice(0, 7)), { v: increment(-v.tot), c: increment(-(v.cost || 0)), n: increment(-1), pay: payDec, pr: prDec, dias: { [dd]: { v: increment(-v.tot), c: increment(-(v.cost || 0)), n: increment(-1) } } }, { merge: true });
-    if (v.cj && S.caja && S.caja.id === v.cj) setDoc(doc(db, 'stores', sid, 'cajas', v.cj), { n: increment(-1), v: increment(-v.tot), p: payDec }, { merge: true }).catch(() => {});
+    if (v.cj && S.caja && S.caja.id === v.cj) setDoc(doc(db, 'stores', sid, 'cajas', v.cj), { n: increment(-1), v: increment(-v.tot), p: payDec,
+      mv: { [uid()]: { t: 'b', a: Math.round(v.tot || 0), pay: v.pay || 'ef', r: ((v.it || []).map((x) => x.n).join(', ') + (v.h ? ' (de las ' + v.h + ')' : '')).slice(0, 80), h: now(), bn: X.nm() } } }, { merge: true }).catch(() => {});
     if (v.fid) { b.delete(doc(db, 'stores', sid, 'fiado', v.fid)); if (cli(v.cli)) b.update(doc(db, 'stores', sid, 'clientes', v.cli), { s: increment(-v.tot) }); }
     b.commit().then(() => { if (S.dayV) { S.dayV = S.dayV.filter((x) => x.id !== v.id); if (X.tab() === 'res') drawRes(); } }).catch(failW);
   }
@@ -649,7 +656,8 @@ export function createAlmacen(X) {
     b.delete(doc(db, 'stores', sid, 'fiado', id));
     b.update(doc(db, 'stores', sid, 'clientes', f.cid), { s: increment(f.t === 'p' ? f.a : -f.a) });
     if (f.t === 'p') b.set(doc(db, 'stores', sid, 'totales', f.m), { cob: increment(-f.a), cobp: { [f.pay || 'ef']: increment(-f.a) } }, { merge: true });
-    if (f.t === 'p' && f.cj && S.caja && S.caja.id === f.cj) setDoc(doc(db, 'stores', sid, 'cajas', f.cj), { c: { [f.pay || 'ef']: increment(-f.a) } }, { merge: true }).catch(() => {});
+    if (f.t === 'p' && f.cj && S.caja && S.caja.id === f.cj) setDoc(doc(db, 'stores', sid, 'cajas', f.cj), { c: { [f.pay || 'ef']: increment(-f.a) },
+      mv: { [uid()]: { t: 'bc', a: Math.round(f.a || 0), pay: f.pay || 'ef', r: 'Cobro de fiado', h: now(), bn: X.nm() } } }, { merge: true }).catch(() => {});
     b.commit().catch(failW);
   }
   function waMsg() {
@@ -1523,6 +1531,7 @@ export function createAlmacen(X) {
     else if (a === 'demo') demoDlg();
     else if (a === 'demodel') { const ids = P().filter((p) => p.demo).map((p) => p.id); if (ids.length && confirm('¿Borrar los ' + ids.length + ' productos de ejemplo?')) borrarDemo({ db, sid: X.sid(), ids }).catch(failW); }
     else if (a === 'cjmov') cajaMov();
+    else if (a === 'cjdet') cajaDet();
     else if (a === 'cjclose') cajaClose();
     else if (a === 'cjfix') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { document.querySelectorAll('.almdlg').forEach((e) => e.remove()); cajaFix(c); } }
     else if (a === 'cjver') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { if (c.st === 'open') cajaClose(); else cajaVer(c); } }

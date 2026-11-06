@@ -24,6 +24,13 @@ export function createCaja(X) {
   const deny = (e) => e && String(e.code || '').indexOf('permission') >= 0;
   const failW = (e) => X.fail(e);
 
+  // Un renglón de los movimientos de la caja. t: r = sacó, i = puso, b = borró una venta, bc = borró un cobro.
+  const MVPAY = { ef: 'efectivo', tr: 'transferencia', tj: 'tarjeta', qr: 'QR', fi: 'fiado', mix: 'dividido' };
+  function mvHtml(m) {
+    const bor = m.t === 'b' || m.t === 'bc', t = m.t === 'r' ? 'Sacó ' + money(m.a) : m.t === 'b' ? '🗑️ Borró una venta de ' + money(m.a) : m.t === 'bc' ? '🗑️ Borró un cobro de ' + money(m.a) : 'Puso ' + money(m.a);
+    return '<div class="it"><div><b' + (bor ? ' style="color:#b3261e"' : '') + '>' + t + '</b><small>' + esc(m.h || '') + (bor && m.pay ? ' · ' + (MVPAY[m.pay] || m.pay) : '') + (m.r ? ' · ' + esc(m.r) : '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>';
+  }
+  function verDetalle() { const c = S.caja; if (!c) return; modal('<b style="font-size:19px">Detalle de la caja</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + ' por ' + esc(c.bn || '') + '</div>' + filas(c) + '<button class="go" data-close="1" style="margin-top:16px">Listo</button>'); }
   function modal(html) {
     const o = document.createElement('div'); o.className = 'cjdlg';
     o.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:14px;overflow:auto';
@@ -65,7 +72,7 @@ export function createCaja(X) {
     const c = S.caja;
     if (!c) return '<div class="card cjb"><span><b>Caja cerrada</b><small>Abrila para controlar el efectivo del día</small></span><button class="go" data-cj="open" style="width:auto;margin:0;padding:10px 16px;flex:none">Abrir caja</button></div>';
     return '<div class="card cjb cjo"><div class="cjt"><span><b>🟢 Caja abierta</b><small>desde las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' · ' + esc(c.bn || '') + '</small></span>' +
-      (veEsp() ? '<span style="text-align:right"><small>Efectivo en caja</small><b style="font-size:20px' + (esperado(c) < 0 ? ';color:#b3261e' : '') + '">' + money(esperado(c)) + '</b>' + (esperado(c) < 0 ? '<small style="color:#b3261e;font-weight:700">Salió más de lo que entró: revisalo en Cerrar caja</small>' : '') + '</span>' : '<span style="text-align:right"><small>' + (X.palabra(2).charAt(0).toUpperCase() + X.palabra(2).slice(1)) + '</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
+      (veEsp() ? '<span style="text-align:right"><small>Efectivo en caja</small><b style="font-size:20px' + (esperado(c) < 0 ? ';color:#b3261e' : '') + '">' + money(esperado(c)) + '</b>' + (esperado(c) < 0 ? '<small style="color:#b3261e;font-weight:700">Salió más de lo que entró</small>' : '') + '<button class="x" data-cj="det" style="display:block;margin-left:auto;font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">Ver detalle</button></span>' : '<span style="text-align:right"><small>' + (X.palabra(2).charAt(0).toUpperCase() + X.palabra(2).slice(1)) + '</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
       '<div class="cjg"><button class="go alt" data-cj="mov">Sacar / poner</button><button class="go" data-cj="close">Cerrar caja</button></div></div>';
   }
   function paint() { document.querySelectorAll('.cjbar').forEach((e) => { e.innerHTML = barInner(); }); }
@@ -124,7 +131,7 @@ export function createCaja(X) {
     const otros = ['tr', 'tj', 'qr', 'fi'].filter((k) => (p[k] || 0) || (cb[k] || 0));
     if (otros.length) h += '<div class="k" style="margin-top:12px"><b>Otros medios</b> (no van a la caja)</div><div class="rows" style="margin:4px 0 0">' + otros.map((k) => r(k === 'fi' ? 'Quedó fiado' : PAY[k], money((p[k] || 0) + (cb[k] || 0)))).join('') + '</div>';
     const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(a.h).localeCompare(String(b.h)));
-    if (mv.length) h += '<div class="k" style="margin-top:12px"><b>Movimientos</b></div>' + mv.map((m) => '<div class="it"><div><b>' + (m.t === 'r' ? 'Sacó' : 'Puso') + ' ' + money(m.a) + '</b><small>' + esc(m.h || '') + ' · ' + esc(m.r || '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>').join('');
+    if (mv.length) h += '<div class="k" style="margin-top:12px"><b>Movimientos</b></div>' + mv.map((m) => mvHtml(m)).join('');
     return h;
   }
   const difHtml = (d) => d === 0 ? '<b style="color:#1a8f4c">Justo ✓</b>' : d < 0 ? '<b style="color:#b3261e">Faltan ' + money(-d) + '</b>' : '<b style="color:var(--sell)">Sobran ' + money(d) + '</b>';
@@ -209,14 +216,20 @@ export function createCaja(X) {
     setDoc(ref(c.id), { n: increment(s), v: increment(s * tot), p }, { merge: true }).catch(() => {});
     return c.id;
   }
-  function anular(o, cj) { if (S.caja && cj && S.caja.id === cj) venta(Object.assign({}, o, { sign: -1 })); }
+  // Borrar una venta de la caja abierta: se resta y queda anotado en los movimientos (quién, cuándo, cuánto).
+  function anular(o, cj) {
+    if (!(S.caja && cj && S.caja.id === cj)) return;
+    venta(Object.assign({}, o, { sign: -1 }));
+    const a = Math.round(o.hoy != null ? o.hoy : (o.tot || 0));
+    setDoc(ref(cj), { mv: { [uid()]: { t: 'b', a, pay: o.pay || 'ef', r: String(o.det || '').slice(0, 80), h: now(), bn: X.nm() } } }, { merge: true }).catch(() => {});
+  }
   function cobro(pay, a) {
     const c = S.caja; if (!enUso() || !c || !(a > 0)) return null;
     setDoc(ref(c.id), { c: { [pay || 'ef']: increment(Math.round(a)) } }, { merge: true }).catch(() => {});
     return c.id;
   }
   function action(a, id) {
-    if (a === 'open') abrir(); else if (a === 'mov') mover(); else if (a === 'close') cerrar();
+    if (a === 'open') abrir(); else if (a === 'mov') mover(); else if (a === 'close') cerrar(); else if (a === 'det') verDetalle();
     else if (a === 'ver') { const c = (S.mes || []).find((x) => x.id === id); if (c) ver(c); }
     else if (a === 'fix') { const c = (S.mes || []).find((x) => x.id === id); if (c) { document.querySelectorAll('.cjdlg').forEach((e) => e.remove()); corregir(c); } }
   }
@@ -229,7 +242,7 @@ export function createCaja(X) {
     if (c) {
       const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(b.h).localeCompare(String(a.h)));
       h += '<div class="card"><b>Caja de hoy</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' por ' + esc(c.bn || '') + ' · ' + ventasTxt(c) + '</div>' +
-        (veEsp() ? filas(c) : (mv.length ? '<div class="k" style="margin-top:12px"><b>Plata que se sacó o se puso</b></div>' + mv.map((m) => '<div class="it"><div><b>' + (m.t === 'r' ? 'Sacó' : 'Puso') + ' ' + money(m.a) + '</b><small>' + esc(m.h || '') + ' · ' + esc(m.r || '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>').join('') : '<div class="k" style="margin-top:10px">Todavía no se sacó ni se puso plata. Si sacás para pagar algo, anotalo con "Sacar / poner" así el cierre da justo.</div>')) +
+        (veEsp() ? filas(c) : (mv.length ? '<div class="k" style="margin-top:12px"><b>Plata que se sacó o se puso</b></div>' + mv.map((m) => mvHtml(m)).join('') : '<div class="k" style="margin-top:10px">Todavía no se sacó ni se puso plata. Si sacás para pagar algo, anotalo con "Sacar / poner" así el cierre da justo.</div>')) +
         '</div>';
     } else if (!S.err) {
       h += '<div class="card"><b>¿Cómo funciona?</b><div class="k" style="margin-top:6px;line-height:1.5">1. Al empezar el día abrís la caja con el efectivo que hay (el cambio).<br>2. Cada ' + X.palabra(1) + ' suma sola según cómo pagó.<br>3. Si sacás o ponés plata (un flete, cambio), lo anotás con el motivo.<br>4. Al terminar, contás el efectivo y cerrás: ' + (A ? 'te dice si falta o sobra.' : 'el dueño ve si falta o sobra.') + '</div></div>';

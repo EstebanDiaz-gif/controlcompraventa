@@ -923,7 +923,7 @@ function xDraw(){var e=$('xph');if(e)e.innerHTML=xHtml()}
 function baseDocs(b){return ST.filter(function(d){return key(d.s||d.n)==b})}
 function priceOf(b,k){var v=0;baseDocs(b).forEach(function(d){var x=k=='mayor'?d.pm:d.pn;if(x)v=x});return v}
 function addMov(mv){addMovs([mv])}
-function delMov(mv){if(mv.t=='v'&&mv.cj)CJ.anular(mv.fia?{tot:mv.q*mv.u,hoy:mv.fia.ent||0,fi:mv.fia.mtoFiado,pay:mv.pay}:{tot:mv.q*mv.u,pay:mv.pay},mv.cj);var b=writeBatch(db);b.delete(mref(mv.id));
+function delMov(mv){var dt=mv.p+(mv.z?' talle '+mv.z:'')+(mv.q>1?' x'+mv.q:'');if(mv.t=='v'&&mv.cj)CJ.anular(mv.fia?{tot:mv.q*mv.u,hoy:mv.fia.ent||0,fi:mv.fia.mtoFiado,pay:mv.pay,det:dt}:{tot:mv.q*mv.u,pay:mv.pay,det:dt},mv.cj);var b=writeBatch(db);b.delete(mref(mv.id));
 if(!mv.imp)b.set(sref(pk(mv)),{q:increment(-sgn(mv.t)*mv.q)},{merge:true});b.commit().catch(fail)}
 function sellMov(mv,stockId){var b=writeBatch(db);b.set(mref(mv.id),mv);b.update(doc(db,'stores',SID,'stock',stockId),{q:increment(-mv.q)});b.commit().catch(fail)}
 
@@ -1494,7 +1494,7 @@ var tid=ATPRE&&ATPRE.tid;if(tid)b.update(doc(db,'stores',SID,'turnos',tid),{st:'
 b.commit().catch(fail);month=a.d.slice(0,7);
 if(tid){ATPRE=null;box.innerHTML='';show('agd');return}
 $('acl').value='';$('apr').dataset.auto='1';upd(true);$('atot').textContent='Guardado ✓'}}
-function delAtt(id){var a=null;AT.forEach(function(x){if(String(x.id)==id)a=x});if(!a||!confirm('¿Borrar esta atención? Los insumos vuelven al stock.'))return;if(a.cj)CJ.anular({tot:a.cob,pay:a.pm},a.cj);
+function delAtt(id){var a=null;AT.forEach(function(x){if(String(x.id)==id)a=x});if(!a||!confirm('¿Borrar esta atención? Los insumos vuelven al stock.'))return;if(a.cj)CJ.anular({tot:a.cob,pay:a.pm,det:'Atención'},a.cj);
 var b=writeBatch(db);b.delete(doc(db,'stores',SID,'atenciones',String(a.id)));
 (a.ins||[]).forEach(function(i){if(ST.some(function(x){return x.id==i.id}))b.update(doc(db,'stores',SID,'stock',i.id),{q:increment(i.q)})});b.commit().catch(fail)}
 /* configuración: servicios, formas de pago y comisiones (administrador) */
