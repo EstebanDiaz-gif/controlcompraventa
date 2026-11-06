@@ -304,7 +304,7 @@ var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
-isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},rp:function(){return RP},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP},catLink:function(){return catLink()}});
+isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},rp:function(){return RP},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP},catLink:function(){return catLink()},igTema:function(){return igTema()}});
 // Promociones: las ven todos (Caja del almacén) y las administra un administrador.
 var PRM=[],PREVTAB='';
 var PRO=createPromos({db:db,$:$,esc:esc,money:money,rnd:rnd,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},
@@ -1256,10 +1256,13 @@ return out.sort(function(a,b){return a.n.localeCompare(b.n)})}
 function stkMatch(g){var t=key(STQ).split(/\s+/).filter(Boolean);if(!t.length)return true;
 var hay=key(g.n+' '+g.s+' '+(g.cat||'')+' '+g.sz.map(function(z){return z.z+' t'+z.z}).join(' '));return t.every(function(w){return hay.indexOf(w)>=0})}
 function szLine(g){return '<small>Talles: '+g.sz.map(function(z){return esc(z.z)+' ('+(z.q<0?'<span class="neg">'+z.q+'</span>':z.q)+')'}).join(', ')+'</small>'}
+// Fecha especial activa (la que eligió la tienda o la general de Pekeron) para el estilo de Instagram de esa fecha.
+function igTema(){var now=Date.now(),id=SID?temaEfectivo(PUB,GLOB,now):'';if(!id||!TEMAS[id])return null;var t=TEMAS[id];
+return {id:id,nombre:t.nombre,emoji:t.emoji,titulo:t.titulo,wa:t.wa,regalo:t.regalo,deco:t.deco,ban:t.ban,cuenta:faltan(now,proxima(id,now))<=40?cuentaRegresiva(now,proxima(id,now)):''}}
 // Publicar un modelo en Instagram: foto, nombre, precio de venta y los talles que hay.
 function instaRopa(b){var g=stkRows().filter(function(x){return x.b==b})[0];if(!g)return;var L=catLink();
 var tz=g.sz.filter(function(z){return z.q>0}).map(function(z){return z.z});
-abrirInsta({nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tienda:SNAME,money:money,
+abrirInsta({nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tema:igTema(),tienda:SNAME,money:money,
 link:L+(L.indexOf('?')>=0?'&':'?')+'p='+encodeURIComponent(b),fotoHD:function(){return getDoc(fref(b)).then(function(s){return (s.exists()&&s.data().f)||''}).catch(function(){return ''})}})}
 function stkBody(){
 var all=stkRows(),rows=all.filter(stkMatch),adm=ROLE=='admin';

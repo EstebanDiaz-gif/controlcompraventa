@@ -8,6 +8,8 @@
 //   talles: ['38','39'] (se dibujan como etiquetas) · logo: logo de la tienda (data URL), si tiene.
 //
 // Tres estilos (Moderno, Minimal, Impacto) en dos formatos (publicación 4:5 e historia 9:16).
+// Si la tienda tiene una fecha especial activa (Navidad, Día de la Madre…), se suma un cuarto estilo de esa fecha:
+//   tema: { nombre, emoji, titulo, wa, regalo, deco, ban: { g, ink, cd, cdi }, cuenta: 'Faltan 5 días' }
 // El color de acento sale de la foto (su color más vivo), así cada producto queda combinado con su imagen.
 
 const FMT = { post: { w: 1080, h: 1350, t: 'Publicación' }, story: { w: 1080, h: 1920, t: 'Historia' } };
@@ -27,7 +29,7 @@ function fuentes() {
   fontsP = new Promise((res) => {
     const fin = () => {
       if (!document.fonts || !document.fonts.load) { res(); return; }
-      Promise.all(['800 80px "Bricolage Grotesque"', '600 30px "Bricolage Grotesque"', '700 64px "Fraunces"', 'italic 600 40px "Fraunces"'].map((f) => document.fonts.load(f).catch(() => null))).then(() => res(), () => res());
+      Promise.all(['800 80px "Bricolage Grotesque"', '600 30px "Bricolage Grotesque"', '700 64px "Fraunces"', 'italic 600 40px "Fraunces"', 'italic 600 80px "Fraunces"'].map((f) => document.fonts.load(f).catch(() => null))).then(() => res(), () => res());
     };
     const l = document.createElement('link'); l.rel = 'stylesheet';
     l.href = 'https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Fraunces:ital,opsz,wght@0,9..144,600..700;1,9..144,600&display=swap';
@@ -63,13 +65,16 @@ function vivo(img) {
   } catch (e) { return null; }
 }
 
-export function textoInsta(o) {
-  const l = ['✨ ' + o.nombre];
+export function textoInsta(o, est) {
+  const T = est === 'temporada' && o.tema, l = [];
+  if (T) { l.push(T.emoji + ' ' + T.titulo + ' ' + T.emoji, ''); }
+  l.push('✨ ' + o.nombre);
   if (o.precio > 0) l.push('💲 ' + o.money(o.precio) + (o.porKg ? ' el kilo' : ''));
   if (o.detalle) l.push(o.detalle);
+  if (T && T.regalo && T.wa) l.push('🎁 Ideal ' + T.wa);
   l.push('', '📲 Pedilo por WhatsApp o desde nuestro catálogo (link en la bio)');
   if (o.link) l.push(o.link);
-  const tags = [tag(o.tienda), tag(o.cat)].filter(Boolean);
+  const tags = [tag(o.tienda), tag(o.cat), T ? tag(T.nombre) : ''].filter(Boolean);
   if (tags.length) l.push('', tags.join(' '));
   return l.join('\n');
 }
@@ -219,22 +224,78 @@ function impacto(ctx, W, H, o, img, ac, fmt) {
   ctx.textAlign = 'left';
 }
 
+// FECHA ESPECIAL: degradé y colores de la fecha, adornos de fondo, título en letra caligráfica,
+// la foto en un marco con arco y la cuenta regresiva.
+function colores(g) { return (String(g || '').match(/#[0-9a-f]{3,6}\b/gi) || []).map((h) => h.length === 4 ? '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3] : h); }
+function florC(ctx, x, y, r, c1, c2, rot) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0); ctx.fillStyle = c1;
+  for (let i = 0; i < 5; i++) { ctx.save(); ctx.rotate(i * Math.PI * 2 / 5); ctx.beginPath(); ctx.ellipse(0, -r * 0.46, r * 0.3, r * 0.46, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+  ctx.fillStyle = c2; ctx.beginPath(); ctx.arc(0, 0, r * 0.26, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+function adorno(ctx, dc, x, y, sz, rot) {
+  if (String(dc).indexOf('flor:') === 0) { const p = dc.split(':'); florC(ctx, x, y, sz / 2, p[1], p[2], rot); return; }
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot || 0); ctx.font = sz + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(dc, 0, 0); ctx.restore();
+}
+function arco(ctx, x, y, w, h) { const r = w / 2; ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x, y + r); ctx.arc(x + r, y + r, r, Math.PI, 0); ctx.lineTo(x + w, y + h - 28); ctx.arcTo(x + w, y + h, x + w - 28, y + h, 28); ctx.lineTo(x + 28, y + h); ctx.arcTo(x, y + h, x, y + h - 28, 28); ctx.closePath(); }
+function temporada(ctx, W, H, o, img, ac, fmt) {
+  const T = o.tema || {}, B = T.ban || {}, cs = colores(B.g), st = fmt === 'story';
+  const ink = B.ink || '#fff', cd = B.cd || '#fff', cdi = B.cdi || '#111';
+  const g = ctx.createLinearGradient(0, 0, W, H); (cs.length ? cs : ['#1D3FAF', '#3b5bd6']).forEach((c, i, a) => g.addColorStop(a.length > 1 ? i / (a.length - 1) : 0, c));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // adornos chiquitos de fondo, siempre en el mismo lugar
+  const dec = (T.deco || []).map((d) => d[0]); let k = 7;
+  const rnd = () => { k = (k * 9301 + 49297) % 233280; return k / 233280; };
+  ctx.globalAlpha = 0.16;
+  for (let yy = 40; yy < H; yy += st ? 210 : 190) for (let xx = (yy / 10) % 120; xx < W; xx += 230) { if (dec.length) adorno(ctx, dec[Math.floor(rnd() * dec.length)], xx + rnd() * 60, yy + rnd() * 50, 46 + rnd() * 18, rnd() - 0.5); }
+  ctx.globalAlpha = 1;
+  const M = 64, top = st ? 120 : 56;
+  // tienda y cuenta regresiva
+  let lx = M; if (o._lg) { logoCirc(ctx, o._lg, M, top, 70, cd); lx = M + 70 + 20; }
+  ctx.fillStyle = ink; ctx.font = '800 32px ' + FD; ctx.fillText(lineas(ctx, o.tienda || '', W / 2 - lx, 1)[0] || '', lx, top + 46);
+  if (T.cuenta) { ctx.font = '800 30px ' + FD; const cw = ctx.measureText(T.cuenta).width + 48; ctx.fillStyle = cd; rr(ctx, W - M - cw, top + 8, cw, 58, 29); ctx.fill(); ctx.fillStyle = cdi; ctx.fillText(T.cuenta, W - M - cw + 24, top + 48); }
+  // título
+  ctx.textAlign = 'center'; ctx.fillStyle = ink;
+  const TT = ajustar(ctx, T.titulo || T.nombre || '', W - M * 2, 1, 'italic 600', st ? 92 : 78, 46, FS);
+  const ty = top + (st ? 210 : 170); ctx.fillText(TT.l[0] || '', W / 2, ty);
+  ctx.globalAlpha = 0.7; ctx.fillRect(W / 2 - 150, ty + 28, 110, 3); ctx.fillRect(W / 2 + 40, ty + 28, 110, 3); ctx.globalAlpha = 1;
+  adorno(ctx, T.emoji || '✨', W / 2, ty + 30, 34, 0);
+  // foto en arco
+  const fw = st ? 840 : 700, fh = st ? 940 : 660, fx = (W - fw) / 2, fy = ty + (st ? 90 : 72);
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.32)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 22; ctx.fillStyle = cd; arco(ctx, fx - 14, fy - 14, fw + 28, fh + 28); ctx.fill(); ctx.restore();
+  ctx.save(); arco(ctx, fx, fy, fw, fh); ctx.clip(); if (img) cover(ctx, img, fx, fy, fw, fh); else { ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.fillRect(fx, fy, fw, fh); } ctx.restore();
+  if (dec[0]) adorno(ctx, dec[0], fx + fw - 10, fy + fw * 0.18, st ? 150 : 128, 0.18);
+  if (dec[1]) adorno(ctx, dec[1], fx + 10, fy + fh - 30, st ? 112 : 96, -0.2);
+  // nombre, precio, talles
+  let y = fy + fh + (st ? 120 : 92); ctx.fillStyle = ink;
+  const N = ajustar(ctx, o.nombre, W - M * 2, 2, '800', st ? 70 : 54, 38, FD);
+  N.l.forEach((t, i) => ctx.fillText(t, W / 2, y + i * N.t * 1.05)); y += (N.l.length - 1) * N.t * 1.05;
+  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : '';
+  if (precio) { y += st ? 40 : 26; ctx.font = '800 ' + (st ? 76 : 62) + 'px ' + FD; const pw = ctx.measureText(precio).width + 70, ph = st ? 112 : 92; ctx.fillStyle = cd; rr(ctx, W / 2 - pw / 2, y, pw, ph, ph / 2); ctx.fill(); ctx.fillStyle = cdi; ctx.fillText(precio, W / 2, y + ph * 0.72); y += ph; }
+  if (o.talles && o.talles.length) { y += st ? 62 : 46; ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.font = '700 ' + (st ? 34 : 28) + 'px ' + FD; ctx.fillText(lineas(ctx, 'Talles ' + o.talles.join(' · '), W - M * 2, 1)[0], W / 2, y); ctx.globalAlpha = 1; }
+  ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.font = 'italic 600 ' + (st ? 36 : 30) + 'px ' + FS;
+  const pie = st ? 'Tocá el enlace y pedilo 👇' : (T.regalo && T.wa ? 'Ideal ' + T.wa : 'Pedilo por WhatsApp') + ' · link en la bio';
+  ctx.fillText(pie, W / 2, st ? Math.max(y + 90, H - 300) : H - 38); ctx.globalAlpha = 1; ctx.textAlign = 'left';
+}
+
 export function dibujar(cv, o, img, fmt, est) {
   const F = FMT[fmt] || FMT.post, W = F.w, H = F.h, ctx = cv.getContext('2d');
   cv.width = W; cv.height = H; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
   const ac = (img && vivo(img)) || parse(o.color);
-  ({ moderno, minimal, impacto }[est] || moderno)(ctx, W, H, o, img, ac, fmt);
+  ({ moderno, minimal, impacto, temporada }[est] || moderno)(ctx, W, H, o, img, ac, fmt);
 }
 
 export function abrirInsta(o) {
   o.color = o.color || cssVar('--btn', '#1D3FAF');
+  // Con una fecha especial activa, su estilo aparece primero y elegido.
+  const ES = o.tema ? Object.assign({ temporada: o.tema.emoji + ' ' + (o.tema.nombre.length > 12 ? o.tema.nombre.split(' ').slice(-1)[0] : o.tema.nombre) }, EST) : EST;
+  let est = o.tema ? 'temporada' : 'moderno';
   const old = document.getElementById('igdlg'); if (old) old.remove();
   const d = document.createElement('div'); d.id = 'igdlg';
   d.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
   const seg = (attr, obj, sel) => '<div style="display:flex;gap:6px;background:var(--card,#f4f3f0);padding:5px;border-radius:14px;margin-top:8px">' + Object.keys(obj).map((k) => '<button type="button" data-' + attr + '="' + k + '" aria-pressed="' + (k === sel) + '" style="flex:1;border:0;border-radius:10px;padding:10px 6px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;' + (k === sel ? 'background:var(--btn,#1D3FAF);color:var(--btnink,#fff)' : 'background:transparent;color:var(--ink,#111)') + '">' + (typeof obj[k] === 'string' ? obj[k] : obj[k].t) + '</button>').join('') + '</div>';
   d.innerHTML = '<div style="background:var(--bg,#fff);color:var(--ink,#111);width:100%;max-width:520px;max-height:94vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:19px">📸 Publicar en Instagram</b><button type="button" class="x" data-igx="1" style="font-size:15px;font-weight:700;text-decoration:underline">Cerrar</button></div>' +
-    '<div id="igest">' + seg('ige', EST, 'moderno') + '</div><div id="igfmt">' + seg('igf', FMT, 'post') + '</div>' +
+    '<div id="igest">' + seg('ige', ES, est) + '</div><div id="igfmt">' + seg('igf', FMT, 'post') + '</div>' +
     '<div style="display:flex;justify-content:center;background:var(--card,#f4f3f0);border-radius:16px;padding:10px;margin-top:10px"><canvas id="igcv" style="width:auto;max-width:100%;max-height:48vh;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.2)"></canvas></div>' +
     '<label for="igtx" style="margin-top:14px">Texto de la publicación</label><textarea id="igtx" rows="7" style="width:100%;font:inherit;font-size:15px;line-height:1.4"></textarea>' +
     '<button type="button" class="go" id="igsh" style="margin-top:12px">Compartir en Instagram</button>' +
@@ -243,8 +304,8 @@ export function abrirInsta(o) {
     '<div class="k" style="margin-top:6px">Al tocar <b>Compartir</b> el texto se copia solo. En Instagram elegí Publicación o Historia, y en el texto mantené apretado y tocá <b>Pegar</b>.</div></div>';
   document.body.appendChild(d);
   const $ = (id) => d.querySelector('#' + id), cv = $('igcv'), tx = $('igtx'), msg = (t) => { $('igmsg').textContent = t; };
-  tx.value = textoInsta(o);
-  let fmt = 'post', est = 'moderno', img = null, file = null, gen = 0;
+  let auto = textoInsta(o, est); tx.value = auto;
+  let fmt = 'post', img = null, file = null, gen = 0;
   const nombreArch = (o.nombre || 'producto').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40) || 'producto';
   // El archivo se prepara antes del toque: el menú de compartir solo se abre si se llama enseguida al tocar.
   const render = () => {
@@ -259,7 +320,9 @@ export function abrirInsta(o) {
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('[data-igx]')) { d.remove(); return; }
     const f = e.target.closest('[data-igf]'); if (f) { fmt = f.dataset.igf; marcar('igf', fmt); render(); return; }
-    const s = e.target.closest('[data-ige]'); if (s) { est = s.dataset.ige; marcar('ige', est); render(); }
+    const s = e.target.closest('[data-ige]'); if (s) { est = s.dataset.ige; marcar('ige', est); render();
+      // el texto se adapta al estilo, salvo que la persona ya lo haya cambiado
+      const nu = textoInsta(o, est); if (tx.value === auto) tx.value = nu; auto = nu; }
   });
   $('igcp').onclick = () => { copiar().then((ok) => msg(ok ? 'Texto copiado ✓' : 'No pude copiar: seleccioná el texto y copialo a mano.')); };
   $('igdl').onclick = () => { const ok = descargar(); copiar().then((c) => msg(ok ? 'Imagen descargada' + (c ? ' y texto copiado' : '') + '. Subila desde Instagram.' : 'No pude descargar la imagen.')); };
