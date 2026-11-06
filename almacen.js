@@ -8,7 +8,7 @@
 // - El costo de cada venta se guarda al momento de vender (costo promedio del producto),
 //   así no hace falta recorrer el historial de compras para calcular la ganancia.
 // - Cada cliente del fiado tiene su saldo ya calculado (campo s).
-import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 import { fotoId, makePhotos } from './fotos.js';
 import { abrirInsta } from './insta.js';
@@ -487,6 +487,12 @@ export function createAlmacen(X) {
     return '<label>¿A quién le fiás?</label><input id="cjcq" type="search" placeholder="Buscar cliente" autocomplete="off" value="' + esc(S.cliQ) + '"><div id="cjcl">' + cliList() + '</div>' +
       '<button class="x" data-al="newcli" data-pick="1" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">+ Cliente nuevo</button>';
   }
+  // Avisa (una sola vez por tanda) que la venta se guardó pero no se pudo descontar el stock de algún producto.
+  let sfT = null, sfL = [];
+  function stockFallo(n) {
+    if (sfL.indexOf(n) < 0) sfL.push(n); clearTimeout(sfT);
+    sfT = setTimeout(() => { const l = sfL.slice(); sfL = []; alert('La venta se guardó ✓, pero no pude descontar del stock: ' + l.join(', ') + '.\n\nAvisale al administrador: tiene que abrir ese producto en Stock, revisar la cantidad y guardarlo.'); }, 400);
+  }
   function cobrar() {
     if (!S.cart.length) return;
     if (!X.canWrite()) { alert('El acceso de la tienda venció.'); return; }
@@ -515,17 +521,33 @@ export function createAlmacen(X) {
     // lo vendido por producto en el mes (para "Lo más vendido")
     const prInc = {}; it.forEach((x) => { if (!x.id || !prod(x.id)) return; const o = prInc[x.id] || (prInc[x.id] = { q: 0, v: 0, n: x.n }); o.q = r3(o.q + x.q); o.v += Math.round(x.q * x.u); });
     Object.keys(prInc).forEach((k) => { prInc[k] = { q: increment(prInc[k].q), v: increment(prInc[k].v), n: (prod(k) || {}).n || prInc[k].n }; });
-    const b = writeBatch(db);
+    const b = writeBatch(db), escr = [];   // [nombre, ref, datos, merge]
     if (S.pay === 'fi') {
       const c = cli(S.cli), fid = uid();
       v.cli = c.id; v.cn = c.n; v.fid = fid;
-      b.set(doc(db, 'stores', sid, 'fiado', fid), { id: fid, cid: c.id, t: 'f', a: tot, d, m, vid: id, det: it.map((x) => x.n + (x.w ? ' ' + fq(x.q, 1) : (x.q > 1 ? ' x' + n3(x.q) : ''))).join(', ').slice(0, 300), by: u.uid, bn: X.nm() });
-      b.update(doc(db, 'stores', sid, 'clientes', c.id), Object.assign({ s: increment(tot), u: Date.now() }, c.s <= 0 ? { fd: X.today() } : {}));
+      escr.push(['fiado', doc(db, 'stores', sid, 'fiado', fid), { id: fid, cid: c.id, t: 'f', a: tot, d, m, vid: id, det: it.map((x) => x.n + (x.w ? ' ' + fq(x.q, 1) : (x.q > 1 ? ' x' + n3(x.q) : ''))).join(', ').slice(0, 300), by: u.uid, bn: X.nm() }, false]);
+      escr.push(['cliente', doc(db, 'stores', sid, 'clientes', c.id), Object.assign({ s: increment(tot), u: Date.now() }, c.s <= 0 ? { fd: X.today() } : {}), true]);
     }
-    b.set(doc(db, 'stores', sid, 'ventas', id), v);
-    it.forEach((x) => { if (ctl(x.id)) b.update(doc(db, 'stores', sid, 'stock', x.id), { q: increment(-x.q) }); });
-    b.set(doc(db, 'stores', sid, 'totales', m), { v: increment(tot), c: increment(cost), n: increment(1), pay: payInc, pr: prInc, dias: { [dd]: { v: increment(tot), c: increment(cost), n: increment(1) } } }, { merge: true });
-    b.commit().catch(failW);
+    escr.push(['venta', doc(db, 'stores', sid, 'ventas', id), v, false]);
+    escr.push(['totales del mes', doc(db, 'stores', sid, 'totales', m), { v: increment(tot), c: increment(cost), n: increment(1), pay: payInc, pr: prInc, dias: { [dd]: { v: increment(tot), c: increment(cost), n: increment(1) } } }, true]);
+    escr.forEach((x) => b.set(x[1], x[2], x[3] ? { merge: true } : undefined));
+    b.commit().catch((e) => {
+      if (!deny(e)) { X.fail(e); return; }
+      // Firebase rechazó algo: se guarda cada parte por separado para no perder la venta y saber qué parte fue.
+      Promise.all(escr.map((x) => setDoc(x[1], x[2], x[3] ? { merge: true } : {}).then(() => '', (er) => { console.warn('Venta: Firebase rechazó', x[0], er && er.code); return x[0]; })))
+        .then((r) => { const no = r.filter(Boolean), ok = no.indexOf('venta') < 0;
+          alert((ok ? 'La venta se guardó ✓, pero Firebase no dejó guardar: ' : 'No se pudo guardar la venta. Firebase no dejó guardar: ') + no.join(', ') + '.\n\nMandale este mensaje a Pekeron App (usuario: ' + X.nm() + ').'); });
+    });
+    // El stock va aparte y producto por producto: si Firebase rechaza uno (por ejemplo un producto con el stock mal
+    // guardado), la venta ya quedó registrada igual y se avisa cuál fue, en vez de perder la venta entera.
+    const desc = {}; it.forEach((x) => { if (ctl(x.id)) desc[x.id] = r3((desc[x.id] || 0) + x.q); });
+    Object.keys(desc).forEach((pid) => {
+      if (!(desc[pid] > 0)) return;
+      updateDoc(doc(db, 'stores', sid, 'stock', pid), { q: increment(-desc[pid]) }).catch((e) => {
+        const pn = (prod(pid) || {}).n || pid; console.warn('No se pudo descontar el stock de', pn, pid, e && e.code);
+        if (deny(e)) stockFallo(pn);
+      });
+    });
     // La caja va aparte: si justo la cerraron en otro equipo, la venta igual se guarda.
     if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
     if (ENV && RPm()) RPm().registrar(ENV, { det: it.filter((x) => !x.env).map((x) => x.n).join(', '), vid: id });
@@ -766,7 +788,8 @@ export function createAlmacen(X) {
       o.img = E.img; o.hd = E.hd ? 1 : deleteField();
       if (E.hd) b.set(ref('public', fotoId(id)), { f: E.hd, at: Date.now() }); else b.delete(ref('public', fotoId(id)));
     }
-    if (p) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = q;
+    // Si el stock guardado no es un número válido, se pone la cantidad contada tal cual (así se corrige solo al guardar).
+    if (p && typeof p.q === 'number' && isFinite(p.q)) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = isFinite(q) ? q : 0;
     b.set(ref('stock', id), o, { merge: true });
     b.commit().catch(failW);
     if (s) aportar(s, n, E.img !== undefined ? E.img : (p && p.img) || '');
