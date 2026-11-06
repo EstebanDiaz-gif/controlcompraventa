@@ -198,6 +198,7 @@ import {firebaseConfig} from './firebase-config.js';
 import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
+import {abrirInsta} from './insta.js';
 import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
 import {createRepartos} from './repartos.js';
@@ -303,7 +304,7 @@ var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
-isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},rp:function(){return RP},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP}});
+isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},rp:function(){return RP},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP},catLink:function(){return catLink()}});
 // Promociones: las ven todos (Caja del almacén) y las administra un administrador.
 var PRM=[],PREVTAB='';
 var PRO=createPromos({db:db,$:$,esc:esc,money:money,rnd:rnd,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},
@@ -1255,10 +1256,15 @@ return out.sort(function(a,b){return a.n.localeCompare(b.n)})}
 function stkMatch(g){var t=key(STQ).split(/\s+/).filter(Boolean);if(!t.length)return true;
 var hay=key(g.n+' '+g.s+' '+(g.cat||'')+' '+g.sz.map(function(z){return z.z+' t'+z.z}).join(' '));return t.every(function(w){return hay.indexOf(w)>=0})}
 function szLine(g){return '<small>Talles: '+g.sz.map(function(z){return esc(z.z)+' ('+(z.q<0?'<span class="neg">'+z.q+'</span>':z.q)+')'}).join(', ')+'</small>'}
+// Publicar un modelo en Instagram: foto, nombre, precio de venta y los talles que hay.
+function instaRopa(b){var g=stkRows().filter(function(x){return x.b==b})[0];if(!g)return;var L=catLink();
+var tz=g.sz.filter(function(z){return z.q>0}).map(function(z){return z.z});
+abrirInsta({nombre:g.n,precio:g.pn||g.pm,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),tienda:SNAME,money:money,
+link:L+(L.indexOf('?')>=0?'&':'?')+'p='+encodeURIComponent(b),fotoHD:function(){return getDoc(fref(b)).then(function(s){return (s.exists()&&s.data().f)||''}).catch(function(){return ''})}})}
 function stkBody(){
 var all=stkRows(),rows=all.filter(stkMatch),adm=ROLE=='admin';
 var h='<div class="card tbl"><table><tr><th>Producto</th><th>Stock</th>'+(adm?'<th>Costo prom.</th><th>Valor</th>':'')+'</tr>';
-rows.forEach(function(g){var im=photoOf(g.b);h+='<tr><td>'+(im?'<img src="'+im+'" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">':'')+esc(g.n)+(g.s?'<br><small>'+esc(g.s)+'</small>':'')+(g.cat?'<br><em class="tag" style="margin-top:4px;display:inline-block">'+esc(g.cat)+'</em>':'')+(g.sz.length?'<br>'+szLine(g):'')+((g.pm||g.pn)?'<br><small>Mayor '+(g.pm?money(g.pm):'—')+' · Menor '+(g.pn?money(g.pn):'—')+'</small>':'')+(adm?'<br><button class="x" data-ed="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>':'')+'</td><td class="'+(g.q<0?'neg':'')+'">'+g.q+'</td>'+(adm?'<td>'+money(g.avg)+'</td><td>'+money(g.v)+'</td>':'')+'</tr>'});
+rows.forEach(function(g){var im=photoOf(g.b);h+='<tr><td>'+(im?'<img src="'+im+'" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">':'')+esc(g.n)+(g.s?'<br><small>'+esc(g.s)+'</small>':'')+(g.cat?'<br><em class="tag" style="margin-top:4px;display:inline-block">'+esc(g.cat)+'</em>':'')+(g.sz.length?'<br>'+szLine(g):'')+((g.pm||g.pn)?'<br><small>Mayor '+(g.pm?money(g.pm):'—')+' · Menor '+(g.pn?money(g.pn):'—')+'</small>':'')+(adm?'<br><button class="x" data-ed="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>':'')+((adm||MECP)&&(g.pn||g.pm)?'<button class="x" data-ig="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">📸 Instagram</button>':'')+'</td><td class="'+(g.q<0?'neg':'')+'">'+g.q+'</td>'+(adm?'<td>'+money(g.avg)+'</td><td>'+money(g.v)+'</td>':'')+'</tr>'});
 if(!rows.length)h+='<tr><td colspan="'+(adm?4:2)+'" class="empty">'+(all.length?'No encontré productos con esa búsqueda.':(adm?'Cargá tu primera compra para ver el stock.':'Todavía no hay productos cargados.'))+'</td></tr>';
 $('stkbody').innerHTML=h+'</table></div>'}
 // ---------- Importar desde Excel / CSV (tiendas de ropa y calzado; clientes con fiado) ----------
@@ -2049,7 +2055,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 document.addEventListener('click',function(e){
 if(e.target.closest&&RP.click(e))return;
 if(e.target.closest&&IS_OWNER&&VD.click(e))return;
-var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj],[data-nsuc],[data-ost],[data-cjfix],[data-famadd],[data-tr],[data-reinv]'))||e.target).dataset||{};
+var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj],[data-nsuc],[data-ost],[data-cjfix],[data-famadd],[data-tr],[data-reinv],[data-ig]'))||e.target).dataset||{};
 if(d.t){show(d.t);return}
 if(d.y){type=d.y;MAN=false;drawAdd();return}
 if(d.man){MAN=true;drawAdd();return}
@@ -2116,6 +2122,7 @@ if(d.tmall){TMALL=true;drawTeam();var tc=$('tmcard');if(tc)tc.scrollIntoView({bl
 if(d.bz){var bzE=$('bzc');if(!bzE||!bzE._tipo){alert('Elegí el tipo de negocio.');return}var bzo=tipoCfg(bzE._tipo,bzE.querySelector('#tgamb').checked);setDoc(doc(db,'stores',SID,'cfg','servicios'),bzo,{merge:true}).then(function(){alert('Guardado.')}).catch(fail);return}
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
 if(d.ed){startEdit(d.ed);return}
+if(d.ig){instaRopa(d.ig);return}
 if(d.edx){editAction(d.edx,d.i);return}
 if(d.pa){platAction(d.pa);return}
 if(d.pd){openDetail(d.pd);return}

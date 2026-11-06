@@ -11,6 +11,7 @@
 import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, onSnapshot, writeBatch, increment, query, where, deleteField } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 import { fotoId, makePhotos } from './fotos.js';
+import { abrirInsta } from './insta.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
@@ -356,6 +357,13 @@ export function createAlmacen(X) {
     o.querySelector('#pzok').onclick = ok;
     setTimeout(() => { i.focus(); i.select(); }, 60);
   }
+  // Publicar un producto en Instagram (foto, nombre, precio). El link abre el producto en el catálogo.
+  function instaProd(id) {
+    const p = prod(id); if (!p) return; const L = X.catLink ? X.catLink() : '';
+    abrirInsta({ nombre: p.n, precio: p.pn, porKg: !!p.w, cat: p.cat, foto: p.img || '', tienda: X.sname() || '', money,
+      link: L ? L + (L.indexOf('?') >= 0 ? '&' : '?') + 'p=' + encodeURIComponent(p.id) : '',
+      fotoHD: () => (p.hd ? getDoc(ref('public', fotoId(p.id))).then((s) => (s.exists() && s.data().f) || '').catch(() => '') : Promise.resolve('')) });
+  }
   function addProd(p, noFocus) {
     if (!p.pn) { precioDlg(p, (np) => addProd(np, noFocus)); return; }
     if (p.w) { weightDlg(p); return; }
@@ -688,6 +696,7 @@ export function createAlmacen(X) {
       h += '<div class="it"><div>' + (p.img ? '<img src="' + p.img + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">' : '') + '<b>' + esc(p.n) + '</b>' + (p.s ? '<span class="sku">' + esc(p.s) + '</span>' : '') +
         '<small>' + (p.cat ? '<em class="tag">' + esc(p.cat) + '</em>' : '') + priceTxt(p) + (adm() && p.c ? ' · costo ' + money(p.c) + (p.ce ? ' (estimado)' : '') + (mg != null ? ' · margen ' + mg + '%' : '') : '') + '</small>' +
         (load() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') +
+        (load() && p.pn > 0 ? '<button class="x" data-al="ig" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">📸 Instagram</button>' : '') +
         (load() && S.stNoCod ? '<button class="x" data-al="asigcod" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">Escanear código</button>' : '') + '</div>' +
         (p.ns ? '<div class="amt"><b>—</b><small>sin control</small></div></div>' : '<div class="amt"><b class="' + (p.q < 0 ? 'neg' : lw ? 'neg' : '') + '">' + fq(p.q, p.w) + '</b><small>' + (lw ? 'reponer' : 'en stock') + '</small></div></div>');
     });
@@ -1532,6 +1541,7 @@ export function createAlmacen(X) {
     else if (a === 'slow') { S.stLow = !S.stLow; S.stCat = ''; renderStock(); }
     else if (a === 'newp') { S.repo = null; prodForm(null); }
     else if (a === 'editp') prodForm(id);
+    else if (a === 'ig') instaProd(id);
     else if (a === 'fw') { S.edit.w = el.dataset.v === '1'; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); S.edit.lbl(); }
     else if (a === 'savep') saveProd();
     else if (a === 'delp') { if (adm()) delProd(); }
