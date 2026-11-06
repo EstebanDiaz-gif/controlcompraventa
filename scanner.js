@@ -1,13 +1,30 @@
 // Escáner de códigos de barras con la cámara del celular.
 //
 // Usa la librería html5-qrcode (Apache 2.0, copiada en vendor/). Cuando el navegador trae
-// lector de códigos propio (Chrome en Android) lo usa; si no (iPhone), lee el código por software.
+// lector de códigos propio (Chrome en Android) lo usa. Si no lo trae (iPhone, compus), carga el mismo lector
+// hecho en WebAssembly (barcode-detector / ZXing C++, MIT) desde jsDelivr, que lee mucho mejor los códigos
+// de barras que el lector por software de html5-qrcode. Si no se puede cargar, queda el de html5-qrcode.
 // Todo corre en el celular: no usa servidores ni hace lecturas extra en Firebase.
 // La librería se descarga recién la primera vez que alguien abre el escáner.
 
 const LIB = './vendor/html5-qrcode.min.js';
 let libP = null;
 let open = null; // escáner abierto (solo uno a la vez)
+const NATIVO = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+const PONY = 'https://fastly.jsdelivr.net/npm/barcode-detector@3/dist/es/ponyfill.min.js';
+const IOS = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+let ponyP = null;
+// Lector de códigos para navegadores que no lo traen. Se espera como mucho 8 s; si no llega, se sigue sin él.
+function loadPony() {
+  if (NATIVO) return Promise.resolve(false);
+  if (!ponyP) {
+    ponyP = Promise.race([
+      import(PONY).then((m) => { if (!m || !m.BarcodeDetector) return false; window.BarcodeDetector = m.BarcodeDetector; return true; }),
+      new Promise((res) => setTimeout(() => res(false), 8000))
+    ]).catch(() => false).then((ok) => { if (!ok) ponyP = null; return ok; });
+  }
+  return ponyP;
+}
 
 function loadLib() {
   if (window.__Html5QrcodeLibrary__) return Promise.resolve(window.__Html5QrcodeLibrary__);
@@ -154,15 +171,24 @@ export function openScanner(opts) {
     if (!inline && (r.close || !opts.multi)) { if (r.ok !== false || r.close) setTimeout(close, r.ok === false ? 900 : 250); }
   };
 
-  loadLib().then((L) => {
+  Promise.all([loadLib(), loadPony()]).then(([L, pony]) => {
     if (closed) return;
     const F = L.Html5QrcodeSupportedFormats;
     const formats = ['EAN_13', 'EAN_8', 'UPC_A', 'UPC_E', 'CODE_128', 'CODE_39', 'ITF', 'CODABAR', 'QR_CODE'].map((k) => F[k]).filter((x) => x != null);
     h = new L.Html5Qrcode('scnv', { formatsToSupport: formats, verbose: false, useBarCodeDetectorIfSupported: true, experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
     const box = (w, hh) => { const bw = Math.floor(w * 0.86); return { width: bw, height: Math.max(80, Math.floor(Math.min(hh * 0.6, bw * 0.55))) }; };
     const conf = { fps: 12, qrbox: box, disableFlip: true }; if (inline) conf.aspectRatio = 1.6;
+    // Sin lector propio (iPhone): más resolución, si no las barras finas no se distinguen.
+    if (!NATIVO) conf.videoConstraints = { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } };
     return h.start({ facingMode: 'environment' }, conf, onRead, () => {})
-      .then(() => { if (closed) { h.stop().catch(() => {}); return; } say('Apuntá la cámara al código de barras', ''); });
+      .then(() => {
+        if (closed) { h.stop().catch(() => {}); return; }
+        // iPhone Pro: la cámara principal no enfoca de cerca; con un poco de zoom se puede leer a 15–20 cm.
+        if (IOS) { try { const c = h.getRunningTrackCapabilities() || {}; if (c.zoom && c.zoom.max >= 1.6) h.applyVideoConstraints({ advanced: [{ zoom: Math.min(2, c.zoom.max) }] }).catch(() => {}); } catch (e) { /* sin zoom */ } }
+        say('Apuntá la cámara al código de barras', '');
+        if (IOS) subEl.textContent = 'Si no lo lee, alejá un poco el celular (unos 15 cm).';
+        if (!pony && !NATIVO) console.warn('escáner: sin lector WebAssembly, uso el de html5-qrcode');
+      });
   }).catch((e) => {
     if (closed) return;
     const n = String((e && (e.name || e.message)) || e || '');
