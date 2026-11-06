@@ -504,7 +504,7 @@ export function createAlmacen(X) {
   let sfT = null, sfL = [];
   function stockFallo(n) {
     if (sfL.indexOf(n) < 0) sfL.push(n); clearTimeout(sfT);
-    sfT = setTimeout(() => { const l = sfL.slice(); sfL = []; alert('La venta se guardó ✓, pero no pude descontar del stock: ' + l.join(', ') + '.\n\nAvisale al administrador: tiene que abrir ese producto en Stock, revisar la cantidad y guardarlo.'); }, 400);
+    sfT = setTimeout(() => { const l = sfL.slice(); sfL = []; diagPermiso(X.sid(), (X.user() || {}).uid).then((dg) => alert('Firebase no dejó descontar del stock: ' + l.join(', ') + '.\n\n' + dg + '\n\nMandale este mensaje a Pekeron App (usuario: ' + X.nm() + ').')); }, 400);
   }
   function cobrar() {
     if (!S.cart.length) return;
