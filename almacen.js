@@ -198,6 +198,26 @@ export function createAlmacen(X) {
     return '<div class="it"><div><b' + (bor ? ' style="color:#b3261e"' : '') + '>' + t + '</b><small>' + esc(m.h || '') + (bor && m.pay ? ' · ' + (PAY[m.pay] || m.pay) : '') + (m.r ? ' · ' + esc(m.r) : '') + (m.bn ? ' · ' + esc(m.bn) : '') + '</small></div></div>';
   }
   function cajaDet() { const c = S.caja; if (!c) return; modal('<b style="font-size:19px">Detalle de la caja</b><div class="k" style="margin-top:4px">Abierta a las ' + hm(c.ab) + ' por ' + esc(c.bn || '') + '</div>' + cajaRows(c) + '<button class="go" data-close="1" style="margin-top:16px">Listo</button>'); }
+  // Productos que más suman a la mercadería en stock: sirve para encontrar uno cargado mal (stock o costo de más).
+  function stockValDlg() {
+    const all = P().filter((p) => !p.ns && p.q > 0 && p.c > 0), tot = all.reduce((a, p) => a + p.q * p.c, 0) || 1;
+    const raro = (p) => {
+      const r = [];
+      if (/^\d{8,14}$/.test(String(p.n || '').trim())) r.push('el nombre es un código');
+      if (!p.w && p.q >= 1000) r.push('stock muy alto');
+      if (p.w && p.q >= 200) r.push('muchos kilos');
+      if (p.c >= 200000) r.push('costo muy alto');
+      if (p.pn > 0 && p.c > p.pn * 3) r.push('cuesta más que el precio');
+      return r;
+    };
+    const l = all.map((p) => ({ p, v: p.q * p.c, r: raro(p) })).sort((a, b) => b.v - a.v).slice(0, 20);
+    const o = modal('<b style="font-size:19px">¿Qué suma más?</b><div class="k" style="margin:4px 0 10px">Los 20 productos que más pesan en la mercadería en stock (' + money(tot) + '). Si uno solo se lleva casi todo, seguro tiene el stock o el costo mal cargado.</div>' +
+      l.map((x) => { const pc = Math.round(x.v / tot * 100); return '<div class="it" style="align-items:center"><div style="flex:1;min-width:0"><b' + (x.r.length ? ' style="color:#b3261e"' : '') + '>' + esc(x.p.n) + '</b>' +
+        '<small>' + fq(x.p.q, x.p.w) + ' × ' + money(x.p.c) + ' = <b>' + money(x.v) + '</b> (' + pc + '%)' + (x.r.length ? ' · ⚠️ ' + esc(x.r.join(', ')) : '') + '</small></div>' +
+        '<button class="x" data-ed="' + esc(x.p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-left:10px">Editar</button></div>'; }).join('') +
+      '<button class="go" data-close="1" style="margin-top:14px">Listo</button>');
+    o.querySelectorAll('[data-ed]').forEach((b) => { b.onclick = () => { o.remove(); prodForm(b.dataset.ed); window.scrollTo(0, 0); }; });
+  }
   function cajaRows(c) {
     const p = c.p || {}, cb = c.c || {}, r = (t, v, cls) => '<div class="r2"><span>' + t + '</span><b class="' + (cls || '') + '" style="font-size:16px">' + v + '</b></div>';
     let h = '<div class="rows" style="margin:10px 0 0">' + (c.prev != null && c.prev !== c.ini ? r((c.prevBn ? esc(c.prevBn) + ' dejó' : 'Quedó en el cierre anterior') + '<small style="color:#b3261e">' + esc(c.bn || '') + ' contó ' + money(c.ini || 0) + ' al abrir: ' + (c.ini < c.prev ? 'faltan ' + money(c.prev - c.ini) : 'sobran ' + money(c.ini - c.prev)) + ' entre turnos</small>', money(c.prev)) : '') + r('Efectivo inicial' + (c.prev != null && c.prev !== c.ini ? '<small style="color:' + (c.ini < c.prev ? '#b3261e' : 'var(--sell)') + '">' + (c.ini < c.prev ? 'abrió con ' + money(c.prev - c.ini) + ' menos' : 'abrió con ' + money(c.ini - c.prev) + ' más') + '</small>' : ''), money(c.ini || 0)) + r('Ventas en efectivo', '+ ' + money(p.ef || 0)) +
@@ -726,7 +746,7 @@ export function createAlmacen(X) {
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ)).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
-    let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b></div>' : '';
+    let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
     h += '<div class="card">';
     if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
     const own = X.isOwner && X.isOwner() && adm();
@@ -1568,6 +1588,7 @@ export function createAlmacen(X) {
     else if (a === 'demodel') { const ids = P().filter((p) => p.demo).map((p) => p.id); if (ids.length && confirm('¿Borrar los ' + ids.length + ' productos de ejemplo?')) borrarDemo({ db, sid: X.sid(), ids }).catch(failW); }
     else if (a === 'cjmov') cajaMov();
     else if (a === 'cjdet') cajaDet();
+    else if (a === 'stval') stockValDlg();
     else if (a === 'cjclose') cajaClose();
     else if (a === 'cjfix') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { document.querySelectorAll('.almdlg').forEach((e) => e.remove()); cajaFix(c); } }
     else if (a === 'cjver') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { if (c.st === 'open') cajaClose(); else cajaVer(c); } }
