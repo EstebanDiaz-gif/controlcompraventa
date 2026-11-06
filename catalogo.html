@@ -496,7 +496,7 @@ function pct(g){var o=oldP(g);return o?Math.round((o-base(g))/o*100):0}
 var fq=function(q){return (Math.round(q*1000)/1000).toLocaleString('es-AR',{maximumFractionDigits:3})+' kg'};
 var CORDER=['Almacén','Bebidas','Galletitas y golosinas','Lácteos','Fiambrería','Panadería','Verdulería','Congelados','Limpieza','Perfumería','Cigarrillos','Otros'];
 var key=function(s){return String(s||'').trim().toLowerCase()};
-var money=function(n){return '$'+Math.round(n).toLocaleString('es-AR')};
+var money=function(n){var r=Math.round(n||0);return (r<0?'−':'')+'$'+Math.abs(r).toLocaleString('es-AR')};
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function sizeSort(a,b){var x=parseFloat(a),y=parseFloat(b);if(!isNaN(x)&&!isNaN(y)&&x!=y)return x-y;return String(a).localeCompare(String(b),undefined,{numeric:true})}
 function fail(m){$('grid').innerHTML='<div class="empty">'+esc(m)+'</div>'}

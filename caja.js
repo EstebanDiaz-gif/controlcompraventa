@@ -65,7 +65,7 @@ export function createCaja(X) {
     const c = S.caja;
     if (!c) return '<div class="card cjb"><span><b>Caja cerrada</b><small>Abrila para controlar el efectivo del día</small></span><button class="go" data-cj="open" style="width:auto;margin:0;padding:10px 16px;flex:none">Abrir caja</button></div>';
     return '<div class="card cjb cjo"><div class="cjt"><span><b>🟢 Caja abierta</b><small>desde las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' · ' + esc(c.bn || '') + '</small></span>' +
-      (veEsp() ? '<span style="text-align:right"><small>Efectivo en caja</small><b style="font-size:20px">' + money(esperado(c)) + '</b></span>' : '<span style="text-align:right"><small>' + (X.palabra(2).charAt(0).toUpperCase() + X.palabra(2).slice(1)) + '</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
+      (veEsp() ? '<span style="text-align:right"><small>Efectivo en caja</small><b style="font-size:20px' + (esperado(c) < 0 ? ';color:#b3261e' : '') + '">' + money(esperado(c)) + '</b>' + (esperado(c) < 0 ? '<small style="color:#b3261e;font-weight:700">Salió más de lo que entró: revisalo en Cerrar caja</small>' : '') + '</span>' : '<span style="text-align:right"><small>' + (X.palabra(2).charAt(0).toUpperCase() + X.palabra(2).slice(1)) + '</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
       '<div class="cjg"><button class="go alt" data-cj="mov">Sacar / poner</button><button class="go" data-cj="close">Cerrar caja</button></div></div>';
   }
   function paint() { document.querySelectorAll('.cjbar').forEach((e) => { e.innerHTML = barInner(); }); }

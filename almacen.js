@@ -142,7 +142,7 @@ export function createAlmacen(X) {
       return;
     }
     e.innerHTML = '<div class="card" style="padding:12px 16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span><b>🟢 Caja abierta</b><small style="display:block;color:var(--mut)">desde las ' + hm(c.ab) + (c.d !== X.today() ? ' del ' + dmy(c.d) : '') + ' · ' + esc(c.bn || '') + '</small></span>' +
-      (veEsp() ? '<span style="text-align:right"><small style="display:block;color:var(--mut)">Efectivo en caja</small><b style="font-size:20px">' + money(esperado(c)) + '</b></span>' : '<span style="text-align:right"><small style="display:block;color:var(--mut)">Ventas</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
+      (veEsp() ? '<span style="text-align:right"><small style="display:block;color:var(--mut)">Efectivo en caja</small><b style="font-size:20px' + (esperado(c) < 0 ? ';color:#b3261e' : '') + '">' + money(esperado(c)) + '</b>' + (esperado(c) < 0 ? '<small style="display:block;color:#b3261e;font-weight:700">Salió más de lo que entró: revisalo en Cerrar caja</small>' : '') + '</span>' : '<span style="text-align:right"><small style="display:block;color:var(--mut)">Ventas</small><b>' + (c.n || 0) + '</b></span>') + '</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px"><button class="go alt" data-al="cjmov" style="margin:0">Sacar / poner</button><button class="go" data-al="cjclose" style="margin:0">Cerrar caja</button></div></div>';
   }
   function cajaOpen() {
