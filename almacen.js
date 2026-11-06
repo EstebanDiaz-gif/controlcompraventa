@@ -487,6 +487,19 @@ export function createAlmacen(X) {
     return '<label>¿A quién le fiás?</label><input id="cjcq" type="search" placeholder="Buscar cliente" autocomplete="off" value="' + esc(S.cliQ) + '"><div id="cjcl">' + cliList() + '</div>' +
       '<button class="x" data-al="newcli" data-pick="1" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">+ Cliente nuevo</button>';
   }
+  // Diagnóstico cuando Firebase rechaza una venta: ¿la persona figura como miembro? ¿el acceso de la tienda está vigente?
+  function diagPermiso(sid, uidU) {
+    const f = (t) => new Date(t).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return Promise.all([
+      getDoc(doc(db, 'stores', sid, 'members', uidU)).then((m) => (m.exists() ? 'sí (' + (m.data().role || '?') + ')' : 'NO'), (e) => 'no se pudo leer (' + ((e && e.code) || '?') + ')'),
+      getDoc(doc(db, 'stores', sid, 'billing', 'access')).then((a) => {
+        if (!a.exists()) return 'sin datos';
+        const x = a.data(), t = x.activeUntil && x.activeUntil.toMillis ? x.activeUntil.toMillis() : (typeof x.activeUntil === 'number' ? x.activeUntil : null);
+        if (x.unlimited) return 'ilimitado';
+        return t ? (t > Date.now() ? 'vigente hasta ' : 'VENCIDO el ') + f(t) : 'sin fecha de vencimiento';
+      }, (e) => 'no se pudo leer (' + ((e && e.code) || '?') + ')')
+    ]).then(([m, a]) => 'Diagnóstico → miembro: ' + m + ' · acceso: ' + a + ' · tienda: ' + sid + ' · id: ' + String(uidU).slice(0, 8)).catch(() => '');
+  }
   // Avisa (una sola vez por tanda) que la venta se guardó pero no se pudo descontar el stock de algún producto.
   let sfT = null, sfL = [];
   function stockFallo(n) {
@@ -535,8 +548,8 @@ export function createAlmacen(X) {
       if (!deny(e)) { X.fail(e); return; }
       // Firebase rechazó algo: se guarda cada parte por separado para no perder la venta y saber qué parte fue.
       Promise.all(escr.map((x) => setDoc(x[1], x[2], x[3] ? { merge: true } : {}).then(() => '', (er) => { console.warn('Venta: Firebase rechazó', x[0], er && er.code); return x[0]; })))
-        .then((r) => { const no = r.filter(Boolean), ok = no.indexOf('venta') < 0;
-          alert((ok ? 'La venta se guardó ✓, pero Firebase no dejó guardar: ' : 'No se pudo guardar la venta. Firebase no dejó guardar: ') + no.join(', ') + '.\n\nMandale este mensaje a Pekeron App (usuario: ' + X.nm() + ').'); });
+        .then((r) => diagPermiso(sid, u.uid).then((dg) => { const no = r.filter(Boolean), ok = no.indexOf('venta') < 0;
+          alert((ok ? 'La venta se guardó ✓, pero Firebase no dejó guardar: ' : 'No se pudo guardar la venta. Firebase no dejó guardar: ') + no.join(', ') + '.\n\n' + dg + '\n\nMandale este mensaje a Pekeron App (usuario: ' + X.nm() + ').'); }));
     });
     // El stock va aparte y producto por producto: si Firebase rechaza uno (por ejemplo un producto con el stock mal
     // guardado), la venta ya quedó registrada igual y se avisa cuál fue, en vez de perder la venta entera.
