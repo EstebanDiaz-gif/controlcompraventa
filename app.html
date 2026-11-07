@@ -1642,9 +1642,10 @@ var at=Date.now(),v=$('cat_ptv');if(v){v.src=f;v.style.display=''}if(st)st.textC
 var b=writeBatch(db);b.set(doc(db,'stores',SID,'public','portada'),{f:f,at:at});b.set(doc(db,'stores',SID,'public','info'),{pt:at},{merge:true});
 return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2.textContent='Portada guardada ✓'})}).catch(function(e){var s3=$('cat_pts');if(s3)s3.textContent='';fail(e)})}
 // Secciones del catálogo de almacén que se arman solas: se pueden apagar (alx.h/b/o/g = false).
-function alxRows(p){if(biz()!='almacen')return '';var a=p.alx||{};
-return '<label>Secciones del catálogo</label><div class="k" style="margin:0 0 4px">Se arman solas con tus productos, ofertas, destacados y promos. Apagá las que no quieras mostrar.</div>'+
-[['h','Historias (círculos arriba, como Instagram)'],['b','Banner que pasa solo (ofertas, promos, envío)'],['o','Bloque "Llená tu carrito de ofertas"'],['g','Productos en filas por categoría']].map(function(x){
+function alxRows(p){var a=p.alx||{},alm=biz()=='almacen',L=[['h','Historias (círculos arriba, como Instagram)']];
+if(alm)L=L.concat([['b','Banner que pasa solo (ofertas, promos, envío)'],['o','Bloque "Llená tu carrito de ofertas"'],['g','Productos en filas por categoría']]);
+return '<label>Secciones del catálogo</label><div class="k" style="margin:0 0 4px">'+(alm?'Se arman solas con tus productos, ofertas, destacados y promos. Apagá las que no quieras mostrar.':'Las historias se arman solas con tus '+(biz()=='servicios'?'servicios, promos y horarios':'ofertas, destacados, promos y horarios')+'. Destildá si no las querés mostrar.')+'</div>'+
+L.map(function(x){
 return '<label style="display:flex;gap:10px;align-items:center;font-weight:600;margin-top:8px"><input type="checkbox" data-alx="'+x[0]+'" style="width:auto"'+(a[x[0]]===false?'':' checked')+'> '+x[1]+'</label>'}).join('')}
 function alxVal(){var cb=document.querySelectorAll('[data-alx]');if(!cb.length)return (PUB&&PUB.alx)||{};var o={};Array.prototype.forEach.call(cb,function(c){o[c.dataset.alx]=c.checked});return o}
 function catCard(){
