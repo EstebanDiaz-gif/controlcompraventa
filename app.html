@@ -192,7 +192,7 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail,signInAnonymously,updateProfile} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,writeBatch,increment,deleteField,Timestamp,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,writeBatch,increment,deleteField,Timestamp,query,where,orderBy,limit} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 import {firebaseConfig} from './firebase-config.js';
 import {deriveState,computeAccess,addPeriod} from './access.js';
@@ -668,7 +668,7 @@ if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs')
 function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
 function startData(){
 ['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;CSOK=false;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
-costosEscuchar();un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||''})});if(biz()=='almacen')ALM.publishSoon();costosMover();redrawData()},sdErr);
+costosEscuchar();un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,nx:x.nx||0,demo:!!x.demo,cb:x.cb||'',bf:!!x.bf})});if(biz()=='almacen')ALM.publishSoon();costosMover();redrawData()},sdErr);
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false);var cs1=!CSOK;CS=sn.exists()?sn.data():null;CSOK=true;syncBiz();if(cs1||biz()!=ob)costosEscuchar();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){if(!CSOK){CSOK=true;costosEscuchar()}syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
 un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(collection(db,'stores',SID,'atenciones'),where('by','==',U.uid)),function(sn){AT=[];sn.forEach(function(d){AT.push(d.data())});redrawData()},function(){});
@@ -905,7 +905,7 @@ function catOpts(){var o={};RCATS.forEach(function(c){o[c]=1});ST.forEach(functi
 function fieldOf(b,f){var r=0;baseDocs(b).forEach(function(d){if(d[f])r=d[f]});return r}
 function photoOf(b){var r='';baseDocs(b).forEach(function(d){if(d.img)r=d.img});return r}
 // Foto en dos versiones: chica (va en el producto) y grande (documento aparte para el catálogo). Ver fotos.js.
-function readPhoto(file,cb){makePhotos(file).then(function(r){cb(r.thumb,r.hd)})}
+function readPhoto(file,cb){makePhotos(file).then(function(r){cb(r.thumb,r.hd,r.qs||0)})}
 // Varias fotos de una vez, de a una y en el orden en que se eligieron.
 function readSeq(files,cb){var i=0,bad=0;(function next(){if(i>=files.length){if(bad)alert(bad==1?'No pude leer una de las fotos. Probá con otra.':'No pude leer '+bad+' fotos. Probá con otras.');return}
 readPhoto(files[i++],function(o,hd){if(o)cb(o,hd);else bad++;next()})})()}
@@ -1951,6 +1951,7 @@ h+='<details class="card emp"'+(PLO[x.sid]?' open':'')+' data-sid="'+esc(x.sid)+
 '<button class="go" data-lt="pay" data-sid="'+esc(x.sid)+'">Registrar pago</button>'+(PAGOS_URL&&!(STORES||[]).some(function(z){return z.id==x.sid})?'<button class="go alt" data-lt="entrar" data-sid="'+esc(x.sid)+'">🔑 Entrar como administrador</button>':'')+
 '<button class="go alt" data-lt="llave" data-sid="'+esc(x.sid)+'">Llave en mano: instalación + 1 mes</button>'+(r.k=='life'?'':'<button class="go alt" data-lt="life" data-sid="'+esc(x.sid)+'">Pago único: habilitar de por vida</button>')+
 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+(paused?'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Habilitar (prueba '+CFG.trialDays+' días)</button>':'<button class="go alt" data-lt="pause" data-sid="'+esc(x.sid)+'">Pausar</button>')+'<button class="go alt" data-lt="free" data-sid="'+esc(x.sid)+'">Habilitar sin vencimiento</button>'+(paused||r.k=='trial'?'':'<button class="go alt" data-lt="trial" data-sid="'+esc(x.sid)+'">Prueba '+CFG.trialDays+' días</button>')+'<button class="go alt" style="color:#b3261e;border-color:#b3261e" data-lt="delete" data-sid="'+esc(x.sid)+'">Eliminar</button></div></details>'});
+h+='<div class="card"><b>📦 Base de productos compartida</b><div class="k" style="margin:4px 0 8px">Lo último que cargaron las tiendas: fotos con su puntaje de calidad y nombres. Fijá los que están bien para que nadie los cambie, corregí nombres o sacá fotos malas.</div><button class="go alt" id="pbase" style="margin:0">Revisar fotos y nombres</button></div>';
 h+='<div class="card"><b>🔑 Entrar a una tienda por su link</b><div class="k" style="margin:4px 0 8px">Pegá el link del catálogo (ej: pekeronapp.com/minegocio). Si a la tienda le falta su ficha, se recupera, y quedás como administrador.</div><div class="row" style="gap:8px"><div><input id="slugin" placeholder="pekeronapp.com/..." autocomplete="off"></div><div style="flex:none"><button class="go" id="slugok" style="margin:0">Entrar</button></div></div></div>'+huerfCard()+gTemaCard();var SP=$('s-plat');SP.innerHTML=h;if(!SP._emt){SP._emt=1;SP.addEventListener('toggle',function(e){var t=e.target;VD.toggle(e);if(t.classList&&t.classList.contains('emp'))PLO[t.dataset.sid]=t.open},true)}var qi=$('plq');if(qi)qi.oninput=function(){PLQ=this.value;var p=this.selectionStart;drawPlatLite();var n=$('plq');n.focus();try{n.setSelectionRange(p,p)}catch(e){}}}
 // Tiendas cuyo documento principal se borró (por ejemplo con "Eliminar") pero sus datos siguen guardados: se pueden recuperar.
 var HUERF=null;
@@ -1963,6 +1964,32 @@ var n=prompt('Nombre de la tienda:',t.name||'');if(n===null)return;b.disabled=tr
 pushFetch('/admin/restaurar',{sid:t.sid,name:n.trim()}).then(function(d){alert('¡Listo! "'+d.name+'" volvió a funcionar con todos sus datos ('+d.equipo+' persona'+(d.equipo==1?'':'s')+' en el equipo). Ya la podés elegir en el selector de tiendas.');HUERF=null;PLL.list=null;drawPlatLite()}).catch(function(x){b.disabled=false;b.textContent='Recuperar';alert(x.message||'No se pudo recuperar.')})});
 document.addEventListener('click',function(e){if(!e.target.closest||!e.target.closest('#slugok'))return;var v=($('slugin').value||'').trim();if(!v){alert('Pegá el link del catálogo.');return}var b=$('slugok');b.disabled=true;b.textContent='Buscando…';
 pushFetch('/admin/entrar',{slug:v,email:U.email||'',name:nm()}).then(function(d){b.disabled=false;b.textContent='Entrar';alert('¡Listo! Ya tenés acceso a "'+d.name+'"'+(d.restaurada?' (se recuperó su ficha, con '+d.equipo+' persona'+(d.equipo==1?'':'s')+' en el equipo)':'')+(d.main?'. Es una sucursal de otra tienda.':'.')+' Elegila arriba, en el selector de tiendas.');HUERF=null;PLL.list=null;drawPlatLite()}).catch(function(x){b.disabled=false;b.textContent='Entrar';alert(x.message||'No se pudo.')})});
+// ---------- Base de productos compartida (solo Pekeron) ----------
+var PBQ='todos';
+function baseDlg(){var o=$('pbdlg');if(o)o.remove();o=document.createElement('div');o.id='pbdlg';
+o.style.cssText='position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center';
+o.innerHTML='<div style="background:var(--bg);color:var(--ink);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:19px">📦 Base de productos</b><button class="x" data-pbx="1" style="font-weight:700;text-decoration:underline">Cerrar</button></div>'+
+'<div class="row" style="gap:6px;margin:10px 0"><button class="go'+(PBQ=='todos'?'':' alt')+'" data-pbf="todos" style="margin:0">Últimos</button><button class="go'+(PBQ=='malas'?'':' alt')+'" data-pbf="malas" style="margin:0">Fotos flojas</button></div><div id="pbl"><div class="empty">Cargando…</div></div></div>';
+document.body.appendChild(o);
+var q0=query(collection(db,'productos'),orderBy('at','desc'),limit(PBQ=='malas'?200:60));
+getDocs(q0).then(function(sn){var l=[];sn.forEach(function(d){var x=d.data();x.id=d.id;l.push(x)});
+if(PBQ=='malas')l=l.filter(function(x){return x.t&&!x.lk&&(x.qs==null||x.qs<60)}).slice(0,60);
+$('pbl').innerHTML=l.length?l.map(function(x){var qs=x.qs==null?'sin puntaje':x.qs+'/100',col=x.qs==null?'var(--mut)':x.qs>=75?'#1e8e3e':x.qs>=55?'#b26a00':'#b3261e';
+return '<div class="it" style="align-items:center;gap:10px"><div style="width:64px;height:64px;flex:none;border-radius:10px;background:#fff;border:1px solid var(--line,#ddd);overflow:hidden;display:flex;align-items:center;justify-content:center">'+(x.t?'<img src="'+x.t+'" alt="" style="width:100%;height:100%;object-fit:contain">':'<small>sin foto</small>')+'</div>'+
+'<div style="flex:1;min-width:0"><b>'+esc(x.n||'')+'</b><small>'+esc(x.id)+(x.t?' · <span style="color:'+col+';font-weight:700">'+qs+'</span>':'')+(x.src=='off'?' · foto de la marca':'')+(x.lk?' · 🔒 fijado':'')+'</small>'+
+'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px"><button class="x" data-pbn="'+esc(x.id)+'" style="font-size:14px;font-weight:700;text-decoration:underline">Nombre</button>'+(x.t?'<button class="x" data-pbt="'+esc(x.id)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:#b3261e">Sacar foto</button>':'')+
+'<button class="x" data-pbl="'+esc(x.id)+'" data-v="'+(x.lk?0:1)+'" style="font-size:14px;font-weight:700;text-decoration:underline">'+(x.lk?'🔓 Destrabar':'🔒 Fijar')+'</button></div></div></div>'}).join(''):'<div class="empty">No hay nada para revisar.</div>'}).catch(function(e){$('pbl').innerHTML='<div class="empty">No pude leer la base ('+esc((e&&e.code)||'error')+'). Si dice permission-denied, falta publicar las reglas nuevas.</div>'})}
+document.addEventListener('click',function(e){var t=e.target;if(!t.closest)return;
+if(t.closest('#pbase')){baseDlg();return}
+var o=$('pbdlg');if(!o||!o.contains(t))return;
+if(t===o||t.closest('[data-pbx]')){o.remove();return}
+var b=t.closest('[data-pbf]');if(b){PBQ=b.dataset.pbf;baseDlg();return}
+var r=function(id){return doc(db,'productos',id)},ok=function(){baseDlg()};
+if((b=t.closest('[data-pbn]'))){var id=b.dataset.pbn,n=prompt('Nombre del producto ('+id+'):',(b.closest('.it').querySelector('b')||{}).textContent||'');if(n===null)return;n=n.trim().replace(/\s+/g,' ').slice(0,80);if(n.length<2)return;
+setDoc(r(id),{n:n,at:Date.now(),lk:true},{merge:true}).then(ok).catch(fail);return}
+if((b=t.closest('[data-pbt]'))){if(!confirm('¿Sacar esta foto de la base? La próxima foto buena que suba una tienda la reemplaza.'))return;
+setDoc(r(b.dataset.pbt),{t:deleteField(),qs:deleteField(),src:deleteField(),lk:deleteField(),at:Date.now()},{merge:true}).then(ok).catch(fail);return}
+if((b=t.closest('[data-pbl]'))){setDoc(r(b.dataset.pbl),{lk:b.dataset.v=='1'?true:deleteField()},{merge:true}).then(ok).catch(fail);return}});
 function litBuild(base){
 var c=computeAccess({nowMs:Date.now(),config:CFG,paidPlan:base.paidPlan||null,trialStartMs:base.trialStartMs==null?null:base.trialStartMs,paidUntilMs:base.paidUntilMs==null?null:base.paidUntilMs,ownerFree:false,grants:[]});
 var lim=c.graceUntilMs!=null?c.graceUntilMs:c.activeUntilMs,LO=base.lim||null;

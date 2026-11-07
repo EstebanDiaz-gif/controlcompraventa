@@ -737,6 +737,7 @@ export function createAlmacen(X) {
     renderStock();
   }
   function renderStock() {
+    if (P().length) syncFotosBase();
     const isLow = (p) => !p.ns && p.q <= (p.min || 0) && (p.min || p.q <= 0);
     const all = P(), low = all.filter(isLow).length, sinCod = all.filter((p) => !p.s).length;
     if (!sinCod) S.stNoCod = false;
@@ -796,7 +797,7 @@ export function createAlmacen(X) {
     const lbl = () => { $('lpn').textContent = S.edit.w ? 'Precio de venta por kilo' : 'Precio de venta'; $('lco').textContent = S.edit.w ? 'Costo por kilo' : 'Costo por unidad'; $('lq').textContent = (p ? 'Stock actual (contado)' : 'Stock inicial') + (S.edit.w ? ' en kg' : ''); };
     $('fpn').oninput = mg; $('fco').oninput = mg; mg(); lbl(); S.edit.lbl = () => { lbl(); mg(); };
     $('fns').onchange = function () { $('fqrow').hidden = this.checked; };
-    $('fpf').onchange = function () { const f = this.files && this.files[0]; if (!f) return; X.readPhoto(f, (o, hd) => { if (!o) { alert('No pude leer esa foto. Probá con otra.'); return; } S.edit.img = o; S.edit.hd = hd || ''; const v = $('fph'); v.src = o; v.style.display = ''; }); };
+    $('fpf').onchange = function () { const f = this.files && this.files[0]; if (!f) return; X.readPhoto(f, (o, hd, qs) => { if (!o) { alert('No pude leer esa foto. Probá con otra.'); return; } S.edit.img = o; S.edit.hd = hd || ''; S.edit.qs = qs || 0; const v = $('fph'); v.src = o; v.style.display = ''; }); };
     window.scrollTo(0, 0);
     if (!p) setTimeout(() => $('fn').focus(), 50);
   }
@@ -818,14 +819,14 @@ export function createAlmacen(X) {
     const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns };
     const b = writeBatch(db);
     if (E.img !== undefined) {
-      o.img = E.img; o.hd = E.hd ? 1 : deleteField();
+      o.img = E.img; o.hd = E.hd ? 1 : deleteField(); o.bf = deleteField();   // foto propia: ya no sigue a la base
       if (E.hd) b.set(ref('public', fotoId(id)), { f: E.hd, at: Date.now() }); else b.delete(ref('public', fotoId(id)));
     }
     // Si el stock guardado no es un número válido, se pone la cantidad contada tal cual (así se corrige solo al guardar).
     if (p && typeof p.q === 'number' && isFinite(p.q)) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = isFinite(q) ? q : 0;
     b.set(ref('stock', id), o, { merge: true });
     b.commit().catch(failW);
-    if (s) aportar(s, n, E.img !== undefined ? E.img : (p && p.img) || '');
+    if (s) { if (E.img !== undefined) aportar(s, n, E.img, E.qs || 0, 'u'); else aportar(s, n, '', 0, 'u'); }
     closeForms();
   }
   function delProd() {
@@ -1136,21 +1137,46 @@ export function createAlmacen(X) {
   // Nombre + foto para un código: primero la base de Pekeron, después Open Food Facts.
   function buscarProducto(code) {
     return buscarBase(code).then((b) => {
-      if (b && b.n && b.t) return { n: b.n, thumb: b.t, hd: '', base: true };
+      if (b && b.n && b.t) return { n: b.n, thumb: b.t, hd: '', base: true, src: 'base', qs: b.qs || 0 };
       return buscarNombre(code).then((n) => {
-        const nom = (b && b.n) || n;
-        return fotoDeUrl(IMGC[code]).then((f) => ({ n: nom, thumb: f ? f.thumb : '', hd: f ? f.hd : '', base: !!(b && b.n) }));
+        const nom = (b && b.n && !nombreMalo(b.n)) ? b.n : (n || (b && b.n) || '');
+        return fotoDeUrl(IMGC[code]).then((f) => ({ n: nom, thumb: f ? f.thumb : '', hd: f ? f.hd : '', base: !!(b && b.n), src: f ? 'off' : '', qs: f ? Math.max(f.qs || 0, 85) : 0 }));
       });
     });
   }
-  // Aporta a la base compartida el nombre y la foto de un producto con código (si todavía no estaban).
-  function aportar(code, n, thumb) {
+  // Nombre que conviene reemplazar en la base: un código de barras, muy corto, o todo números y símbolos.
+  function nombreMalo(n) { n = String(n || '').trim(); return n.length < 4 || /^[\d\s.,\-]+$/.test(n); }
+  // Aporta a la base compartida el nombre y la foto de un producto con código.
+  // La foto queda si no había, si es la oficial de la marca (Open Food Facts) o si es claramente mejor (10 puntos más).
+  // El nombre se reemplaza solo si el que había estaba mal (un código, muy corto). Lo fijado por Pekeron no se toca.
+  function aportar(code, n, thumb, qs, src) {
     if (!/^\d{8,14}$/.test(code || '') || !n || n.length < 2) return;
     const t = thumb && /^data:image\/(webp|jpeg);base64,/.test(thumb) && thumb.length < 150000 ? thumb : '';
+    qs = Math.max(0, Math.min(100, Math.round(qs || 0))); src = src === 'off' ? 'off' : 'u';
     buscarBase(code).then((b) => {
-      if (!b) { const o = { n: n.slice(0, 80), at: Date.now() }; if (t) o.t = t; BASEC[code] = o; return setDoc(doc(db, 'productos', code), o); }
-      if (!b.t && t) { b.t = t; return setDoc(doc(db, 'productos', code), { t, at: Date.now() }, { merge: true }); }
+      if (!b) { const o = { n: n.slice(0, 80), at: Date.now() }; if (t) Object.assign(o, { t, qs, src }); BASEC[code] = o; return setDoc(doc(db, 'productos', code), o); }
+      if (b.lk) return;
+      const o = {}, bq = b.qs == null ? 40 : b.qs;
+      if (t && t !== b.t && (!b.t || (src === 'off' && b.src !== 'off') || (b.src !== 'off' && qs >= bq + 10))) Object.assign(o, { t, qs, src });
+      if (nombreMalo(b.n) && !nombreMalo(n)) o.n = n.slice(0, 80);
+      if (!Object.keys(o).length) return;
+      o.at = Date.now(); Object.assign(b, o);
+      return setDoc(doc(db, 'productos', code), o, { merge: true });
     }).catch(() => {});
+  }
+  // Una vez por día: los productos que tomaron la foto de la base (o no tienen foto) se actualizan si en la base hay otra.
+  function syncFotosBase() {
+    if (!load() || !X.canWrite()) return;
+    const k = 'pk_fb_' + X.sid(), hoy = X.today();
+    try { if (localStorage.getItem(k) === hoy) return; localStorage.setItem(k, hoy); } catch (e) { return; }
+    const l = P().filter((p) => /^\d{8,14}$/.test(p.s || '') && (p.bf || !p.img)).slice(0, 60);
+    l.forEach((p) => buscarBase(p.s).then((b) => {
+      if (!b || !b.t || b.t === p.img) return;
+      const bt = writeBatch(db);
+      bt.set(ref('stock', p.id), { img: b.t, bf: 1, hd: deleteField() }, { merge: true });
+      if (p.hd) bt.delete(ref('public', fotoId(p.id)));
+      return bt.commit();
+    }).catch(() => {}));
   }
   function buscarNombre(code) {
     if (!/^\d{8,14}$/.test(code)) return Promise.resolve('');
@@ -1270,7 +1296,7 @@ export function createAlmacen(X) {
       el.placeholder = 'Ej: Galletitas Oreo 118 g';
       if (r.n && !el.value) { el.value = r.n; q('qk_nf').textContent = '✓ ' + (r.base ? 'Ya lo cargó otro negocio de Pekeron' : 'Nombre encontrado en la base de productos') + ' (podés corregirlo)'; try { q('qk_p').focus({ preventScroll: true }); } catch (e) { /* nada */ } }
       else if (!r.n) q('qk_nf').textContent = 'No lo encontré en la base de productos: escribí el nombre.';
-      if (r.thumb) { FOTO = { thumb: r.thumb, hd: r.hd || '' }; fotoDraw(); }
+      if (r.thumb) { FOTO = { thumb: r.thumb, hd: r.hd || '', src: r.src, qs: r.qs || 0 }; fotoDraw(); }
     });
     q('qk_q').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('qk_ok').click(); } };
     q('qk_x').onclick = () => cb.onCancel();
@@ -1298,11 +1324,11 @@ export function createAlmacen(X) {
       const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
       if (ns) o.ns = true;
       if (ce) o.ce = 1;
-      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; }
+      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; o.bf = 1; }   // foto de la base: se actualiza si aparece una mejor
       q('qk_ok').disabled = true;
       const bq = writeBatch(db); bq.set(ref('stock', id), o, { merge: true }); if (FOTO && FOTO.hd) bq.set(ref('public', fotoId(id)), { f: FOTO.hd, at: Date.now() });
       bq.commit().catch(failW);
-      if (code) aportar(code, n, FOTO ? FOTO.thumb : '');
+      if (code) aportar(code, n, FOTO && FOTO.src === 'off' ? FOTO.thumb : '', FOTO ? FOTO.qs || 0 : 0, FOTO && FOTO.src === 'off' ? 'off' : 'u');
       cb.onDone(Object.assign({ id }, o));
     };
   }

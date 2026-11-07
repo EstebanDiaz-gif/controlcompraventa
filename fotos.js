@@ -51,13 +51,49 @@ function make(im, w, h, cfg) {
   return out.length <= cfg.max ? out : '';
 }
 
-// Devuelve {thumb, hd}. Si falla, {thumb:'', hd:''}.
+// Puntaje de calidad de una foto de producto, de 0 a 100 (para decidir cuál queda en la base compartida):
+//  nitidez (35): varianza del laplaciano · resolución (20): lado menor de la foto original ·
+//  luz (20): ni oscura ni quemada · fondo limpio (25): borde parejo y claro, como las fotos de catálogo de las marcas.
+export function calidad(im, w, h) {
+  try {
+    const S = 256, k = S / Math.max(w, h), W = Math.max(8, Math.round(w * k)), H = Math.max(8, Math.round(h * k));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.fillStyle = '#fff'; x.fillRect(0, 0, W, H); x.drawImage(im, 0, 0, W, H);
+    const d = x.getImageData(0, 0, W, H).data, n = W * H, g = new Float32Array(n);
+    let sum = 0, dark = 0, burn = 0;
+    for (let i = 0; i < n; i++) { const v = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]; g[i] = v; sum += v; if (v < 28) dark++; if (v > 250) burn++; }
+    const mean = sum / n;
+    // nitidez: qué tan marcados son los bordes más fuertes (el 1 % más alto del laplaciano). Una foto movida no tiene bordes fuertes.
+    const hist = new Uint32Array(1021); let m = 0;
+    for (let y = 1; y < H - 1; y++) for (let xx = 1; xx < W - 1; xx++) { const i = y * W + xx, L = Math.abs(4 * g[i] - g[i - 1] - g[i + 1] - g[i - W] - g[i + W]); hist[Math.min(1020, L | 0)]++; m++; }
+    let need = Math.max(1, Math.round(m * 0.01)), acc = 0, cnt = 0;
+    for (let v = 1020; v >= 0 && cnt < need; v--) { const t = Math.min(hist[v], need - cnt); acc += t * v; cnt += t; }
+    const p99 = cnt ? acc / cnt : 0;
+    const nit = 35 * Math.max(0, Math.min(1, (p99 - 20) / 130));
+    const res = 20 * Math.min(1, Math.min(w, h) / 900);
+    let luz = 20;
+    if (mean < 70) luz *= Math.max(0, (mean - 25) / 45);
+    if (dark / n > 0.35) luz *= 0.5;
+    if (burn / n > 0.85) luz *= 0.6;   // casi todo blanco: producto chiquito o foto quemada
+    let bs = 0, bs2 = 0, bn = 0;
+    const borde = (i) => { bs += g[i]; bs2 += g[i] * g[i]; bn++; };
+    for (let xx = 0; xx < W; xx++) { borde(xx); borde(W + xx); borde((H - 1) * W + xx); borde((H - 2) * W + xx); }
+    for (let y = 2; y < H - 2; y++) { borde(y * W); borde(y * W + 1); borde(y * W + W - 1); borde(y * W + W - 2); }
+    const bm = bs / bn, bsd = Math.sqrt(Math.max(0, bs2 / bn - bm * bm));
+    const fondo = 25 * (bsd < 10 ? 1 : bsd < 22 ? 0.7 : bsd < 40 ? 0.35 : 0) * (bm > 215 ? 1 : bm > 170 ? 0.75 : 0.45);
+    let tot = nit + res + luz + fondo;
+    if (p99 < 45) tot *= 0.6;   // movida o desenfocada: no compensa con fondo o luz
+    return Math.max(0, Math.min(100, Math.round(tot)));
+  } catch (e) { return 0; }
+}
+
+// Devuelve {thumb, hd, qs} (qs = puntaje de calidad). Si falla, {thumb:'', hd:'', qs:0}.
 export async function makePhotos(file) {
   try {
     const im = await loadImg(file), w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
-    if (!w || !h) return { thumb: '', hd: '' };
+    if (!w || !h) return { thumb: '', hd: '', qs: 0 };
     const thumb = make(im, w, h, THUMB);
     const hd = Math.max(w, h) > THUMB.side * 1.15 ? make(im, w, h, HD) : '';
-    return { thumb, hd };
-  } catch (e) { return { thumb: '', hd: '' }; }
+    return { thumb, hd, qs: thumb ? calidad(im, w, h) : 0 };
+  } catch (e) { return { thumb: '', hd: '', qs: 0 }; }
 }

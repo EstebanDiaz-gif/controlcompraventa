@@ -102,16 +102,32 @@ service cloud.firestore {
     // al cargar productos; no guarda precios, stock ni de qué negocio vino. No se pisa: solo se agrega la foto si faltaba.
     function fotoOk(t) { return t is string && t.size() < 150000 && t.split(',')[0] in ['data:image/webp;base64', 'data:image/jpeg;base64']; }
     match /productos/{code} {
+      // Base compartida de productos (nombre + foto por código de barras).
+      // Una foto nueva reemplaza a la que había si es la oficial de la marca (src 'off') o si tiene 10 puntos más de calidad (qs).
+      // Un nombre se reemplaza si el que había estaba mal (un código o muy corto). Pekeron puede fijar un producto (lk) o corregirlo.
       allow get: if signedIn();
-      allow create: if signedIn() && code.matches('[0-9]{8,14}')
-        && request.resource.data.keys().hasOnly(['n', 't', 'at'])
-        && request.resource.data.n is string && request.resource.data.n.size() >= 2 && request.resource.data.n.size() <= 80
-        && request.resource.data.at is int
-        && (!('t' in request.resource.data) || fotoOk(request.resource.data.t));
-      allow update: if signedIn() && !('t' in resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['t', 'at'])
-        && fotoOk(request.resource.data.t);
+      allow list, delete: if isPlatformOwner();
+      allow create: if signedIn() && code.matches('[0-9]{8,14}') && prodOk(request.resource.data)
+        && request.resource.data.get('lk', false) == false;
+      allow update: if isPlatformOwner() || (signedIn()
+        && resource.data.get('lk', false) == false
+        && prodOk(request.resource.data)
+        && request.resource.data.get('lk', false) == false
+        && (request.resource.data.n == resource.data.n || nombreMalo(resource.data.n))
+        && (request.resource.data.get('t', '') == resource.data.get('t', '')
+            || !('t' in resource.data)
+            || (request.resource.data.get('src', 'u') == 'off' && resource.data.get('src', 'u') != 'off')
+            || (resource.data.get('src', 'u') != 'off' && request.resource.data.get('qs', 0) >= resource.data.get('qs', 40) + 10)));
     }
+    function prodOk(d) {
+      return d.keys().hasOnly(['n', 't', 'at', 'qs', 'src', 'lk'])
+        && d.n is string && d.n.size() >= 2 && d.n.size() <= 80
+        && d.at is int
+        && (!('t' in d) || fotoOk(d.t))
+        && (!('qs' in d) || (d.qs is int && d.qs >= 0 && d.qs <= 100))
+        && d.get('src', 'u') in ['u', 'off'];
+    }
+    function nombreMalo(n) { return n.size() < 4 || n.matches('^[0-9 .,-]+$'); }
     match /vendedores/{code} {
       allow get: if signedIn();
       allow list, write: if isPlatformOwner();
