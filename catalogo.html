@@ -167,9 +167,9 @@ html body.alm .hdr{background:var(--ap);border-bottom:0;color:#fff}
 html body.alm .hdr b{color:#fff}
 html body.alm .hdr .ib{background:rgba(255,255,255,.14);color:#fff}
 html body.alm .hdr .logo{background:#fff;color:var(--ap)}
-body.alm .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 12px}
+body.alm .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 12px}
 @media(min-width:760px){body.alm .grid{grid-template-columns:repeat(4,minmax(0,1fr))}.arow .ac{width:190px}}
-@media(min-width:1000px){body.alm .grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(min-width:1000px){body.alm .grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
 .ac{background:#fff;border-radius:20px;padding:10px 10px 12px;display:flex;flex-direction:column;text-align:center;box-shadow:0 2px 12px rgba(14,46,41,.06);position:relative;cursor:pointer;min-width:0}
 .ac .aim{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;border-radius:14px;overflow:hidden;background:#fff}
 .ac .aim img{width:100%;height:100%;object-fit:contain}
@@ -190,6 +190,52 @@ body.alm .promos h2{color:var(--ad)}
 body.alm .promos .pc{border-radius:20px}
 body.alm .promos .pc:nth-child(odd){background:var(--c1)}body.alm .promos .pc:nth-child(even){background:var(--c3)}
 body.alm .promos .pq{background:var(--ap);color:#fff;border-radius:20px}
+/* ---------- Almacén v2: tarjetas compactas con el + sobre la foto, góndolas por categoría ---------- */
+.achips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;position:relative;z-index:1}
+.achips span{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16);border-radius:99px;padding:5px 11px;font-size:12.5px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acol{position:relative;width:40%;max-width:300px;aspect-ratio:1/1;flex:none}
+.acol i{position:absolute;border-radius:50%;background:#fff;overflow:hidden;box-shadow:0 12px 28px rgba(0,0,0,.28);display:block}
+.acol i img{width:100%;height:100%;object-fit:contain;padding:12%;box-sizing:border-box}
+.acol i:nth-child(1){width:64%;height:64%;right:0;top:4%;z-index:2}
+.acol i:nth-child(2){width:46%;height:46%;left:2%;top:34%;z-index:3}
+.acol i:nth-child(3){width:40%;height:40%;right:12%;bottom:0;z-index:1}
+@media(min-width:760px){.acol{width:250px}}
+.acat i{border-radius:22px}
+.acat span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ac.v2{text-align:left;padding:8px 8px 11px;border-radius:18px}
+.ac.v2 .aim{position:relative;background:#f6f7f4;background:color-mix(in srgb,var(--abg) 70%,#fff);border-radius:14px;overflow:visible}
+.ac.v2 .aim>img{border-radius:14px;padding:8%;box-sizing:border-box}
+.ac.v2 .aadd{position:absolute;right:6px;bottom:6px;left:auto;margin:0;padding:0;z-index:2}
+.ac.v2 .add{width:40px;height:40px;border-radius:50%;background:var(--ap);color:#fff;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 6px 16px rgba(0,0,0,.2);transition:transform .15s}
+.ac.v2 .add:active{transform:scale(.9)}
+.ac .add svg{width:22px;height:22px}
+.ac.v2 .aadd.in{left:6px}
+.ac.v2 .stp{height:40px;border-radius:99px;box-shadow:0 6px 16px rgba(0,0,0,.18);padding:0 4px}
+.ac.v2 .stp button{width:32px;height:32px;border:0;background:rgba(255,255,255,.55)}
+.ac.v2 .apr{font-size:19px;margin-top:9px;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 6px}
+.ac.v2 .apr s{display:inline;font-size:12px}
+.ac.v2 .anm{font-size:13.5px;font-weight:600;margin-top:3px;min-height:2.44em;color:var(--ad)}
+.ac.v2 .asub{font-size:11.5px}
+.ac.v2 .off{left:12px;top:12px;border-radius:99px;padding:4px 9px}
+.ac.v2 .hf{width:30px;height:30px;right:12px;top:12px}.ac.v2 .hf svg{width:16px;height:16px}
+body.alm .grid.shv{display:block;padding:0;margin:-8px -16px 0}
+.shf{margin:4px 0 6px}
+.shh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 8px}
+.shh h3{margin:0;font-size:18px;color:var(--ad);display:flex;align-items:center;gap:8px;letter-spacing:-.01em;min-width:0}
+.shh h3 i{font-style:normal;width:34px;height:34px;border-radius:12px;background:var(--c1);display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.shf:nth-child(4n+2) .shh h3 i{background:var(--c2)}.shf:nth-child(4n+3) .shh h3 i{background:var(--c3)}.shf:nth-child(4n) .shh h3 i{background:var(--c4)}
+.shh button{flex:none;border:0;background:none;font:inherit;font-weight:800;font-size:14px;color:var(--ap);cursor:pointer;display:flex;align-items:center;gap:6px}
+.shh button b{background:#fff;border-radius:99px;padding:2px 8px;font-size:12px;color:var(--ad);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.arow .ac.v2{width:146px}
+.shmore{flex:none;width:120px;border:2px dashed rgba(0,0,0,.12);border-radius:18px;background:none;font:inherit;font-weight:800;color:var(--ap);cursor:pointer;scroll-snap-align:start}
+@media(min-width:760px){.arow .ac.v2{width:176px}.shh{padding:18px 16px 10px}.shh h3{font-size:20px}}
+/* barra de categorías pegada arriba al bajar */
+.hcats{display:none}
+body.alm .hcats{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;max-width:1100px;margin:0 auto;padding:0 16px 10px}
+body.alm .hcats::-webkit-scrollbar{display:none}
+.hcats button{flex:none;border:0;border-radius:99px;padding:7px 13px;font:inherit;font-size:13px;font-weight:800;background:rgba(255,255,255,.14);color:#fff;cursor:pointer;white-space:nowrap}
+.hcats button.on{background:var(--al);color:var(--ad)}
+body.alm #sec,body.alm #adest{scroll-margin-top:118px}
 /* ---------- Catálogo de servicios (barbería, estética, uñas, spa) ---------- */
 body.svm{background:var(--sp)}
 body.svm #hero,body.svm #dest,body.svm #inf,body.svm #cats,body.svm .tools{display:none!important}
@@ -253,9 +299,9 @@ body.lay-list #grid .ac .aadd{grid-column:3;grid-row:1/span 4;padding:0;margin:0
 body.lay-list #grid .ac .off{left:6px;top:6px}body.lay-list #grid .ac .hf{display:none}
 /* Kiosco: grilla de 3, más productos a la vista */
 @media(max-width:759px){body.lay-mini #grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:0 8px}
-body.lay-mini #grid .ac{padding:7px 7px 9px;border-radius:16px}body.lay-mini #grid .ac .anm{font-size:12.5px}body.lay-mini #grid .ac .asub{display:none}
-body.lay-mini #grid .ac .apr{font-size:16.5px}body.lay-mini #grid .ac .add,body.lay-mini #grid .ac .stp{height:34px}body.lay-mini #grid .ac .add{font-size:22px}
-body.lay-mini #grid .ac .hf{transform:scale(.8);right:2px;top:2px}body.lay-mini #grid .ac .pdt{font-size:11px}}
+body.lay-mini #grid .ac{padding:6px 6px 9px;border-radius:16px}body.lay-mini #grid .ac .anm{font-size:12px}body.lay-mini #grid .ac .asub{display:none}
+body.lay-mini #grid .ac .apr{font-size:15.5px}body.lay-mini #grid .ac .add{width:34px;height:34px}body.lay-mini #grid .ac .stp{height:34px}
+body.lay-mini #grid .ac .stp button{width:26px;height:26px}body.lay-mini #grid .ac .hf{transform:scale(.8);right:6px;top:6px}body.lay-mini #grid .ac .pdt{font-size:11px}}
 /* Calzado y ropa: talles disponibles en la tarjeta */
 .tz{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.tz span{font-size:11.5px;font-weight:700;border:1px solid var(--line);border-radius:7px;padding:2px 6px;color:var(--mut)}
 body.est-celus .im,body.est-celus .rc{border-radius:14px}
@@ -440,7 +486,7 @@ select option{background-color:var(--card);color:var(--ink)}
 .edir{width:100%;box-sizing:border-box;margin:8px 0 4px;padding:13px 14px;border-radius:14px;border:1.5px solid var(--line,#e5e5e5);font:inherit;background:transparent;color:inherit}
 </style></head><body>
 <header class="hdr" id="hdr"><div class="in"><div class="brand"><div id="lg2" class="logo ph">·</div><b id="ttl2">Catálogo</b></div>
-<button class="ib fav" data-nav="fav" aria-label="Favoritos"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.4 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z"/></svg></button><button class="ib" data-nav="sr" aria-label="Buscar"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div></header>
+<button class="ib fav" data-nav="fav" aria-label="Favoritos"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.4 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z"/></svg></button><button class="ib" data-nav="sr" aria-label="Buscar"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div><div class="hcats" id="hcats"></div></header>
 <section class="ah" id="ah" hidden></section>
 <section class="svh" id="svh" hidden></section>
 <section class="hero pl" id="hero"><img class="bg" id="hbg" alt="" hidden><div class="hshade"></div>
@@ -635,24 +681,39 @@ var e=$('ah');e.hidden=false;
 e.innerHTML='<div class="ahb"><div class="aht"><span class="lg">'+lg+'</span><div class="nm"><b>'+esc(n)+'</b><small>'+esc(INFO.hours||INFO.addr||'Pedí online y retirá o recibí en tu casa')+'</small></div>'+
 '<button class="ai" data-nav="fav" aria-label="Favoritos">'+SVG.heart+'</button><button class="ai" id="acart" aria-label="Ver pedido">'+SVG.cart+'<em id="acn" hidden>0</em></button></div>'+
 '<label class="ahs"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="asq" type="search" placeholder="'+esc(AP.q)+'" autocomplete="off"></label>'+
-'<div class="ahban"><div class="tx"><h2>'+esc(INFO.tag||AP.h)+'</h2><p>'+esc([INFO.addr,INFO.hours].filter(Boolean).join(' · ')||'Elegí tus productos y mandanos el pedido por WhatsApp.')+'</p><button class="go" id="ago">Ver productos</button></div><div class="pi" id="api" hidden></div></div></div>'+
+'<div class="ahban"><div class="tx"><h2>'+esc(INFO.tag||AP.h)+'</h2><p class="asl">Elegí tus productos y mandanos el pedido por WhatsApp.</p><button class="go" id="ago">Ver productos</button></div><div class="pi" id="api" hidden></div><div class="acol" id="acol" hidden></div></div>'+almChips()+'</div>'+
 '<div class="acats" id="acats"></div>';
 $('acart').onclick=function(){$('cb').click()};
 $('ago').onclick=function(){$('sec').scrollIntoView({behavior:'smooth'})};
 var t=null;$('asq').oninput=function(){var v=this.value;clearTimeout(t);t=setTimeout(function(){Q=v;$('sq').value=v;CAT='';draw();if(v)$('sec').scrollIntoView({behavior:'smooth'})},180)};
-$('acats').onclick=function(ev){var b=ev.target.closest('[data-ac]');if(!b)return;CAT=b.dataset.ac;FAVM=false;draw();$('sec').scrollIntoView({behavior:'smooth'})}}
-function almCats(){var e=$('acats');if(!e)return;var c=cats();if(c.length<2){e.hidden=true;return}e.hidden=false;
-e.innerHTML='<button class="acat'+(CAT?'':' on')+'" data-ac=""><i>🛍️</i>Todo</button>'+c.map(function(x){return '<button class="acat'+(CAT==x?' on':'')+'" data-ac="'+esc(x)+'"><i>'+catIcon(x)+'</i>'+esc(x)+'</button>'}).join('')}
-function addHtml(g){var q=inCart(g);if(!q)return '<button class="add" data-ad="'+esc(g.k)+'" aria-label="Agregar">+</button>';
+$('acats').onclick=$('hcats').onclick=function(ev){var b=ev.target.closest('[data-ac]');if(!b)return;CAT=b.dataset.ac;FAVM=false;draw();$('sec').scrollIntoView({behavior:'smooth'})}}
+function almChips(){var c=[];if(INFO.hours)c.push('🕒 '+esc(INFO.hours));if(INFO.addr)c.push('📍 '+esc(INFO.addr));
+if(envOn())c.push('🛵 Envío a domicilio');c.push('🏪 Retiro en el local');
+return '<div class="achips">'+c.map(function(x){return '<span>'+x+'</span>'}).join('')+'</div>'}
+// Sin foto de portada: un collage con fotos de productos (primero los destacados).
+function almCollage(){var e=$('acol'),ap=$('api');if(!e||!ap)return;if(!ap.hidden){e.hidden=true;return}
+var l=G.filter(function(g){return g.img}).sort(function(a,b){return (+a.dt||(a.dt?999:1e4))-(+b.dt||(b.dt?999:1e4))}).slice(0,3);
+e.hidden=l.length<2||window.innerWidth<340;if(e.hidden)return;var k=l.map(function(g){return g.k}).join('|');if(e.dataset.k===k)return;e.dataset.k=k;
+e.innerHTML=l.map(function(g){return '<i><img alt="" decoding="async" src="'+esc(g.img)+'"></i>'}).join('')}
+function almCats(){var e=$('acats'),hc=$('hcats');if(!e)return;var c=cats();if(c.length<2){e.hidden=true;if(hc)hc.innerHTML='';return}e.hidden=false;
+e.innerHTML='<button class="acat'+(CAT?'':' on')+'" data-ac=""><i>🛍️</i><span>Todo</span></button>'+c.map(function(x){return '<button class="acat'+(CAT==x?' on':'')+'" data-ac="'+esc(x)+'"><i>'+catIcon(x)+'</i><span>'+esc(x)+'</span></button>'}).join('');
+if(hc)hc.innerHTML='<button data-ac=""'+(CAT?'':' class="on"')+'>Todo</button>'+c.map(function(x){return '<button data-ac="'+esc(x)+'"'+(CAT==x?' class="on"':'')+'>'+esc(x)+'</button>'}).join('')}
+function addHtml(g){var q=inCart(g);if(!q)return '<button class="add" data-ad="'+esc(g.k)+'" aria-label="Agregar">'+PLUS+'</button>';
 return '<div class="stp"><button data-dec="'+esc(g.k)+'" aria-label="Uno menos">−</button><b>'+(g.w?fq(q).replace(' kg',q<1?'':' kg').replace(/^0,(\d+)$/,function(_,d){return Math.round(+('0.'+d)*1000)+' g'}):q)+'</b><button data-inc="'+esc(g.k)+'" aria-label="Uno más">+</button></div>'}
-function acCard(g){var p=pct(g),o=oldP(g);
-return '<div class="ac" data-k="'+esc(g.k)+'">'+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+
-'<div class="aim">'+imgHtml(g,1)+'</div><div class="anm">'+esc(g.n)+'</div><div class="asub">'+(g.w?'por kg':(g.d?esc(g.d):(g.cat?esc(g.cat):'&nbsp;')))+'</div>'+
-'<div class="apr">'+money(base(g))+(g.w?'<span class="kg"> /kg</span>':'')+(o?'<s>'+money(o)+'</s>':'')+'</div>'+dl(g)+'<div class="aadd">'+addHtml(g)+'</div></div>'}
+// Tarjeta de almacén. Lista (ferretería): botón a la derecha. Resto: precio arriba y el + sobre la foto.
+function acCard(g){var p=pct(g),o=oldP(g),L=document.body.classList.contains('lay-list');
+var nm='<div class="anm">'+esc(g.n)+'</div>',sub='<div class="asub">'+(g.w?'por kg':(g.d?esc(g.d):(g.cat?esc(g.cat):'&nbsp;')))+'</div>',
+pr='<div class="apr">'+money(base(g))+(g.w?'<span class="kg"> /kg</span>':'')+(o?'<s>'+money(o)+'</s>':'')+'</div>',add='<div class="aadd'+(inCart(g)?' in':'')+'">'+addHtml(g)+'</div>';
+return '<div class="ac'+(L?'':' v2')+'" data-k="'+esc(g.k)+'">'+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+
+(L?'<div class="aim">'+imgHtml(g,1)+'</div>'+nm+sub+pr+dl(g)+add:'<div class="aim">'+imgHtml(g,1)+add+'</div>'+pr+nm+sub+dl(g))+'</div>'}
+// Góndolas: una fila por categoría cuando se ve todo (sin búsqueda, filtro ni otro orden).
+function almShelves(l){var c=cats(),h='';c.concat(['']).forEach(function(x){var xs=l.filter(function(g){return (g.cat||'')==x});if(!xs.length)return;var nm=x||'Otros';
+h+='<section class="shf"><div class="shh"><h3><i>'+catIcon(nm)+'</i>'+esc(nm)+'</h3>'+(x?'<button data-shv="'+esc(x)+'">Ver todo<b>'+xs.length+'</b></button>':'')+'</div><div class="arow">'+xs.slice(0,12).map(acCard).join('')+
+(x&&xs.length>12?'<button class="shmore" data-shv="'+esc(x)+'">Ver los '+xs.length+' ›</button>':'')+'</div></section>'});return h}
 function almStep(k,dir){var g=gOf(k);if(!g)return;var st=g.w?0.25:1,l=CART.filter(function(x){return x.k==k&&!x.promo})[0],q=l?l.q:0,mx=stockOf(g);
 var nq=Math.round((q+dir*st)*1000)/1000;if(dir>0&&nq>mx){nq=q;alert('No hay más stock de este producto por ahora.')}
 if(nq<=0){if(l)CART.splice(CART.indexOf(l),1)}else if(l)l.q=nq;else CART.push({k:k,z:'',q:nq,w:g.w});bar()}
-function almRefresh(){if(!ALM)return;Array.prototype.forEach.call(document.querySelectorAll('.ac'),function(c){var g=gOf(c.dataset.k),a=c.querySelector('.aadd');if(g&&a)a.innerHTML=addHtml(g)});
+function almRefresh(){if(!ALM)return;Array.prototype.forEach.call(document.querySelectorAll('.ac'),function(c){var g=gOf(c.dataset.k),a=c.querySelector('.aadd');if(g&&a){a.innerHTML=addHtml(g);a.classList.toggle('in',!!inCart(g))}});
 var n=CART.reduce(function(a,l){return a+cnt(l)},0),e=$('acn');if(e){e.hidden=!n;e.textContent=n}}
 function almClick(e){var b=e.target.closest('[data-ad],[data-inc],[data-dec]');if(!b)return false;e.stopPropagation();almStep(b.dataset.ad||b.dataset.inc||b.dataset.dec,b.dataset.dec?-1:1);return true}
 function drawFoot(){if(!INFO)return;var n=INFO.name||'Catálogo',ft=$('ft'),c=cats().slice(0,6),y=new Date().getFullYear();
@@ -713,7 +774,7 @@ if(INFO.logo&&/^data:image\//.test(INFO.logo)){['lg','lg2'].forEach(function(id)
 $('hsub').textContent=INFO.addr||INFO.hours||'';
 if(INFO.tag){$('htag').hidden=false;$('htag').textContent=INFO.tag}
 if(INFO.pt){var hr=$('hero');hr.className='hero ph';
-getDoc(doc(db,'stores',sid,'public','portada')).then(function(d){var f=d.exists()&&d.data().f;if(!f){hr.className='hero pl'+(hr.classList.contains('dst')?' dst':'');return}var im=$('hbg');im.src=f;im.hidden=false;var ap=$('api');if(ALM&&ap){ap.innerHTML='<img alt="" src="'+esc(f)+'">';ap.hidden=false}}).catch(function(){})}
+getDoc(doc(db,'stores',sid,'public','portada')).then(function(d){var f=d.exists()&&d.data().f;if(!f){hr.className='hero pl'+(hr.classList.contains('dst')?' dst':'');return}var im=$('hbg');im.src=f;im.hidden=false;var ap=$('api');if(ALM&&ap){ap.innerHTML='<img alt="" src="'+esc(f)+'">';ap.hidden=false;var ac=$('acol');if(ac)ac.hidden=true}}).catch(function(){})}
 var i=[];if(INFO.hours)i.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)i.push('<span>📍 '+esc(INFO.addr)+'</span>');
 if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)i.push('<a target="_blank" rel="noopener" href="https://instagram.com/'+esc(u)+'">📷 @'+esc(u)+'</a>')}
 if(!ALM&&INFO.mode=='carrito'&&INFO.minCart>0)i.push('<span>🏷️ Llevando '+INFO.minCart+' o más prendas: precio mayorista</span>');
@@ -827,7 +888,8 @@ $('cnt').textContent=G.length?l.length+' producto'+(l.length==1?'':'s'):'';
 $('grid').className='grid'+(VIEW=='list'?' list':'');
 var soloSv=!G.length&&AGD&&AGD.sv&&AGD.sv.length;['sec','tools'].forEach(function(i){$(i).hidden=soloSv||(i=='tools'&&$(i).hidden)});$('grid').hidden=!!soloSv;
 if(!l.length){$('grid').innerHTML=!G.length&&!$('promos').hidden?'':'<div class="empty">'+(FAVM?'Todavía no guardaste favoritos. Tocá el corazón de un producto para guardarlo.':G.length?'No encontré productos con esa búsqueda.':'Por ahora no hay productos disponibles.')+'</div>';bar();openPend();return}
-if(ALM){$('grid').innerHTML=l.map(acCard).join('');bar();openPend();return}
+if(ALM){almCollage();var shv=!CAT&&!t.length&&!FAVM&&ORD=='az'&&!document.body.classList.contains('lay-list')&&l.length>=10&&cats().length>=2;
+if(shv){$('grid').className='grid shv';$('grid').innerHTML=almShelves(l)}else $('grid').innerHTML=l.map(acCard).join('');bar();openPend();return}
 if(SVC){$('grid').className='grid svg';$('grid').innerHTML=l.map(svPRow).join('');svHero();bar();openPend();return}
 $('grid').innerHTML=l.map(function(g){var mt=g.pm&&g.pn&&g.pm<g.pn&&(INFO.mode=='carrito'?INFO.minCart>0:g.mm>0),p=pct(g);
 return '<div class="card" data-k="'+esc(g.k)+'"><div class="im"'+(TEMA&&TEMAS[TEMA].badge?' data-bd="'+TEMAS[TEMA].badge+'"':'')+'>'+imgHtml(g,1)+(p?'<span class="off">-'+p+'%</span>':'')+'<button class="hf'+(isFav(g.k)?' on':'')+'" data-fav="'+esc(g.k)+'" aria-label="Guardar en favoritos">'+SVG.heart+'</button>'+(!g.w&&g.q<=2?'<span class="tag">Últimas unidades</span>':'')+(mt?'<span class="tag m">Mayorista</span>':'')+'</div><div class="body"><div class="nm">'+esc(g.n)+'</div>'+(g.d?'<div class="ds">'+esc(g.d)+'</div>':'')+'<div class="pb"><span class="pr">'+priceHtml(g)+'</span><span class="plus">'+PLUS+'</span></div>'+dl(g)+tzHtml(g)+'</div></div>'}).join('');bar();openPend()}
@@ -1044,7 +1106,7 @@ $('ord').onchange=function(){ORD=this.value;draw()};
 $('vg').onclick=function(){VIEW='grid';$('vg').className='on';$('vl').className='';draw()};
 $('vl').onclick=function(){VIEW='list';$('vl').className='on';$('vg').className='';draw()};
 $('vc').onclick=sheet;$('cb').onclick=function(){if(CART.length)sheet();else alert('Tu pedido está vacío. Tocá un producto para agregarlo.')};
-$('grid').onclick=function(e){if(almClick(e))return;var f=e.target.closest('[data-fav]');if(f){e.stopPropagation();togFav(f.dataset.fav);f.classList.toggle('on',isFav(f.dataset.fav));if(FAVM)draw();return}var c=e.target.closest('.card,.ac,.svrow');if(c)prod(c.dataset.k)};
+$('grid').onclick=function(e){var sv=e.target.closest('[data-shv]');if(sv){CAT=sv.dataset.shv;FAVM=false;draw();$('sec').scrollIntoView({behavior:'smooth'});return}if(almClick(e))return;var f=e.target.closest('[data-fav]');if(f){e.stopPropagation();togFav(f.dataset.fav);f.classList.toggle('on',isFav(f.dataset.fav));if(FAVM)draw();return}var c=e.target.closest('.card,.ac,.svrow');if(c)prod(c.dataset.k)};
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-nav]');if(!b)return;var a=b.dataset.nav;
 if(a=='ini'){FAVM=false;Q='';CAT='';$('sq').value='';draw();window.scrollTo({top:0,behavior:'smooth'})}
 else if(a=='fav'){FAVM=!FAVM;draw();$('sec').scrollIntoView({behavior:'smooth'})}
