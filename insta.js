@@ -6,7 +6,7 @@
 // También arma estados de WhatsApp (9:16, texto corto como descripción) y deja publicar sin precio
 // ("Consultá precio") para que la gente pregunte.
 //
-// abrirInsta({ nombre, precio, porKg, talles, detalle, cat, foto, fotoHD, logo, tienda, link, money, dest: 'ig'|'wa' })
+// abrirInsta({ nombre, precio, porKg, talles, detalle, cat, foto, fotoHD, logo, tienda, link, money, dest: 'ig'|'wa', historia: fn? })
 //   foto: imagen chica (data URL) · fotoHD: () => Promise<data URL | ''> con la foto grande, si hay.
 //   talles: ['38','39'] (se dibujan como etiquetas) · logo: logo de la tienda (data URL), si tiene.
 //
@@ -324,6 +324,7 @@ export function abrirInsta(o) {
     '<label for="igtx" style="margin-top:14px" id="igtl">Texto de la publicación</label><textarea id="igtx" rows="7" style="width:100%;font:inherit;font-size:15px;line-height:1.4"></textarea>' +
     '<button type="button" class="go" id="igsh" style="margin-top:12px"></button>' +
     '<div class="row" style="gap:8px"><button type="button" class="go alt" id="igdl" style="margin:0">Descargar imagen</button><button type="button" class="go alt" id="igcp" style="margin:0">Copiar texto</button></div>' +
+    (o.historia ? '<button type="button" class="go alt" id="ighs" style="margin-top:8px">📲 Subir a las historias del catálogo (24 h)</button>' : '') +
     '<div class="k" id="igmsg" style="margin-top:10px;font-weight:600"></div>' +
     '<div class="k" style="margin-top:6px" id="igayu"></div></div>';
   document.body.appendChild(d);
@@ -361,6 +362,7 @@ export function abrirInsta(o) {
     const s = e.target.closest('[data-ige]'); if (s) { est = s.dataset.ige; marcar('ige', est); render(); textoNuevo(); }
   });
   const dondeSubir = () => (dest === 'wa' ? 'Subila a tu estado desde WhatsApp.' : 'Subila desde Instagram.');
+  if (o.historia) $('ighs').onclick = () => { d.remove(); o.historia(); };
   $('igcp').onclick = () => { copiar().then((ok) => msg(ok ? 'Texto copiado ✓' : 'No pude copiar: seleccioná el texto y copialo a mano.')); };
   $('igdl').onclick = () => { const ok = descargar(); copiar().then((c) => msg(ok ? 'Imagen descargada' + (c ? ' y texto copiado' : '') + '. ' + dondeSubir() : 'No pude descargar la imagen.')); };
   $('igsh').onclick = () => {

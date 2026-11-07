@@ -386,7 +386,7 @@ export function createAlmacen(X) {
   // Publicar un producto en Instagram (foto, nombre, precio). El link abre el producto en el catálogo.
   function instaProd(id, dest) {
     const p = prod(id); if (!p) return; const L = X.catLink ? X.catLink() : '';
-    abrirInsta({ dest, nombre: p.n, precio: p.pn, porKg: !!p.w, cat: p.cat, foto: p.img || '', logo: (X.pub() || {}).logo || '', tema: X.igTema ? X.igTema() : null, tienda: X.sname() || '', money,
+    abrirInsta({ dest, historia: X.isAdm && X.isAdm() ? () => X.hist(p.id) : null, nombre: p.n, precio: p.pn, porKg: !!p.w, cat: p.cat, foto: p.img || '', logo: (X.pub() || {}).logo || '', tema: X.igTema ? X.igTema() : null, tienda: X.sname() || '', money,
       link: L ? L + (L.indexOf('?') >= 0 ? '&' : '?') + 'p=' + encodeURIComponent(p.id) : '',
       fotoHD: () => (p.hd ? getDoc(ref('public', fotoId(p.id))).then((s) => (s.exists() && s.data().f) || '').catch(() => '') : Promise.resolve('')) });
   }

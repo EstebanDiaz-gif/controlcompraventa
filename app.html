@@ -199,6 +199,7 @@ import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {abrirInsta} from './insta.js';
+import {abrirHistorias,rubroDe} from './historias.js';
 import {abrirFotos} from './fotolib.js';
 import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
@@ -301,7 +302,7 @@ base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:
 VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
-var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,
+var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
@@ -1265,7 +1266,7 @@ return {id:id,nombre:t.nombre,emoji:t.emoji,titulo:t.titulo,wa:t.wa,regalo:t.reg
 // Publicar un modelo en Instagram: foto, nombre, precio de venta y los talles que hay.
 function instaRopa(b,dest){var g=stkRows().filter(function(x){return x.b==b})[0];if(!g)return;var L=catLink();
 var tz=g.sz.filter(function(z){return z.q>0}).map(function(z){return z.z});
-abrirInsta({dest:dest,nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tema:igTema(),tienda:SNAME,money:money,
+abrirInsta({dest:dest,historia:ROLE=='admin'?function(){openHist({k:'p',id:b})}:null,nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tema:igTema(),tienda:SNAME,money:money,
 link:L+(L.indexOf('?')>=0?'&':'?')+'p='+encodeURIComponent(b),fotoHD:function(){return getDoc(fref(b)).then(function(s){return (s.exists()&&s.data().f)||''}).catch(function(){return ''})}})}
 function stkBody(){
 var all=stkRows(),rows=all.filter(stkMatch),adm=ROLE=='admin';
@@ -1610,7 +1611,7 @@ limpiarCodigos();var USO={};MEM.forEach(function(m){if(m.code)USO[m.code]=1});va
 if(INVa.length){h+='<div class="card"><b>Códigos activos</b>';
 INVa.forEach(function(v){var c=invCode(v);h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.re?'para que vuelva a entrar '+esc(((MEM.filter(function(m){return m.id==v.re})[0])||{}).name||''):(v.role=='admin'?'administrador':'empleado'))+' · '+esc(SNAME)+(v.exp?' · vence el '+fdate(v.exp):'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Cada código es para una sola persona. El de <b>empleado</b> no vence: es con lo que entra siempre. El de <b>administrador</b> vence a los '+CODE_DIAS+' días y se borra cuando la persona entra.</div></div>'}
-h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
+h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+histCard()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open},true)}}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
@@ -1641,10 +1642,22 @@ makePhotos(file).then(function(r){var f=r.hd||r.thumb;if(!f){alert('No pude leer
 var at=Date.now(),v=$('cat_ptv');if(v){v.src=f;v.style.display=''}if(st)st.textContent='Subiendo…';
 var b=writeBatch(db);b.set(doc(db,'stores',SID,'public','portada'),{f:f,at:at});b.set(doc(db,'stores',SID,'public','info'),{pt:at},{merge:true});
 return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2.textContent='Portada guardada ✓'})}).catch(function(e){var s3=$('cat_pts');if(s3)s3.textContent='';fail(e)})}
+// Historias del catálogo (duran 24 h). Ver historias.js. Las publica un administrador.
+function histCard(){if(ROLE!='admin')return '';return '<div class="card"><b>📲 Historias del catálogo</b><div class="k" style="margin:4px 0 0">Subí ofertas, novedades o un aviso ("Hoy 20% OFF comprando desde la web") que se ven arriba de tu catálogo en círculos, como en Instagram. Duran 24 horas y tenés 10 diseños para elegir.</div>'+
+'<div class="row" style="gap:8px"><button class="go" data-hist="new" style="margin:10px 0 0">+ Nueva historia</button><button class="go alt" data-hist="list" style="margin:10px 0 0">Mis historias</button></div></div>'}
+function histItems(){var b=biz(),out=[];
+if(b=='almacen')ST.forEach(function(p){if(!p.n||p.oh||(p.q<=0&&!p.ns))return;out.push({k:'p',id:p.id,n:p.n,p:p.pn||0,pa:p.pa||0,img:p.img||'',cat:p.cat,kg:p.w})});
+else stkRows().forEach(function(g){if(g.q<=0||fieldOf(g.b,'oh'))return;out.push({k:'p',id:g.b,n:g.n,p:g.pn||g.pm||0,pa:fieldOf(g.b,'pa')||0,img:photoOf(g.b),cat:g.cat})});
+SV.forEach(function(x){if(x.n&&x.a!==false)out.push({k:'s',id:x.id,n:x.n,p:x.p||0,img:''})});return out}
+function openHist(pre){if(ROLE!='admin'){alert('Las historias las publica un administrador.');return}
+var ref=doc(db,'stores',SID,'public','historias');
+abrirHistorias({leer:function(){return getDoc(ref).then(function(d){return (d.exists()&&d.data().list)||[]})},guardar:function(l){return setDoc(ref,{list:l,at:Date.now()})},
+items:histItems,rubro:rubroDe(biz(),catTp()),tienda:SNAME,color:(PUB&&PUB.color)||'',money:money,hayServicios:SV.length>0,prefill:pre||null,fail:function(e){fail(e)}})}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-hist]');if(!b)return;openHist(b.dataset.hist=='new'?{}:null)});
 // Secciones del catálogo de almacén que se arman solas: se pueden apagar (alx.h/b/o/g = false).
-function alxRows(p){var a=p.alx||{},alm=biz()=='almacen',L=[['h','Historias (círculos arriba, como Instagram)']];
+function alxRows(p){var a=p.alx||{},alm=biz()=='almacen',L=[['h','Mostrar mis historias (las que subís en "Historias del catálogo")']];
 if(alm)L=L.concat([['b','Banner que pasa solo (ofertas, promos, envío)'],['o','Bloque "Llená tu carrito de ofertas"'],['g','Productos en filas por categoría']]);
-return '<label>Secciones del catálogo</label><div class="k" style="margin:0 0 4px">'+(alm?'Se arman solas con tus productos, ofertas, destacados y promos. Apagá las que no quieras mostrar.':'Las historias se arman solas con tus '+(biz()=='servicios'?'servicios, promos y horarios':'ofertas, destacados, promos y horarios')+'. Destildá si no las querés mostrar.')+'</div>'+
+return '<label>Secciones del catálogo</label><div class="k" style="margin:0 0 4px">'+(alm?'El banner, las ofertas y las filas se arman solos con tus productos y promos. Las historias las subís vos y duran 24 horas. Apagá lo que no quieras mostrar.':'Las historias las subís vos desde "Historias del catálogo" y duran 24 horas. Destildá si no las querés mostrar.')+'</div>'+
 L.map(function(x){
 return '<label style="display:flex;gap:10px;align-items:center;font-weight:600;margin-top:8px"><input type="checkbox" data-alx="'+x[0]+'" style="width:auto"'+(a[x[0]]===false?'':' checked')+'> '+x[1]+'</label>'}).join('')}
 function alxVal(){var cb=document.querySelectorAll('[data-alx]');if(!cb.length)return (PUB&&PUB.alx)||{};var o={};Array.prototype.forEach.call(cb,function(c){o[c.dataset.alx]=c.checked});return o}
