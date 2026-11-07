@@ -204,7 +204,8 @@ body.alm .promos .pq{background:var(--ap);color:#fff;border-radius:20px}
 .acat span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ac.v2{text-align:left;padding:8px 8px 11px;border-radius:18px}
 .ac.v2 .aim{position:relative;background:#f6f7f4;background:color-mix(in srgb,var(--abg) 70%,#fff);border-radius:14px;overflow:visible}
-.ac.v2 .aim>img{border-radius:14px;padding:8%;box-sizing:border-box}
+/* la foto no estira el cuadro (si no, una foto alta agranda toda la fila) */
+.ac.v2 .aim{min-height:0}.ac.v2 .aim>img{position:absolute;inset:0;border-radius:14px;padding:4%;box-sizing:border-box}
 .ac.v2 .aadd{position:absolute;right:6px;bottom:6px;left:auto;margin:0;padding:0;z-index:2}
 .ac.v2 .add{width:40px;height:40px;border-radius:50%;background:var(--ap);color:#fff;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 6px 16px rgba(0,0,0,.2);transition:transform .15s}
 .ac.v2 .add:active{transform:scale(.9)}
