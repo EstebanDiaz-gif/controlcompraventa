@@ -233,6 +233,7 @@ export function abrirHistorias(X) {
     const base = X.rubro === 'servicios' ? ['Turnos libres', 'Promos', 'Novedades', 'Trabajos'] : X.rubro === 'ropa' ? ['Novedades', 'Ofertas', 'Ingresos', 'Promos'] : ['Ofertas', 'Novedades', 'Promos', 'Hoy'];
     return usados.concat(base.filter((b) => usados.indexOf(b) < 0)).slice(0, 6);
   };
+  // Solo se ofrecen productos que el catálogo muestra (con precio y stock): si no, la historia no aparecería.
   const vence = (f) => { const ms = f.exp - now(); if (ms <= 0) return 'Vencida'; const h = Math.floor(ms / 3600000); return h >= 1 ? 'Vence en ' + h + ' h' : 'Vence en ' + Math.max(1, Math.round(ms / 60000)) + ' min'; };
   const datos = (f) => { const it = f.k === 't' ? null : item(f.k, f.ref); return { img: it ? it.img : '', n: it ? it.n : f.n, p: it ? it.p : f.p, pa: it ? it.pa : f.pa, kg: it && it.kg, sub2: it && it.sub2, money: X.money, tienda: X.tienda, color: X.color, cover: X.rubro !== 'almacen' && X.rubro !== 'kiosco', rubro: X.rubro }; };
   const guardar = (nueva) => {
@@ -250,6 +251,7 @@ export function abrirHistorias(X) {
     G.forEach((g) => {
       h += '<div style="margin-top:16px"><b>' + esc(g.t) + '</b> <span class="k">· ' + g.f.length + (g.f.length === 1 ? ' imagen' : ' imágenes') + '</span><div style="display:flex;gap:10px;overflow-x:auto;padding:8px 0 4px">' +
         g.f.map((f) => '<div style="flex:none;width:104px;text-align:center"><div style="width:104px">' + frameHtml(f, datos(f)) + '</div><div class="k" style="margin-top:4px;font-size:12px">' + vence(f) + '</div>' +
+          (f.k !== 't' && !item(f.k, f.ref) ? '<div style="font-size:11.5px;font-weight:700;color:#b3261e;margin-top:2px">⚠️ No se ve: ' + (f.k === 's' ? 'el servicio ya no está' : 'sin precio o sin stock') + '</div>' : '') +
           '<div style="display:flex;gap:4px;margin-top:4px"><button type="button" class="x" data-hs="dup" data-id="' + f.id + '" style="flex:1;font-size:12.5px;font-weight:700;text-decoration:underline">Editar</button><button type="button" class="x" data-hs="del" data-id="' + f.id + '" style="flex:1;font-size:12.5px;font-weight:700;text-decoration:underline;color:#b3261e">Borrar</button></div></div>').join('') + '</div></div>';
     });
     if (venc.length) {

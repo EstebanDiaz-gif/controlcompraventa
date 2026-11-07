@@ -1646,8 +1646,8 @@ return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2
 function histCard(){if(ROLE!='admin')return '';return '<div class="card"><b>📲 Historias del catálogo</b><div class="k" style="margin:4px 0 0">Subí ofertas, novedades o un aviso ("Hoy 20% OFF comprando desde la web") que se ven arriba de tu catálogo en círculos, como en Instagram. Duran 24 horas y tenés 10 diseños para elegir.</div>'+
 '<div class="row" style="gap:8px"><button class="go" data-hist="new" style="margin:10px 0 0">+ Nueva historia</button><button class="go alt" data-hist="list" style="margin:10px 0 0">Mis historias</button></div></div>'}
 function histItems(){var b=biz(),out=[];
-if(b=='almacen')ST.forEach(function(p){if(!p.n||p.oh||(p.q<=0&&!p.ns))return;out.push({k:'p',id:p.id,n:p.n,p:p.pn||0,pa:p.pa||0,img:p.img||'',cat:p.cat,kg:p.w})});
-else stkRows().forEach(function(g){if(g.q<=0||fieldOf(g.b,'oh'))return;out.push({k:'p',id:g.b,n:g.n,p:g.pn||g.pm||0,pa:fieldOf(g.b,'pa')||0,img:photoOf(g.b),cat:g.cat})});
+if(b=='almacen')ST.forEach(function(p){if(!p.n||p.oh||!(p.pn>0)||!(p.ns||(p.w?p.q>=0.25:p.q>=1)))return;out.push({k:'p',id:p.id,n:p.n,p:p.pn||0,pa:p.pa||0,img:p.img||'',cat:p.cat,kg:p.w})});
+else stkRows().forEach(function(g){if(g.q<=0||fieldOf(g.b,'oh')||!(g.pn||g.pm))return;out.push({k:'p',id:g.b,n:g.n,p:g.pn||g.pm||0,pa:fieldOf(g.b,'pa')||0,img:photoOf(g.b),cat:g.cat})});
 SV.forEach(function(x){if(x.n&&x.a!==false)out.push({k:'s',id:x.id,n:x.n,p:x.p||0,img:''})});return out}
 function openHist(pre){if(ROLE!='admin'){alert('Las historias las publica un administrador.');return}
 var ref=doc(db,'stores',SID,'public','historias');
