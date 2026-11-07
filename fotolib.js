@@ -28,8 +28,8 @@ export function abrirFotos(o) {
   const $ = (id) => d.querySelector('#' + id), msg = (t) => { $('pxmsg').textContent = t || ''; };
   let q = '', pg = 1, fotos = [], busy = false;
   const pintar = () => {
-    $('pxl').innerHTML = fotos.map((f, i) => '<button type="button" data-pxi="' + i + '" style="position:relative;border:0;padding:0;border-radius:10px;overflow:hidden;aspect-ratio:1;background:#eee;cursor:pointer">' +
-      '<img src="' + esc(f.m) + '" alt="' + esc(f.alt) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">' +
+    $('pxl').innerHTML = fotos.map((f, i) => '<button type="button" data-pxi="' + i + '" style="position:relative;display:block;width:100%;height:0;border:0;padding:0 0 100% 0;border-radius:10px;overflow:hidden;background:#eee;cursor:pointer">' +
+      '<img src="' + esc(f.m) + '" alt="' + esc(f.alt) + '" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">' +
       '<span style="position:absolute;left:0;right:0;bottom:0;padding:3px 6px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.65));text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📷 ' + esc(f.ph) + '</span></button>').join('');
   };
   const buscar = (mas) => {
