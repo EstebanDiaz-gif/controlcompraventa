@@ -787,6 +787,7 @@ export function createAlmacen(X) {
       '<div id="fqrow"' + (c.ns ? ' hidden' : '') + '><div class="row"><div><label id="lq">' + (p ? 'Stock actual (contado)' : 'Stock inicial') + '</label><input id="fq" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + (p ? n3(c.q) : '') + '"></div><div><label>Avisar cuando quede (opcional)</label><input id="fmin" type="text" inputmode="decimal" placeholder="Ej: 3" autocomplete="off" value="' + (c.min ? n3(c.min) : '') + '"></div></div>' +
       (p ? '<div class="k" style="margin-top:6px">Si contás la mercadería y no coincide, corregí el stock acá. Para cargar mercadería que compraste usá Reponer (así se calcula bien el costo).</div>' : '') + '</div>' +
       (c.img && !c.hd ? '<div class="bn warn" style="margin:14px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla para que se vea nítida en el catálogo.</div>' : '') + '<label style="margin-top:14px">Foto (opcional)</label><div style="display:flex;gap:12px;align-items:center"><img id="fph" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:12px;' + (c.img ? '' : 'display:none') + '" src="' + (c.img || '') + '"><input id="fpf" type="file" accept="image/*" style="flex:1"></div>' +
+      (X.fotosOn && X.fotosOn() ? '<button class="x" data-al="pxp" style="display:block;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">🖼️ Buscar foto publicitaria</button>' : '') +
       '<label>Precio anterior (opcional)</label><input id="fpa" type="number" inputmode="decimal" min="0" placeholder="Ej: 2200" value="' + (c.pa || '') + '"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="fdt" type="checkbox" style="width:auto"' + (c.dt ? ' checked' : '') + '> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="foh" type="checkbox" style="width:auto"' + (c.oh ? ' checked' : '') + '> No mostrar en el catálogo</label>' +
@@ -826,7 +827,7 @@ export function createAlmacen(X) {
     if (p && typeof p.q === 'number' && isFinite(p.q)) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = isFinite(q) ? q : 0;
     b.set(ref('stock', id), o, { merge: true });
     b.commit().catch(failW);
-    if (s) { if (E.img !== undefined) aportar(s, n, E.img, E.qs || 0, 'u'); else aportar(s, n, '', 0, 'u'); }
+    if (s) { if (E.img !== undefined && !E.px) aportar(s, n, E.img, E.qs || 0, 'u'); else aportar(s, n, '', 0, 'u'); }   // la foto publicitaria no va a la base de códigos
     closeForms();
   }
   function delProd() {
@@ -1265,6 +1266,7 @@ export function createAlmacen(X) {
       (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · ' + (p.ns ? 'sin control de stock' : 'stock ' + fq(p.q, p.w)) + '</div>'
         : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
           '<label>Nombre</label><input id="qk_n" maxlength="80" autocomplete="off" placeholder="' + (code ? 'Buscando el nombre…' : 'Ej: Queso cremoso') + '"><div class="k" id="qk_nf" style="margin-top:4px"></div><div id="qk_ph"></div>' +
+          (X.fotosOn && X.fotosOn() ? '<button type="button" class="x" id="qk_px" style="display:block;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">🖼️ Buscar foto publicitaria</button>' : '') +
           '<label>Categoría</label><select id="qk_c"><option value="">Sin categoría</option>' + catOpts + '</select>' +
           '<label class="row" style="align-items:center;gap:8px;margin-top:12px;font-weight:600;color:var(--ink)"><input id="qk_w" type="checkbox" style="width:auto"' + (code ? '' : ' checked') + '> Se vende por peso (kg)</label>') +
       '<div class="row"><div><label id="qk_lp">Precio de venta</label><input id="qk_p" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (p && p.pn ? p.pn : '') + '"></div>' +
@@ -1298,6 +1300,7 @@ export function createAlmacen(X) {
       else if (!r.n) q('qk_nf').textContent = 'No lo encontré en la base de productos: escribí el nombre.';
       if (r.thumb) { FOTO = { thumb: r.thumb, hd: r.hd || '', src: r.src, qs: r.qs || 0 }; fotoDraw(); }
     });
+    if (q('qk_px')) q('qk_px').onclick = () => X.fotoPub(q('qk_n').value || '', (o, hd, qs) => { FOTO = { thumb: o, hd: hd || '', src: 'px', qs: qs || 0 }; fotoDraw(); });
     q('qk_q').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('qk_ok').click(); } };
     q('qk_x').onclick = () => cb.onCancel();
     q('qk_ok').onclick = () => {
@@ -1324,7 +1327,7 @@ export function createAlmacen(X) {
       const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
       if (ns) o.ns = true;
       if (ce) o.ce = 1;
-      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; o.bf = 1; }   // foto de la base: se actualiza si aparece una mejor
+      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; if (FOTO.src !== 'px') o.bf = 1; }   // foto de la base: se actualiza si aparece una mejor
       q('qk_ok').disabled = true;
       const bq = writeBatch(db); bq.set(ref('stock', id), o, { merge: true }); if (FOTO && FOTO.hd) bq.set(ref('public', fotoId(id)), { f: FOTO.hd, at: Date.now() });
       bq.commit().catch(failW);
@@ -1615,6 +1618,7 @@ export function createAlmacen(X) {
     else if (a === 'cjmov') cajaMov();
     else if (a === 'cjdet') cajaDet();
     else if (a === 'stval') stockValDlg();
+    else if (a === 'pxp') X.fotoPub(($('fn') || {}).value || '', (o, hd, qs) => { if (!S.edit) return; S.edit.img = o; S.edit.hd = hd || ''; S.edit.qs = qs || 0; S.edit.px = 1; const v = $('fph'); if (v) { v.src = o; v.style.display = ''; } });
     else if (a === 'cjclose') cajaClose();
     else if (a === 'cjfix') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { document.querySelectorAll('.almdlg').forEach((e) => e.remove()); cajaFix(c); } }
     else if (a === 'cjver') { const c = (S.cajasM || []).find((x) => x.id === id); if (c) { if (c.st === 'open') cajaClose(); else cajaVer(c); } }

@@ -290,12 +290,37 @@ async function pushRuta(req, env, path) {
 // Foto de producto de la base pública (Open Food Facts) para la app, cuando el navegador no la deja bajar directo.
 async function imagen(req, env) {
   const u = new URL(req.url).searchParams.get('u') || '';
-  if (!/^https:\/\/images\.open(food|beauty)facts\.org\/[\w./-]+\.(jpg|jpeg|png|webp)$/i.test(u)) return err(req, env, 'Imagen no permitida.', 400);
+  if (!/^https:\/\/images\.open(food|beauty)facts\.org\/[\w./-]+\.(jpg|jpeg|png|webp)$/i.test(u)
+    && !/^https:\/\/images\.pexels\.com\/photos\/\d+\/[\w.-]+\.(jpg|jpeg|png|webp)(\?[\w=&.%-]*)?$/i.test(u)) return err(req, env, 'Imagen no permitida.', 400);
   const r = await fetch(u, { cf: { cacheTtl: 86400, cacheEverything: true } });
   const len = +(r.headers.get('content-length') || 0);
   if (!r.ok || len > 3000000 || !/^image\//.test(r.headers.get('content-type') || '')) return err(req, env, 'No se pudo bajar la imagen.', 502);
   const h = new Headers({ 'Content-Type': r.headers.get('content-type'), 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
   return new Response(r.body, { status: 200, headers: h });
+}
+// ---------- Fotos publicitarias (Pexels) ----------
+// Busca fotos profesionales gratuitas para usar como foto de un producto (fiambres, bebidas, panes…).
+// Pexels pide mostrar su nombre y el del fotógrafo: la app lo muestra en el buscador. La clave (PEXELS_KEY) queda en el servidor.
+// Cada búsqueda se guarda 24 h y cada persona puede hacer hasta 60 por hora (el límite de Pexels es 200/hora).
+async function fotosBuscar(req, env) {
+  const uid = await verificar(env, tokenDe(req)); if (!uid) return err(req, env, 'Iniciá sesión de nuevo.', 401);
+  if (!env.PEXELS_KEY) return err(req, env, 'El buscador de fotos todavía no está activado.', 503);
+  const b = await req.json().catch(() => ({}));
+  const q = String(b.q || '').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const pg = Math.max(1, Math.min(10, parseInt(b.p, 10) || 1));
+  if (q.length < 2) return err(req, env, 'Escribí qué foto buscás.', 400);
+  const ck = 'px:' + q + ':' + pg, guardado = await env.MP.get(ck, 'json');
+  if (guardado) return json(req, env, guardado);
+  const hk = 'pxu:' + uid + ':' + Math.floor(Date.now() / 3600000), n = parseInt((await env.MP.get(hk)) || '0', 10);
+  if (n >= 60) return err(req, env, 'Hiciste muchas búsquedas seguidas. Probá de nuevo en un rato.', 429);
+  await env.MP.put(hk, String(n + 1), { expirationTtl: 3700 });
+  const r = await fetch('https://api.pexels.com/v1/search?query=' + encodeURIComponent(q) + '&per_page=24&page=' + pg + '&locale=es-ES', { headers: { Authorization: env.PEXELS_KEY } });
+  if (!r.ok) return err(req, env, r.status === 429 ? 'El banco de fotos está saturado: probá en un rato.' : 'No pude buscar fotos ahora.', 502);
+  const d = await r.json().catch(() => ({}));
+  const out = { q, p: pg, total: d.total_results || 0, fotos: (d.photos || []).map((x) => ({ id: x.id, w: x.width, h: x.height, alt: String(x.alt || '').slice(0, 120),
+    ph: String(x.photographer || '').slice(0, 60), phu: x.photographer_url || '', url: x.url || '', m: (x.src && (x.src.medium || x.src.small)) || '', l: (x.src && (x.src.large || x.src.large2x || x.src.original)) || '' })).filter((x) => x.m && x.l) };
+  await env.MP.put(ck, JSON.stringify(out), { expirationTtl: 86400 });
+  return json(req, env, out);
 }
 async function webhook(req, env) {
   const u = new URL(req.url); let b = {};
@@ -317,7 +342,7 @@ export default {
     const path = new URL(req.url).pathname;
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req, env) });
     try {
-      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET) });
+      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!env.PEXELS_KEY });
       if (path === '/mp/vuelta' && req.method === 'GET') return await vuelta(req, env);
       if (path === '/mp/comision') return await comision(req, env);
       if (path === '/mp/webhook') return await webhook(req, env);
@@ -328,6 +353,7 @@ export default {
       if (path === '/mp/estado') return await estado(req, env);
       if (path === '/mp/desconectar') return await desconectar(req, env);
       if (path === '/pagar') return await pagar(req, env);
+      if (path === '/fotos/buscar') return await fotosBuscar(req, env);
       if (path.startsWith('/sus/')) return await susRuta(req, env, path);
       if (path.startsWith('/push/') || path.startsWith('/admin/')) return await pushRuta(req, env, path);
       return err(req, env, 'No encontrado.', 404);

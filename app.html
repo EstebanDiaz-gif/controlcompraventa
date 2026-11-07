@@ -199,6 +199,7 @@ import {deriveState,computeAccess,addPeriod} from './access.js';
 import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {abrirInsta} from './insta.js';
+import {abrirFotos} from './fotolib.js';
 import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
 import {createRepartos} from './repartos.js';
@@ -304,7 +305,7 @@ var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
-isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},rp:function(){return RP},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP},catLink:function(){return catLink()},igTema:function(){return igTema()}});
+isAlm:function(){return !!SID&&!!ROLE&&biz()=='almacen'},cs:function(){return CS},rp:function(){return RP},isOwner:function(){return IS_OWNER},promos:function(){return PRM},canLoad:function(){return ROLE=='admin'||MECP},catLink:function(){return catLink()},igTema:function(){return igTema()},fotosOn:function(){return FOTOSOK},fotoPub:function(q,cb){fotoPub(q,cb)}});
 // Promociones: las ven todos (Caja del almacén) y las administra un administrador.
 var PRM=[],PREVTAB='';
 var PRO=createPromos({db:db,$:$,esc:esc,money:money,rnd:rnd,fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},
@@ -457,8 +458,8 @@ document.addEventListener('click',function(e){var b=e.target.closest&&e.target.c
 if(a=='alta')pushAlta(b);
 else if(a=='prueba')pushFetch('/push/prueba').then(function(d){if(!d.n)alert('No llegó el aviso de prueba. Desactivá y volvé a activar los avisos.')}).catch(function(x){alert(x.message)});
 else if(a=='baja')navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription()}).then(function(s){if(!s)return;var ep=s.endpoint;return s.unsubscribe().then(function(){return pushFetch('/push/baja',{endpoint:ep})})}).then(function(){pushLS('pk_push_'+U.uid,null);pushRedraw()}).catch(function(){pushLS('pk_push_'+U.uid,null);pushRedraw()})});
-var SUS=null,SUSY=0,SUSOK=false;
-if(PAGOS_URL)fetch(PAGOS_URL+'/').then(function(r){return r.json()}).then(function(d){SUSOK=!!d.sus;if(SUSOK&&TAB=='team')redrawData()}).catch(function(){});
+var SUS=null,SUSY=0,SUSOK=false,FOTOSOK=false;
+if(PAGOS_URL)fetch(PAGOS_URL+'/').then(function(r){return r.json()}).then(function(d){SUSOK=!!d.sus;FOTOSOK=!!d.fotos;if(SUSOK&&TAB=='team')redrawData()}).catch(function(){});
 function susOn(){return !!PAGOS_URL&&SUSOK&&STMON!='USD'&&!STMAIN&&ROLE=='admin'&&!(ACC&&ACC.life)}
 function susFetch(path,body){return auth.currentUser.getIdToken().then(function(t){return fetch(PAGOS_URL+path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify(Object.assign({sid:SID},body||{}))})}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Error');return d})})}
 function susHtml(){if(!susOn())return '<div id="susbox"></div>';var S=SUS,P=S&&CFG.plans[S.plan],h='<div id="susbox">';
@@ -1257,6 +1258,8 @@ function stkMatch(g){var t=key(STQ).split(/\s+/).filter(Boolean);if(!t.length)re
 var hay=key(g.n+' '+g.s+' '+(g.cat||'')+' '+g.sz.map(function(z){return z.z+' t'+z.z}).join(' '));return t.every(function(w){return hay.indexOf(w)>=0})}
 function szLine(g){return '<small>Talles: '+g.sz.map(function(z){return esc(z.z)+' ('+(z.q<0?'<span class="neg">'+z.q+'</span>':z.q)+')'}).join(', ')+'</small>'}
 // Fecha especial activa (la que eligió la tienda o la general de Pekeron) para el estilo de Instagram de esa fecha.
+// Buscador de fotos publicitarias (Pexels, por el servidor de Pekeron). cb(thumb, hd, qs)
+function fotoPub(q,cb){abrirFotos({q:q,proxy:PAGOS_URL?PAGOS_URL+'/img':'',buscar:function(t,p){return pushFetch('/fotos/buscar',{q:t,p:p})},onPick:cb})}
 function igTema(){var now=Date.now(),id=SID?temaEfectivo(PUB,GLOB,now):'';if(!id||!TEMAS[id])return null;var t=TEMAS[id];
 return {id:id,nombre:t.nombre,emoji:t.emoji,titulo:t.titulo,wa:t.wa,regalo:t.regalo,deco:t.deco,ban:t.ban,cuenta:faltan(now,proxima(id,now))<=40?cuentaRegresiva(now,proxima(id,now)):''}}
 // Publicar un modelo en Instagram: foto, nombre, precio de venta y los talles que hay.
@@ -1342,7 +1345,7 @@ var h='<div class="card"><b>'+esc(g.n)+'</b>'+(g.s?'<small style="display:block"
 '<label style="margin-top:14px">Precio anterior (opcional)</label><input id="epa" type="number" inputmode="decimal" min="0" placeholder="Ej: 55000" value="'+(fieldOf(b,'pa')||'')+'"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="edt" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.dt})?' checked':'')+'> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="eoh" type="checkbox" style="width:auto"'+(baseDocs(b).some(function(d){return d.oh})?' checked':'')+'> No mostrar en el catálogo</label>'+
-(photoOf(b)&&!baseDocs(b).some(function(d){return d.hd})?'<div class="bn warn" style="margin:18px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla abajo para que se vea nítida en el catálogo.</div>':'')+'<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*"><button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>'+
+(photoOf(b)&&!baseDocs(b).some(function(d){return d.hd})?'<div class="bn warn" style="margin:18px 0 0;font-size:13px">Esta foto se subió con la versión anterior y se ve en baja calidad. Volvé a elegirla abajo para que se vea nítida en el catálogo.</div>':'')+'<label style="margin-top:18px">Foto</label><div style="display:flex;gap:12px;align-items:center"><img id="epv" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:12px;'+(photoOf(b)?'':'display:none')+'" src="'+photoOf(b)+'"><div style="flex:1"><input id="eph" type="file" accept="image/*">'+(FOTOSOK?'<button class="x" data-edx="pxph" style="display:block;font-size:13px;font-weight:700;text-decoration:underline;margin-top:6px;color:var(--ink)">🖼️ Buscar foto publicitaria</button>':'')+'<button class="x" data-edx="rmph" style="font-size:13px;text-decoration:underline;margin-top:6px">Quitar foto</button></div></div>'+
 '<label style="margin-top:18px">Más fotos (hasta '+XMAX+')</label><div class="k" style="margin-top:2px">Otros ángulos, puesta, detalles. En el catálogo el cliente las pasa deslizando.</div><div id="xph">'+xHtml()+'</div>';
 if(st0>0){h+='<label style="margin-top:18px">Agregar talles y colores ('+st0+' unidades sin talle)</label><div class="k" style="margin:2px 0 10px">Repartí las unidades que hoy no tienen talle. No cambia tus costos ni tus ganancias.</div>';
 ESZ.forEach(function(r,i){h+='<div class="row" style="margin-bottom:8px;align-items:center"><div><input class="ez-z" data-i="'+i+'" placeholder="'+esc(EX('zl'))+'" value="'+esc(r.z)+'" autocomplete="off"></div><div><input class="ez-c" data-i="'+i+'" placeholder="Color (opcional)" value="'+esc(r.c||'')+'" autocomplete="off"></div><div><input class="ez-q" data-i="'+i+'" type="number" inputmode="numeric" min="1" placeholder="Cant." value="'+esc(r.q)+'"></div><button class="x" data-edx="del" data-i="'+i+'" aria-label="Quitar">×</button></div>'});
@@ -1405,6 +1408,7 @@ else if(a=='del'){ESZ.splice(+i,1);drawEdit()}
 else if(a=='cancel')closeEdit();
 else if(a=='rmx'){if(XPH){XPH.splice(+i,1);XCH=true;xDraw()}}
 else if(a=='rmph'){EPH='';var v=$('epv');if(v){v.removeAttribute('src');v.style.display='none'}}
+else if(a=='pxph'){var en=$('en');fotoPub(en?en.value:'',function(o,hd){EPH=o;EPHD=hd||'';var v=$('epv');if(v){v.src=o;v.style.display=''}})}
 else if(a=='delprod')delProduct();
 else if(a=='save')saveEdit()}
 function saveEdit(){

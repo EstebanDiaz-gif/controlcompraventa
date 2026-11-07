@@ -207,3 +207,35 @@ test('entrar por el link del catálogo (y recuperar si falta la ficha)', async (
   assert.deepEqual(docs['users/own/stores/pk'], { name: 'Pekeron' }); assert.deepEqual(docs['users/w/stores/pk'], { name: 'Pekeron' });
   const r2 = await W.fetch(post('/admin/entrar', { slug: 'noexiste' }, await idToken('own')), env); assert.equal(r2.status, 404);
 });
+
+test('fotos publicitarias: necesita sesión y clave, guarda la búsqueda y limita por persona', async () => {
+  const { env, kv } = entorno({}, {});
+  const base = globalThis.fetch; let llamadas = 0;
+  globalThis.fetch = async (url, o = {}) => {
+    if (String(url).startsWith('https://api.pexels.com/v1/search')) { llamadas++; assert.equal(o.headers.Authorization, 'PXK'); assert.match(String(url), /query=jam%C3%B3n%20cocido&per_page=24&page=1&locale=es-ES/);
+      return Response.json({ total_results: 2, photos: [{ id: 1, width: 4000, height: 3000, alt: 'Jamón', photographer: 'Ana', photographer_url: 'https://pexels.com/@ana', url: 'https://pexels.com/photo/1', src: { medium: 'https://images.pexels.com/photos/1/a.jpeg?h=350', large: 'https://images.pexels.com/photos/1/a.jpeg?h=650' } }, { id: 2, src: {} }] }); }
+    return base(url, o);
+  };
+  let r = await W.fetch(post('/fotos/buscar', { q: 'jamón cocido' }), env);
+  assert.equal(r.status, 401);
+  const tok = await idToken('u1');
+  r = await W.fetch(post('/fotos/buscar', { q: 'jamón cocido' }, tok), env);
+  assert.equal(r.status, 503);                                   // sin clave de Pexels
+  env.PEXELS_KEY = 'PXK';
+  r = await W.fetch(post('/fotos/buscar', { q: '  Jamón   Cocido!! ' }, tok), env);
+  const d = await r.json();
+  assert.equal(d.fotos.length, 1); assert.equal(d.fotos[0].ph, 'Ana'); assert.equal(d.fotos[0].l, 'https://images.pexels.com/photos/1/a.jpeg?h=650');
+  await W.fetch(post('/fotos/buscar', { q: 'jamón cocido' }, tok), env);
+  assert.equal(llamadas, 1);                                     // la segunda vez sale de lo guardado
+  for (let i = 0; i < 59; i++) kv.set('pxu:u1:' + Math.floor(Date.now() / 3600000), String(60));
+  r = await W.fetch(post('/fotos/buscar', { q: 'salame' }, tok), env);
+  assert.equal(r.status, 429);
+  globalThis.fetch = base;
+  // el proxy de imágenes acepta las de Pexels y rechaza otras
+  globalThis.fetch = async () => new Response(new Uint8Array(1000), { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '1000' } });
+  r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://images.pexels.com/photos/1/a.jpeg?auto=compress&h=650')), env);
+  assert.equal(r.status, 200);
+  r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://otro.com/photos/1/a.jpeg')), env);
+  assert.equal(r.status, 400);
+  globalThis.fetch = base;
+});
