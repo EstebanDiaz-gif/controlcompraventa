@@ -45,6 +45,9 @@ html{overflow-anchor:none}
 @media(max-width:759px){.hero.ph.dst{height:max(46vh,330px);min-height:0}.hero.ph.dst .htag{bottom:168px}
 .dest{margin-top:-150px;--cw:min(60vw,280px)}}
 .hero.pl:not(.dst) .htop{padding-bottom:16px}
+/* Con foto de portada y destacados: la frase va arriba, debajo del nombre, más chica, para no tapar la foto */
+.hero.ph.dst .htag{top:88px;bottom:auto;font-size:clamp(19px,5vw,30px);max-width:min(86%,640px);text-shadow:0 2px 12px rgba(0,0,0,.45)}
+.hero.ph.dst .hshade{background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.22) 30%,rgba(0,0,0,0) 46%,rgba(0,0,0,0) 62%,rgba(0,0,0,.35) 100%)}
 /* destacados (carrusel que se monta sobre la portada) */
 .dest{position:relative;z-index:2;max-width:1100px;margin:-128px auto 0;--cw:min(64vw,300px)}
 .dest h2{display:none}
