@@ -1641,6 +1641,12 @@ makePhotos(file).then(function(r){var f=r.hd||r.thumb;if(!f){alert('No pude leer
 var at=Date.now(),v=$('cat_ptv');if(v){v.src=f;v.style.display=''}if(st)st.textContent='Subiendo…';
 var b=writeBatch(db);b.set(doc(db,'stores',SID,'public','portada'),{f:f,at:at});b.set(doc(db,'stores',SID,'public','info'),{pt:at},{merge:true});
 return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2.textContent='Portada guardada ✓'})}).catch(function(e){var s3=$('cat_pts');if(s3)s3.textContent='';fail(e)})}
+// Secciones del catálogo de almacén que se arman solas: se pueden apagar (alx.h/b/o/g = false).
+function alxRows(p){if(biz()!='almacen')return '';var a=p.alx||{};
+return '<label>Secciones del catálogo</label><div class="k" style="margin:0 0 4px">Se arman solas con tus productos, ofertas, destacados y promos. Apagá las que no quieras mostrar.</div>'+
+[['h','Historias (círculos arriba, como Instagram)'],['b','Banner que pasa solo (ofertas, promos, envío)'],['o','Bloque "Llená tu carrito de ofertas"'],['g','Productos en filas por categoría']].map(function(x){
+return '<label style="display:flex;gap:10px;align-items:center;font-weight:600;margin-top:8px"><input type="checkbox" data-alx="'+x[0]+'" style="width:auto"'+(a[x[0]]===false?'':' checked')+'> '+x[1]+'</label>'}).join('')}
+function alxVal(){var cb=document.querySelectorAll('[data-alx]');if(!cb.length)return (PUB&&PUB.alx)||{};var o={};Array.prototype.forEach.call(cb,function(c){o[c.dataset.alx]=c.checked});return o}
 function catCard(){
 var p=PUB||{};setTimeout(loadPt,0);
 var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style="margin:4px 0 0">Una página con tus productos, fotos y talles con stock. El cliente arma el pedido y te lo manda por WhatsApp. No muestra costos ni ganancias.</div>'+
@@ -1650,7 +1656,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
-estiloSel(p)+
+estiloSel(p)+alxRows(p)+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
@@ -1767,7 +1773,7 @@ if($('cat_on').checked&&!was.length){alert('Escribí al menos un WhatsApp para r
 if(was.length>1&&was.some(function(x){return !x.n})){alert('Poné un nombre a cada número, así el cliente sabe a quién le escribe.');return}
 $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),alx:alxVal(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
 return}
 }
 function planCardCollapsible(){
