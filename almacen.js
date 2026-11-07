@@ -1266,7 +1266,8 @@ export function createAlmacen(X) {
       (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · ' + (p.ns ? 'sin control de stock' : 'stock ' + fq(p.q, p.w)) + '</div>'
         : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
           '<label>Nombre</label><input id="qk_n" maxlength="80" autocomplete="off" placeholder="' + (code ? 'Buscando el nombre…' : 'Ej: Queso cremoso') + '"><div class="k" id="qk_nf" style="margin-top:4px"></div><div id="qk_ph"></div>' +
-          (X.fotosOn && X.fotosOn() ? '<button type="button" class="x" id="qk_px" style="display:block;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">🖼️ Buscar foto publicitaria</button>' : '') +
+          '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:8px"><label class="x" style="display:inline-block;margin:0;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);cursor:pointer">📷 Sacar o subir foto<input id="qk_pf" type="file" accept="image/*" hidden></label>' +
+          (X.fotosOn && X.fotosOn() ? '<button type="button" class="x" id="qk_px" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">🖼️ Buscar foto publicitaria</button>' : '') + '</div>' +
           '<label>Categoría</label><select id="qk_c"><option value="">Sin categoría</option>' + catOpts + '</select>' +
           '<label class="row" style="align-items:center;gap:8px;margin-top:12px;font-weight:600;color:var(--ink)"><input id="qk_w" type="checkbox" style="width:auto"' + (code ? '' : ' checked') + '> Se vende por peso (kg)</label>') +
       '<div class="row"><div><label id="qk_lp">Precio de venta</label><input id="qk_p" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (p && p.pn ? p.pn : '') + '"></div>' +
@@ -1292,7 +1293,7 @@ export function createAlmacen(X) {
     const first = p ? (p.ns ? q('qk_p') : q('qk_q')) : q('qk_n');
     setTimeout(() => { try { first.focus({ preventScroll: true }); } catch (e) { first.focus(); } }, 120);
     let FOTO = null;
-    const fotoDraw = () => { const e = q('qk_ph'); if (!e) return; e.innerHTML = FOTO ? '<div style="display:flex;align-items:center;gap:12px;margin-top:10px"><img src="' + FOTO.thumb + '" alt="" style="width:72px;height:72px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--line)"><div class="k" style="margin:0">📷 Foto encontrada: se usa en el catálogo.<br><button class="x" id="qk_phx" style="font-size:13px;text-decoration:underline">Quitar foto</button></div></div>' : ''; const x = q('qk_phx'); if (x) x.onclick = () => { FOTO = null; fotoDraw(); }; };
+    const fotoDraw = () => { const e = q('qk_ph'); if (!e) return; e.innerHTML = FOTO ? '<div style="display:flex;align-items:center;gap:12px;margin-top:10px"><img src="' + FOTO.thumb + '" alt="" style="width:72px;height:72px;object-fit:contain;border-radius:12px;background:#fff;border:1px solid var(--line)"><div class="k" style="margin:0">' + (FOTO.src === 'u' ? '📷 Tu foto: se usa en el catálogo.' : FOTO.src === 'px' ? '🖼️ Foto publicitaria: se usa en el catálogo.' : '📷 Foto encontrada: se usa en el catálogo.') + '<br><button class="x" id="qk_phx" style="font-size:13px;text-decoration:underline">Quitar foto</button></div></div>' : ''; const x = q('qk_phx'); if (x) x.onclick = () => { FOTO = null; fotoDraw(); }; };
     if (!p && code) buscarProducto(code).then((r) => {
       const el = q('qk_n'); if (!el) return;
       el.placeholder = 'Ej: Galletitas Oreo 118 g';
@@ -1300,6 +1301,8 @@ export function createAlmacen(X) {
       else if (!r.n) q('qk_nf').textContent = 'No lo encontré en la base de productos: escribí el nombre.';
       if (r.thumb) { FOTO = { thumb: r.thumb, hd: r.hd || '', src: r.src, qs: r.qs || 0 }; fotoDraw(); }
     });
+    q('qk_pf').onchange = function () { const f = this.files && this.files[0]; this.value = ''; if (!f) return;
+      X.readPhoto(f, (o, hd, qs) => { if (!o) { alert('No pude leer esa foto. Probá con otra.'); return; } FOTO = { thumb: o, hd: hd || '', src: 'u', qs: qs || 0 }; fotoDraw(); }); };
     if (q('qk_px')) q('qk_px').onclick = () => X.fotoPub(q('qk_n').value || '', (o, hd, qs) => { FOTO = { thumb: o, hd: hd || '', src: 'px', qs: qs || 0 }; fotoDraw(); });
     q('qk_q').onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); q('qk_ok').click(); } };
     q('qk_x').onclick = () => cb.onCancel();
@@ -1327,11 +1330,12 @@ export function createAlmacen(X) {
       const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
       if (ns) o.ns = true;
       if (ce) o.ce = 1;
-      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; if (FOTO.src !== 'px') o.bf = 1; }   // foto de la base: se actualiza si aparece una mejor
+      if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; if (FOTO.src === 'base' || FOTO.src === 'off') o.bf = 1; }   // foto de la base: se actualiza si aparece una mejor
       q('qk_ok').disabled = true;
       const bq = writeBatch(db); bq.set(ref('stock', id), o, { merge: true }); if (FOTO && FOTO.hd) bq.set(ref('public', fotoId(id)), { f: FOTO.hd, at: Date.now() });
       bq.commit().catch(failW);
-      if (code) aportar(code, n, FOTO && FOTO.src === 'off' ? FOTO.thumb : '', FOTO ? FOTO.qs || 0 : 0, FOTO && FOTO.src === 'off' ? 'off' : 'u');
+      // a la base de códigos va la foto oficial o la propia (con su puntaje), nunca la publicitaria
+      if (code) aportar(code, n, FOTO && (FOTO.src === 'off' || FOTO.src === 'u') ? FOTO.thumb : '', FOTO ? FOTO.qs || 0 : 0, FOTO && FOTO.src === 'off' ? 'off' : 'u');
       cb.onDone(Object.assign({ id }, o));
     };
   }
