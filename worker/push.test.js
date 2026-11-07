@@ -230,10 +230,23 @@ test('fotos publicitarias: necesita sesión y clave, guarda la búsqueda y limit
   for (let i = 0; i < 59; i++) kv.set('pxu:u1:' + Math.floor(Date.now() / 3600000), String(60));
   r = await W.fetch(post('/fotos/buscar', { q: 'salame' }, tok), env);
   assert.equal(r.status, 429);
+  // con Pixabay (tiene prioridad)
+  env.PIXABAY_KEY = 'PBK';
+  globalThis.fetch = async (url, o = {}) => {
+    if (String(url).startsWith('https://pixabay.com/api/')) { assert.match(String(url), /key=PBK&q=queso&lang=es&image_type=photo&safesearch=true&per_page=24&page=1/);
+      return Response.json({ totalHits: 1, hits: [{ id: 9, tags: 'queso, comida', user: 'Leo', user_id: 5, pageURL: 'https://pixabay.com/photos/queso-9/', webformatURL: 'https://pixabay.com/get/g1_640.jpg', largeImageURL: 'https://pixabay.com/get/g1_1280.jpg' }] }); }
+    return base(url, o);
+  };
+  kv.clear();
+  r = await W.fetch(post('/fotos/buscar', { q: 'queso' }, tok), env);
+  const d2 = await r.json();
+  assert.equal(d2.fuente.n, 'Pixabay'); assert.equal(d2.fotos[0].l, 'https://pixabay.com/get/g1_1280.jpg'); assert.equal(d2.fotos[0].phu, 'https://pixabay.com/users/Leo-5/');
   globalThis.fetch = base;
-  // el proxy de imágenes acepta las de Pexels y rechaza otras
+  // el proxy de imágenes acepta las de Pexels y Pixabay y rechaza otras
   globalThis.fetch = async () => new Response(new Uint8Array(1000), { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '1000' } });
   r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://images.pexels.com/photos/1/a.jpeg?auto=compress&h=650')), env);
+  assert.equal(r.status, 200);
+  r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://pixabay.com/get/g1_1280.jpg')), env);
   assert.equal(r.status, 200);
   r = await W.fetch(new Request('https://pagos.test/img?u=' + encodeURIComponent('https://otro.com/photos/1/a.jpeg')), env);
   assert.equal(r.status, 400);

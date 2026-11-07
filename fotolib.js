@@ -1,7 +1,7 @@
-// Buscador de fotos publicitarias (banco gratuito Pexels, a través del servidor de Pekeron).
+// Buscador de fotos publicitarias (bancos gratuitos Pixabay o Pexels, a través del servidor de Pekeron).
 // Sirve para productos sin foto propia: fiambres, quesos, bebidas, panes… La foto elegida se baja,
 // se achica como las fotos propias (fotos.js) y queda como foto del producto.
-// Pexels pide mostrar su nombre y el del fotógrafo: se muestran en el buscador.
+// Se muestra el banco de donde salen y el autor de cada foto.
 //
 // abrirFotos({ q, buscar(q, p) → Promise<{ fotos, total }>, proxy: 'https://…/img', onPick(thumb, hd, qs) })
 
@@ -21,7 +21,7 @@ export function abrirFotos(o) {
   d.innerHTML = '<div style="background:var(--bg,#fff);color:var(--ink,#111);width:100%;max-width:560px;height:92vh;display:flex;flex-direction:column;border-radius:22px 22px 0 0;padding:16px 14px calc(14px + env(safe-area-inset-bottom,0px))">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:19px">🖼️ Foto publicitaria</b><button type="button" class="x" data-pxx="1" style="font-weight:700;text-decoration:underline">Cerrar</button></div>' +
     '<form id="pxf" style="display:flex;gap:8px;margin:10px 0 6px"><input id="pxq" type="search" enterkeyhint="search" autocomplete="off" placeholder="Ej: jamón cocido, gaseosa, pan" style="flex:1;margin:0"><button class="go" style="margin:0;width:auto;padding:0 18px">Buscar</button></form>' +
-    '<div class="k" style="margin-bottom:8px">Fotos gratis de <a href="https://www.pexels.com" target="_blank" rel="noopener" style="font-weight:700">Pexels</a>. Probá con palabras simples; a veces en inglés salen más (ham, cheese, soda).</div>' +
+    '<div class="k" style="margin-bottom:8px">Fotos gratis de <a id="pxsrc" href="https://pixabay.com" target="_blank" rel="noopener" style="font-weight:700">Pixabay</a>. Probá con palabras simples; a veces en inglés salen más (ham, cheese, soda).</div>' +
     '<div id="pxl" style="flex:1;overflow:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-content:start"></div>' +
     '<button type="button" class="go alt" id="pxm" style="margin-top:8px" hidden>Ver más</button><div class="k" id="pxmsg" style="font-weight:600;margin-top:6px"></div></div>';
   document.body.appendChild(d);
@@ -38,6 +38,7 @@ export function abrirFotos(o) {
     busy = true; msg('Buscando…');
     o.buscar(q, pg).then((r) => {
       busy = false; fotos = fotos.concat(r.fotos || []); pintar();
+      if (r.fuente && r.fuente.n) { const a = $('pxsrc'); a.textContent = r.fuente.n; a.href = r.fuente.url || a.href; }
       $('pxm').hidden = !(r.total > fotos.length && pg < 10);
       msg(fotos.length ? '' : 'No encontré fotos para "' + q + '". Probá con otra palabra.');
     }, (e) => { busy = false; if (mas) pg--; msg((e && e.message) || 'No pude buscar fotos ahora.'); });

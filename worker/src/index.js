@@ -291,20 +291,22 @@ async function pushRuta(req, env, path) {
 async function imagen(req, env) {
   const u = new URL(req.url).searchParams.get('u') || '';
   if (!/^https:\/\/images\.open(food|beauty)facts\.org\/[\w./-]+\.(jpg|jpeg|png|webp)$/i.test(u)
-    && !/^https:\/\/images\.pexels\.com\/photos\/\d+\/[\w.-]+\.(jpg|jpeg|png|webp)(\?[\w=&.%-]*)?$/i.test(u)) return err(req, env, 'Imagen no permitida.', 400);
+    && !/^https:\/\/images\.pexels\.com\/photos\/\d+\/[\w.-]+\.(jpg|jpeg|png|webp)(\?[\w=&.%-]*)?$/i.test(u)
+    && !/^https:\/\/(pixabay\.com\/get|cdn\.pixabay\.com\/photo)\/[\w./-]+\.(jpg|jpeg|png|webp)$/i.test(u)) return err(req, env, 'Imagen no permitida.', 400);
   const r = await fetch(u, { cf: { cacheTtl: 86400, cacheEverything: true } });
   const len = +(r.headers.get('content-length') || 0);
   if (!r.ok || len > 3000000 || !/^image\//.test(r.headers.get('content-type') || '')) return err(req, env, 'No se pudo bajar la imagen.', 502);
   const h = new Headers({ 'Content-Type': r.headers.get('content-type'), 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
   return new Response(r.body, { status: 200, headers: h });
 }
-// ---------- Fotos publicitarias (Pexels) ----------
+// ---------- Fotos publicitarias (Pixabay o Pexels) ----------
 // Busca fotos profesionales gratuitas para usar como foto de un producto (fiambres, bebidas, panes…).
-// Pexels pide mostrar su nombre y el del fotógrafo: la app lo muestra en el buscador. La clave (PEXELS_KEY) queda en el servidor.
+// Usa Pixabay (PIXABAY_KEY) y, si no hay, Pexels (PEXELS_KEY). La app muestra el banco y el autor de cada foto.
+// La foto elegida se baja y se guarda en el producto (no se enlaza a la del banco), como pide Pixabay.
 // Cada búsqueda se guarda 24 h y cada persona puede hacer hasta 60 por hora (el límite de Pexels es 200/hora).
 async function fotosBuscar(req, env) {
   const uid = await verificar(env, tokenDe(req)); if (!uid) return err(req, env, 'Iniciá sesión de nuevo.', 401);
-  if (!env.PEXELS_KEY) return err(req, env, 'El buscador de fotos todavía no está activado.', 503);
+  if (!env.PIXABAY_KEY && !env.PEXELS_KEY) return err(req, env, 'El buscador de fotos todavía no está activado.', 503);
   const b = await req.json().catch(() => ({}));
   const q = String(b.q || '').normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
   const pg = Math.max(1, Math.min(10, parseInt(b.p, 10) || 1));
@@ -314,11 +316,20 @@ async function fotosBuscar(req, env) {
   const hk = 'pxu:' + uid + ':' + Math.floor(Date.now() / 3600000), n = parseInt((await env.MP.get(hk)) || '0', 10);
   if (n >= 60) return err(req, env, 'Hiciste muchas búsquedas seguidas. Probá de nuevo en un rato.', 429);
   await env.MP.put(hk, String(n + 1), { expirationTtl: 3700 });
-  const r = await fetch('https://api.pexels.com/v1/search?query=' + encodeURIComponent(q) + '&per_page=24&page=' + pg + '&locale=es-ES', { headers: { Authorization: env.PEXELS_KEY } });
-  if (!r.ok) return err(req, env, r.status === 429 ? 'El banco de fotos está saturado: probá en un rato.' : 'No pude buscar fotos ahora.', 502);
-  const d = await r.json().catch(() => ({}));
-  const out = { q, p: pg, total: d.total_results || 0, fotos: (d.photos || []).map((x) => ({ id: x.id, w: x.width, h: x.height, alt: String(x.alt || '').slice(0, 120),
-    ph: String(x.photographer || '').slice(0, 60), phu: x.photographer_url || '', url: x.url || '', m: (x.src && (x.src.medium || x.src.small)) || '', l: (x.src && (x.src.large || x.src.large2x || x.src.original)) || '' })).filter((x) => x.m && x.l) };
+  let out;
+  if (env.PIXABAY_KEY) {
+    const r = await fetch('https://pixabay.com/api/?key=' + encodeURIComponent(env.PIXABAY_KEY) + '&q=' + encodeURIComponent(q) + '&lang=es&image_type=photo&safesearch=true&per_page=24&page=' + pg);
+    if (!r.ok) return err(req, env, r.status === 429 ? 'El banco de fotos está saturado: probá en un rato.' : 'No pude buscar fotos ahora.', 502);
+    const d = await r.json().catch(() => ({}));
+    out = { q, p: pg, total: d.totalHits || 0, fuente: { n: 'Pixabay', url: 'https://pixabay.com' }, fotos: (d.hits || []).map((x) => ({ id: x.id, w: x.imageWidth, h: x.imageHeight, alt: String(x.tags || '').slice(0, 120),
+      ph: String(x.user || '').slice(0, 60), phu: x.user && x.user_id ? 'https://pixabay.com/users/' + x.user + '-' + x.user_id + '/' : '', url: x.pageURL || '', m: x.webformatURL || x.previewURL || '', l: x.largeImageURL || x.webformatURL || '' })).filter((x) => x.m && x.l) };
+  } else {
+    const r = await fetch('https://api.pexels.com/v1/search?query=' + encodeURIComponent(q) + '&per_page=24&page=' + pg + '&locale=es-ES', { headers: { Authorization: env.PEXELS_KEY } });
+    if (!r.ok) return err(req, env, r.status === 429 ? 'El banco de fotos está saturado: probá en un rato.' : 'No pude buscar fotos ahora.', 502);
+    const d = await r.json().catch(() => ({}));
+    out = { q, p: pg, total: d.total_results || 0, fuente: { n: 'Pexels', url: 'https://www.pexels.com' }, fotos: (d.photos || []).map((x) => ({ id: x.id, w: x.width, h: x.height, alt: String(x.alt || '').slice(0, 120),
+      ph: String(x.photographer || '').slice(0, 60), phu: x.photographer_url || '', url: x.url || '', m: (x.src && (x.src.medium || x.src.small)) || '', l: (x.src && (x.src.large || x.src.large2x || x.src.original)) || '' })).filter((x) => x.m && x.l) };
+  }
   await env.MP.put(ck, JSON.stringify(out), { expirationTtl: 86400 });
   return json(req, env, out);
 }
@@ -342,7 +353,7 @@ export default {
     const path = new URL(req.url).pathname;
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req, env) });
     try {
-      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!env.PEXELS_KEY });
+      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!(env.PIXABAY_KEY || env.PEXELS_KEY) });
       if (path === '/mp/vuelta' && req.method === 'GET') return await vuelta(req, env);
       if (path === '/mp/comision') return await comision(req, env);
       if (path === '/mp/webhook') return await webhook(req, env);
