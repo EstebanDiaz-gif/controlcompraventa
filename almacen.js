@@ -384,9 +384,9 @@ export function createAlmacen(X) {
     setTimeout(() => { i.focus(); i.select(); }, 60);
   }
   // Publicar un producto en Instagram (foto, nombre, precio). El link abre el producto en el catálogo.
-  function instaProd(id) {
+  function instaProd(id, dest) {
     const p = prod(id); if (!p) return; const L = X.catLink ? X.catLink() : '';
-    abrirInsta({ nombre: p.n, precio: p.pn, porKg: !!p.w, cat: p.cat, foto: p.img || '', logo: (X.pub() || {}).logo || '', tema: X.igTema ? X.igTema() : null, tienda: X.sname() || '', money,
+    abrirInsta({ dest, nombre: p.n, precio: p.pn, porKg: !!p.w, cat: p.cat, foto: p.img || '', logo: (X.pub() || {}).logo || '', tema: X.igTema ? X.igTema() : null, tienda: X.sname() || '', money,
       link: L ? L + (L.indexOf('?') >= 0 ? '&' : '?') + 'p=' + encodeURIComponent(p.id) : '',
       fotoHD: () => (p.hd ? getDoc(ref('public', fotoId(p.id))).then((s) => (s.exists() && s.data().f) || '').catch(() => '') : Promise.resolve('')) });
   }
@@ -760,7 +760,7 @@ export function createAlmacen(X) {
       h += '<div class="it"><div>' + (p.img ? '<img src="' + p.img + '" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">' : '') + '<b>' + esc(p.n) + '</b>' + (p.s ? '<span class="sku">' + esc(p.s) + '</span>' : '') +
         '<small>' + (p.cat ? '<em class="tag">' + esc(p.cat) + '</em>' : '') + priceTxt(p) + (adm() && p.c ? ' · costo ' + money(p.c) + (p.ce ? ' (estimado)' : '') + (mg != null ? ' · margen ' + mg + '%' : '') : '') + '</small>' +
         (load() ? '<button class="x" data-al="editp" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>' : '') +
-        (load() && p.pn > 0 ? '<button class="x" data-al="ig" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">📸 Instagram</button>' : '') +
+        (load() ? '<button class="x" data-al="ig" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">📸 Instagram</button><button class="x" data-al="igwa" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">🟢 Estado</button>' : '') +
         (load() && S.stNoCod ? '<button class="x" data-al="asigcod" data-id="' + esc(p.id) + '" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">Escanear código</button>' : '') + '</div>' +
         (p.ns ? '<div class="amt"><b>—</b><small>sin control</small></div></div>' : '<div class="amt"><b class="' + (p.q < 0 ? 'neg' : lw ? 'neg' : '') + '">' + fq(p.q, p.w) + '</b><small>' + (lw ? 'reponer' : 'en stock') + '</small></div></div>');
     });
@@ -1642,6 +1642,7 @@ export function createAlmacen(X) {
     else if (a === 'newp') { S.repo = null; prodForm(null); }
     else if (a === 'editp') prodForm(id);
     else if (a === 'ig') instaProd(id);
+    else if (a === 'igwa') instaProd(id, 'wa');
     else if (a === 'fw') { S.edit.w = el.dataset.v === '1'; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); S.edit.lbl(); }
     else if (a === 'savep') saveProd();
     else if (a === 'delp') { if (adm()) delProd(); }

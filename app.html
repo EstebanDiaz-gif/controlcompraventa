@@ -1263,14 +1263,14 @@ function fotoPub(q,cb){abrirFotos({q:q,proxy:PAGOS_URL?PAGOS_URL+'/img':'',busca
 function igTema(){var now=Date.now(),id=SID?temaEfectivo(PUB,GLOB,now):'';if(!id||!TEMAS[id])return null;var t=TEMAS[id];
 return {id:id,nombre:t.nombre,emoji:t.emoji,titulo:t.titulo,wa:t.wa,regalo:t.regalo,deco:t.deco,ban:t.ban,cuenta:faltan(now,proxima(id,now))<=40?cuentaRegresiva(now,proxima(id,now)):''}}
 // Publicar un modelo en Instagram: foto, nombre, precio de venta y los talles que hay.
-function instaRopa(b){var g=stkRows().filter(function(x){return x.b==b})[0];if(!g)return;var L=catLink();
+function instaRopa(b,dest){var g=stkRows().filter(function(x){return x.b==b})[0];if(!g)return;var L=catLink();
 var tz=g.sz.filter(function(z){return z.q>0}).map(function(z){return z.z});
-abrirInsta({nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tema:igTema(),tienda:SNAME,money:money,
+abrirInsta({dest:dest,nombre:g.n,precio:g.pn||g.pm,talles:tz,detalle:tz.length?'Talles: '+tz.join(', '):'',cat:g.cat,foto:photoOf(b),logo:(PUB&&PUB.logo)||'',tema:igTema(),tienda:SNAME,money:money,
 link:L+(L.indexOf('?')>=0?'&':'?')+'p='+encodeURIComponent(b),fotoHD:function(){return getDoc(fref(b)).then(function(s){return (s.exists()&&s.data().f)||''}).catch(function(){return ''})}})}
 function stkBody(){
 var all=stkRows(),rows=all.filter(stkMatch),adm=ROLE=='admin';
 var h='<div class="card tbl"><table><tr><th>Producto</th><th>Stock</th>'+(adm?'<th>Costo prom.</th><th>Valor</th>':'')+'</tr>';
-rows.forEach(function(g){var im=photoOf(g.b);h+='<tr><td>'+(im?'<img src="'+im+'" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">':'')+esc(g.n)+(g.s?'<br><small>'+esc(g.s)+'</small>':'')+(g.cat?'<br><em class="tag" style="margin-top:4px;display:inline-block">'+esc(g.cat)+'</em>':'')+(g.sz.length?'<br>'+szLine(g):'')+((g.pm||g.pn)?'<br><small>Mayor '+(g.pm?money(g.pm):'—')+' · Menor '+(g.pn?money(g.pn):'—')+'</small>':'')+(adm?'<br><button class="x" data-ed="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>':'')+((adm||MECP)&&(g.pn||g.pm)?'<button class="x" data-ig="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">📸 Instagram</button>':'')+'</td><td class="'+(g.q<0?'neg':'')+'">'+g.q+'</td>'+(adm?'<td>'+money(g.avg)+'</td><td>'+money(g.v)+'</td>':'')+'</tr>'});
+rows.forEach(function(g){var im=photoOf(g.b);h+='<tr><td>'+(im?'<img src="'+im+'" alt="" style="width:48px;height:48px;object-fit:cover;border-radius:10px;float:left;margin:0 10px 4px 0">':'')+esc(g.n)+(g.s?'<br><small>'+esc(g.s)+'</small>':'')+(g.cat?'<br><em class="tag" style="margin-top:4px;display:inline-block">'+esc(g.cat)+'</em>':'')+(g.sz.length?'<br>'+szLine(g):'')+((g.pm||g.pn)?'<br><small>Mayor '+(g.pm?money(g.pm):'—')+' · Menor '+(g.pn?money(g.pn):'—')+'</small>':'')+(adm?'<br><button class="x" data-ed="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:4px">Editar</button>':'')+((adm||MECP)?'<button class="x" data-ig="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">📸 Instagram</button><button class="x" data-igw="'+esc(g.b)+'" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin:4px 0 0 14px">🟢 Estado</button>':'')+'</td><td class="'+(g.q<0?'neg':'')+'">'+g.q+'</td>'+(adm?'<td>'+money(g.avg)+'</td><td>'+money(g.v)+'</td>':'')+'</tr>'});
 if(!rows.length)h+='<tr><td colspan="'+(adm?4:2)+'" class="empty">'+(all.length?'No encontré productos con esa búsqueda.':(adm?'Cargá tu primera compra para ver el stock.':'Todavía no hay productos cargados.'))+'</td></tr>';
 $('stkbody').innerHTML=h+'</table></div>'}
 // ---------- Importar desde Excel / CSV (tiendas de ropa y calzado; clientes con fiado) ----------
@@ -2165,6 +2165,7 @@ if(d.bz){var bzE=$('bzc');if(!bzE||!bzE._tipo){alert('Elegí el tipo de negocio.
 if(d.lt){litAction(d.lt,d.sid,d.f);return}
 if(d.ed){startEdit(d.ed);return}
 if(d.ig){instaRopa(d.ig);return}
+if(d.igw){instaRopa(d.igw,'wa');return}
 if(d.edx){editAction(d.edx,d.i);return}
 if(d.pa){platAction(d.pa);return}
 if(d.pd){openDetail(d.pd);return}

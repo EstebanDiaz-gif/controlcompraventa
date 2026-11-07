@@ -3,7 +3,10 @@
 // Instagram no deja que otra app publique sola: la persona termina la publicación en Instagram.
 // El texto no viaja con la imagen (Instagram lo ignora), así que se copia para pegarlo.
 //
-// abrirInsta({ nombre, precio, porKg, talles, detalle, cat, foto, fotoHD, logo, tienda, link, money })
+// También arma estados de WhatsApp (9:16, texto corto como descripción) y deja publicar sin precio
+// ("Consultá precio") para que la gente pregunte.
+//
+// abrirInsta({ nombre, precio, porKg, talles, detalle, cat, foto, fotoHD, logo, tienda, link, money, dest: 'ig'|'wa' })
 //   foto: imagen chica (data URL) · fotoHD: () => Promise<data URL | ''> con la foto grande, si hay.
 //   talles: ['38','39'] (se dibujan como etiquetas) · logo: logo de la tienda (data URL), si tiene.
 //
@@ -70,16 +73,26 @@ export function textoInsta(o, est) {
   if (T) { l.push(T.emoji + ' ' + T.titulo + ' ' + T.emoji, ''); }
   l.push('✨ ' + o.nombre);
   if (o.precio > 0) l.push('💲 ' + o.money(o.precio) + (o.porKg ? ' el kilo' : ''));
+  else if (o.consultar) l.push('💬 Consultá el precio ' + (o.wa ? 'respondiendo este estado' : 'por mensaje'));
   if (o.detalle) l.push(o.detalle);
   if (T && T.regalo && T.wa) l.push('🎁 Ideal ' + T.wa);
-  l.push('', '📲 Pedilo por WhatsApp o desde nuestro catálogo (link en la bio)');
-  if (o.link) l.push(o.link);
+  // En el estado de WhatsApp el texto va corto y sin hashtags; el link se puede tocar.
+  if (o.wa) { if (o.link && !o.consultar) l.push('', '🛍️ Pedilo desde el catálogo: ' + o.link); else if (!o.consultar) l.push('', '📲 Respondé este estado para pedirlo'); return l.join('\n'); }
+  l.push('', o.consultar ? '📲 Escribinos por mensaje o mirá nuestro catálogo (link en la bio)' : '📲 Pedilo por WhatsApp o desde nuestro catálogo (link en la bio)');
+  if (o.link && !o.consultar) l.push(o.link);
   const tags = [tag(o.tienda), tag(o.cat), T ? tag(T.nombre) : ''].filter(Boolean);
   if (tags.length) l.push('', tags.join(' '));
   return l.join('\n');
 }
 
 // ---------- dibujo ----------
+const CONS = 'Consultá precio';
+// Frase chiquita de abajo: depende de dónde se publica (Instagram o estado de WhatsApp) y de si lleva precio.
+function pie(o, st, base) {
+  if (o.wa) return o.consultar ? 'Respondé este estado y te pasamos el precio' : 'Respondé este estado para pedirlo 💬';
+  if (st) return o.consultar ? 'Consultanos por mensaje 💬' : 'Tocá el enlace y pedilo 👇';
+  return (o.consultar ? 'Consultá el precio por mensaje' : (base || 'Pedilo por WhatsApp')) + ' · link en la bio';
+}
 // Corta el texto en renglones que entren en `w` (como mucho `max` renglones, con … al final).
 function lineas(ctx, txt, w, max) {
   const words = String(txt || '').split(/\s+/).filter(Boolean), out = [];
@@ -141,9 +154,9 @@ function moderno(ctx, W, H, o, img, ac, fmt) {
   // abajo, de abajo hacia arriba
   let y = H - (fmt === 'story' ? 280 : 70);
   ctx.globalAlpha = 0.78; ctx.fillStyle = '#fff'; ctx.font = '600 30px ' + FD;
-  ctx.fillText(fmt === 'story' ? 'Tocá el enlace y pedilo 👇' : 'Pedilo por WhatsApp · link en la bio', M, y); ctx.globalAlpha = 1;
+  ctx.fillText(pie(o, fmt === 'story'), M, y); ctx.globalAlpha = 1;
   y -= 56;
-  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : '';
+  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : (o.consultar ? CONS : '');
   if (precio) {
     ctx.font = '800 76px ' + FD; const pw = ctx.measureText(precio).width + 76, ph = 116;
     ctx.fillStyle = hex(ac); rr(ctx, M, y - ph, pw, ph, ph / 2); ctx.fill();
@@ -176,13 +189,13 @@ function minimal(ctx, W, H, o, img, ac, fmt) {
   const N = ajustar(ctx, o.nombre, W - M * 2, 2, '700', st ? 80 : 66, 44, FS);
   ctx.fillStyle = hex(ink); N.l.forEach((s, i) => ctx.fillText(s, M, y + i * N.t * 1.08)); y += (N.l.length - 1) * N.t * 1.08;
   y += st ? 40 : 28; ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(M, y, W - M * 2, 2); y += st ? 84 : 70;
-  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' el kilo' : '') : '';
-  if (precio) { ctx.fillStyle = hex(acD); ctx.font = '800 ' + (st ? 72 : 60) + 'px ' + FD; ctx.fillText(precio, M, y); }
+  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' el kilo' : '') : (o.consultar ? CONS : '');
+  let pwd = 0; if (precio) { ctx.fillStyle = hex(acD); ctx.font = '800 ' + (st ? 72 : 60) + 'px ' + FD; ctx.fillText(precio, M, y); pwd = ctx.measureText(precio).width + 40; }
   ctx.fillStyle = hex(ink); ctx.globalAlpha = 0.7; ctx.font = '500 ' + (st ? 32 : 28) + 'px ' + FD; ctx.textAlign = 'right';
-  if (o.talles && o.talles.length) ctx.fillText(lineas(ctx, 'Talles ' + o.talles.join(' · '), W - M * 2 - (precio ? 380 : 0), 1)[0], W - M, y - 4);
+  if (o.talles && o.talles.length) ctx.fillText(lineas(ctx, 'Talles ' + o.talles.join(' · '), W - M * 2 - pwd, 1)[0], W - M, y - 4);
   ctx.textAlign = 'left'; ctx.globalAlpha = 1;
   ctx.fillStyle = hex(ink); ctx.globalAlpha = 0.5; ctx.font = 'italic 600 ' + (st ? 34 : 28) + 'px ' + FS; ctx.textAlign = 'center';
-  ctx.fillText(st ? 'Tocá el enlace y pedilo' : 'Pedilo por WhatsApp — link en la bio', W / 2, H - (st ? 300 : 52)); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+  ctx.fillText(pie(o, st).replace(/ [👇💬]$/u, ''), W / 2, Math.max(y + (st ? 110 : 64), H - (st ? 300 : 52))); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
 }
 
 // IMPACTO: color pleno, la foto como polaroid inclinada, el precio gigante y un sticker.
@@ -206,13 +219,13 @@ function impacto(ctx, W, H, o, img, ac, fmt) {
   ctx.save(); ctx.translate(cx + s / 2 - 10, cy - s / 2 + 20); ctx.rotate(0.22);
   ctx.fillStyle = yel; ctx.beginPath(); const R = st ? 112 : 96;
   for (let i = 0; i < 24; i++) { const a = (i / 24) * Math.PI * 2, r = i % 2 ? R : R * 0.88; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#111'; ctx.textAlign = 'center'; ctx.font = '800 ' + (st ? 34 : 30) + 'px ' + FD; ctx.fillText('¡PEDILO', 0, -4); ctx.fillText('YA!', 0, st ? 34 : 30); ctx.textAlign = 'left'; ctx.restore();
+  ctx.fillStyle = '#111'; ctx.textAlign = 'center'; const sk = o.consultar ? ['¡CONSULTÁ', 'YA!'] : ['¡PEDILO', 'YA!']; ctx.font = '800 ' + (st ? 34 : 30) * (o.consultar ? 0.8 : 1) + 'px ' + FD; ctx.fillText(sk[0], 0, -4); ctx.font = '800 ' + (st ? 34 : 30) + 'px ' + FD; ctx.fillText(sk[1], 0, st ? 34 : 30); ctx.textAlign = 'left'; ctx.restore();
   // nombre y precio
   let y = cy + s / 2 + (st ? 180 : 165);
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
   const N = ajustar(ctx, o.nombre, W - M * 2, 2, '800', st ? 78 : 64, 42, FD);
   N.l.forEach((t, i) => ctx.fillText(t, W / 2, y + i * N.t * 1.05)); y += (N.l.length - 1) * N.t * 1.05;
-  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : '';
+  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : (o.consultar ? CONS : '');
   if (precio) {
     y += st ? 60 : 40; const PT = ajustar(ctx, precio, W - M * 2 - 80, 1, '800', st ? 150 : 124, 70, FD);
     const pw = ctx.measureText(precio).width + 80, ph = PT.t * 1.12;
@@ -220,7 +233,7 @@ function impacto(ctx, W, H, o, img, ac, fmt) {
     ctx.fillStyle = '#111'; ctx.fillText(precio, 0, PT.t * 0.36); ctx.restore(); y += ph;
   }
   if (o.talles && o.talles.length) { y += st ? 80 : 56; ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.9; ctx.font = '700 ' + (st ? 36 : 30) + 'px ' + FD; ctx.fillText(lineas(ctx, 'Talles ' + o.talles.join(' · '), W - M * 2, 1)[0], W / 2, y); ctx.globalAlpha = 1; }
-  ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.8; ctx.font = '600 ' + (st ? 32 : 28) + 'px ' + FD; ctx.fillText(st ? 'Tocá el enlace y pedilo 👇' : 'Pedilo por WhatsApp · link en la bio', W / 2, st ? Math.max(y + 90, H - 300) : H - 44); ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.8; ctx.font = '600 ' + (st ? 32 : 28) + 'px ' + FD; ctx.fillText(pie(o, st), W / 2, st ? Math.max(y + 90, H - 300) : H - 44); ctx.globalAlpha = 1;
   ctx.textAlign = 'left';
 }
 
@@ -269,12 +282,12 @@ function temporada(ctx, W, H, o, img, ac, fmt) {
   let y = fy + fh + (st ? 120 : 92); ctx.fillStyle = ink;
   const N = ajustar(ctx, o.nombre, W - M * 2, 2, '800', st ? 70 : 54, 38, FD);
   N.l.forEach((t, i) => ctx.fillText(t, W / 2, y + i * N.t * 1.05)); y += (N.l.length - 1) * N.t * 1.05;
-  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : '';
+  const precio = o.precio > 0 ? o.money(o.precio) + (o.porKg ? ' /kg' : '') : (o.consultar ? CONS : '');
   if (precio) { y += st ? 40 : 26; ctx.font = '800 ' + (st ? 76 : 62) + 'px ' + FD; const pw = ctx.measureText(precio).width + 70, ph = st ? 112 : 92; ctx.fillStyle = cd; rr(ctx, W / 2 - pw / 2, y, pw, ph, ph / 2); ctx.fill(); ctx.fillStyle = cdi; ctx.fillText(precio, W / 2, y + ph * 0.72); y += ph; }
   if (o.talles && o.talles.length) { y += st ? 62 : 46; ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.font = '700 ' + (st ? 34 : 28) + 'px ' + FD; ctx.fillText(lineas(ctx, 'Talles ' + o.talles.join(' · '), W - M * 2, 1)[0], W / 2, y); ctx.globalAlpha = 1; }
   ctx.fillStyle = ink; ctx.globalAlpha = 0.85; ctx.font = 'italic 600 ' + (st ? 36 : 30) + 'px ' + FS;
-  const pie = st ? 'Tocá el enlace y pedilo 👇' : (T.regalo && T.wa ? 'Ideal ' + T.wa : 'Pedilo por WhatsApp') + ' · link en la bio';
-  ctx.fillText(pie, W / 2, st ? Math.max(y + 90, H - 300) : H - 38); ctx.globalAlpha = 1; ctx.textAlign = 'left';
+  const pieT = pie(o, st, T.regalo && T.wa ? 'Ideal ' + T.wa : '');
+  ctx.fillText(pieT, W / 2, st ? Math.max(y + 90, H - 300) : H - 38); ctx.globalAlpha = 1; ctx.textAlign = 'left';
 }
 
 export function dibujar(cv, o, img, fmt, est) {
@@ -284,59 +297,85 @@ export function dibujar(cv, o, img, fmt, est) {
   ({ moderno, minimal, impacto, temporada }[est] || moderno)(ctx, W, H, o, img, ac, fmt);
 }
 
+const DEST = { ig: '📸 Instagram', wa: '🟢 Estado de WhatsApp' };
+const PRE = { si: 'Con precio', no: 'Sin precio (que consulten)' };
+const TIT = { ig: '📸 Publicar en Instagram', wa: '🟢 Subir a tu estado de WhatsApp' };
+const AYU = {
+  ig: 'Al tocar <b>Compartir</b> el texto se copia solo. En Instagram elegí Publicación o Historia, y en el texto mantené apretado y tocá <b>Pegar</b>.',
+  wa: 'Tocá <b>Compartir</b>, elegí <b>WhatsApp</b> y arriba de todo <b>Mi estado</b>. El texto va como descripción (si no aparece, mantené apretado y tocá <b>Pegar</b>). Los que respondan el estado te escriben directo.'
+};
+
+// abrirInsta(o): o.dest 'ig' (Instagram, por defecto) o 'wa' (estado de WhatsApp).
 export function abrirInsta(o) {
   o.color = o.color || cssVar('--btn', '#1D3FAF');
   // Con una fecha especial activa, su estilo aparece primero y elegido.
   const ES = o.tema ? Object.assign({ temporada: o.tema.emoji + ' ' + (o.tema.nombre.length > 12 ? o.tema.nombre.split(' ').slice(-1)[0] : o.tema.nombre) }, EST) : EST;
-  let est = o.tema ? 'temporada' : 'moderno';
+  let est = o.tema ? 'temporada' : 'moderno', dest = o.dest === 'wa' ? 'wa' : 'ig', conP = o.precio > 0 ? 'si' : 'no';
   const old = document.getElementById('igdlg'); if (old) old.remove();
   const d = document.createElement('div'); d.id = 'igdlg';
   d.style.cssText = 'position:fixed;inset:0;z-index:95;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
   const seg = (attr, obj, sel) => '<div style="display:flex;gap:6px;background:var(--card,#f4f3f0);padding:5px;border-radius:14px;margin-top:8px">' + Object.keys(obj).map((k) => '<button type="button" data-' + attr + '="' + k + '" aria-pressed="' + (k === sel) + '" style="flex:1;border:0;border-radius:10px;padding:10px 6px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;' + (k === sel ? 'background:var(--btn,#1D3FAF);color:var(--btnink,#fff)' : 'background:transparent;color:var(--ink,#111)') + '">' + (typeof obj[k] === 'string' ? obj[k] : obj[k].t) + '</button>').join('') + '</div>';
   d.innerHTML = '<div style="background:var(--bg,#fff);color:var(--ink,#111);width:100%;max-width:520px;max-height:94vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:19px">📸 Publicar en Instagram</b><button type="button" class="x" data-igx="1" style="font-size:15px;font-weight:700;text-decoration:underline">Cerrar</button></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:19px" id="igtit"></b><button type="button" class="x" data-igx="1" style="font-size:15px;font-weight:700;text-decoration:underline">Cerrar</button></div>' +
+    seg('igd', DEST, dest) +
     '<div id="igest">' + seg('ige', ES, est) + '</div><div id="igfmt">' + seg('igf', FMT, 'post') + '</div>' +
+    (o.precio > 0 ? seg('igp', PRE, conP) : '<div class="k" style="margin-top:8px">Este producto no tiene precio cargado: se publica con <b>Consultá precio</b>.</div>') +
     '<div style="display:flex;justify-content:center;background:var(--card,#f4f3f0);border-radius:16px;padding:10px;margin-top:10px"><canvas id="igcv" style="width:auto;max-width:100%;max-height:48vh;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,.2)"></canvas></div>' +
-    '<label for="igtx" style="margin-top:14px">Texto de la publicación</label><textarea id="igtx" rows="7" style="width:100%;font:inherit;font-size:15px;line-height:1.4"></textarea>' +
-    '<button type="button" class="go" id="igsh" style="margin-top:12px">Compartir en Instagram</button>' +
+    '<label for="igtx" style="margin-top:14px" id="igtl">Texto de la publicación</label><textarea id="igtx" rows="7" style="width:100%;font:inherit;font-size:15px;line-height:1.4"></textarea>' +
+    '<button type="button" class="go" id="igsh" style="margin-top:12px"></button>' +
     '<div class="row" style="gap:8px"><button type="button" class="go alt" id="igdl" style="margin:0">Descargar imagen</button><button type="button" class="go alt" id="igcp" style="margin:0">Copiar texto</button></div>' +
     '<div class="k" id="igmsg" style="margin-top:10px;font-weight:600"></div>' +
-    '<div class="k" style="margin-top:6px">Al tocar <b>Compartir</b> el texto se copia solo. En Instagram elegí Publicación o Historia, y en el texto mantené apretado y tocá <b>Pegar</b>.</div></div>';
+    '<div class="k" style="margin-top:6px" id="igayu"></div></div>';
   document.body.appendChild(d);
   const $ = (id) => d.querySelector('#' + id), cv = $('igcv'), tx = $('igtx'), msg = (t) => { $('igmsg').textContent = t; };
-  let auto = textoInsta(o, est); tx.value = auto;
+  // Lo que se dibuja y escribe: el producto con el destino y el precio elegidos.
+  const ver = () => Object.assign({}, o, { precio: conP === 'si' ? o.precio : 0, consultar: conP !== 'si', wa: dest === 'wa' });
+  let auto = textoInsta(ver(), est); tx.value = auto;
   let fmt = 'post', img = null, file = null, gen = 0;
+  const F = () => (dest === 'wa' ? 'story' : fmt);
   const nombreArch = (o.nombre || 'producto').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40) || 'producto';
+  const arch = () => nombreArch + (dest === 'wa' ? '-estado' : fmt === 'story' ? '-historia' : '') + '.jpg';
   // El archivo se prepara antes del toque: el menú de compartir solo se abre si se llama enseguida al tocar.
   const render = () => {
-    dibujar(cv, o, img, fmt, est); file = null; const g = ++gen;
-    try { cv.toBlob((b) => { if (g === gen && b) file = new File([b], nombreArch + (fmt === 'story' ? '-historia' : '') + '.jpg', { type: 'image/jpeg' }); }, 'image/jpeg', 0.93); } catch (e) { file = null; }
+    dibujar(cv, ver(), img, F(), est); file = null; const g = ++gen;
+    try { cv.toBlob((b) => { if (g === gen && b) file = new File([b], arch(), { type: 'image/jpeg' }); }, 'image/jpeg', 0.93); } catch (e) { file = null; }
+  };
+  const textoNuevo = () => { const nu = textoInsta(ver(), est); if (tx.value === auto) tx.value = nu; auto = nu; };
+  const destino = () => {
+    $('igtit').textContent = TIT[dest]; $('igayu').innerHTML = AYU[dest];
+    $('igsh').textContent = dest === 'wa' ? 'Compartir en mi estado' : 'Compartir en Instagram';
+    $('igtl').textContent = dest === 'wa' ? 'Texto del estado' : 'Texto de la publicación';
+    $('igfmt').hidden = dest === 'wa'; tx.rows = dest === 'wa' ? 4 : 7;
   };
   const copiar = () => { const t = tx.value; try { if (navigator.clipboard) return navigator.clipboard.writeText(t).then(() => true, () => false); } catch (e) { /* sin portapapeles */ } return Promise.resolve(false); };
   const descargar = () => {
-    try { const a = document.createElement('a'); a.href = cv.toDataURL('image/jpeg', 0.93); a.download = nombreArch + (fmt === 'story' ? '-historia' : '') + '.jpg'; document.body.appendChild(a); a.click(); a.remove(); return true; } catch (e) { return false; }
+    try { const a = document.createElement('a'); a.href = cv.toDataURL('image/jpeg', 0.93); a.download = arch(); document.body.appendChild(a); a.click(); a.remove(); return true; } catch (e) { return false; }
   };
   const marcar = (attr, val) => d.querySelectorAll('[data-' + attr + ']').forEach((b) => { const on = b.dataset[attr] === val; b.setAttribute('aria-pressed', on); b.style.background = on ? 'var(--btn,#1D3FAF)' : 'transparent'; b.style.color = on ? 'var(--btnink,#fff)' : 'var(--ink,#111)'; });
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('[data-igx]')) { d.remove(); return; }
     const f = e.target.closest('[data-igf]'); if (f) { fmt = f.dataset.igf; marcar('igf', fmt); render(); return; }
-    const s = e.target.closest('[data-ige]'); if (s) { est = s.dataset.ige; marcar('ige', est); render();
-      // el texto se adapta al estilo, salvo que la persona ya lo haya cambiado
-      const nu = textoInsta(o, est); if (tx.value === auto) tx.value = nu; auto = nu; }
+    const t = e.target.closest('[data-igd]'); if (t) { dest = t.dataset.igd; marcar('igd', dest); destino(); render(); textoNuevo(); msg(''); return; }
+    const pr = e.target.closest('[data-igp]'); if (pr) { conP = pr.dataset.igp; marcar('igp', conP); render(); textoNuevo(); return; }
+    // el texto se adapta al estilo, salvo que la persona ya lo haya cambiado
+    const s = e.target.closest('[data-ige]'); if (s) { est = s.dataset.ige; marcar('ige', est); render(); textoNuevo(); }
   });
+  const dondeSubir = () => (dest === 'wa' ? 'Subila a tu estado desde WhatsApp.' : 'Subila desde Instagram.');
   $('igcp').onclick = () => { copiar().then((ok) => msg(ok ? 'Texto copiado ✓' : 'No pude copiar: seleccioná el texto y copialo a mano.')); };
-  $('igdl').onclick = () => { const ok = descargar(); copiar().then((c) => msg(ok ? 'Imagen descargada' + (c ? ' y texto copiado' : '') + '. Subila desde Instagram.' : 'No pude descargar la imagen.')); };
+  $('igdl').onclick = () => { const ok = descargar(); copiar().then((c) => msg(ok ? 'Imagen descargada' + (c ? ' y texto copiado' : '') + '. ' + dondeSubir() : 'No pude descargar la imagen.')); };
   $('igsh').onclick = () => {
     const pc = copiar();
     if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file] }).then(() => msg('Listo. Si no pegaste el texto: mantené apretado y tocá Pegar.'), (e) => { if (e && e.name !== 'AbortError') msg('No se pudo compartir. Probá con Descargar imagen.'); });
-      pc.then((ok) => { if (!ok) msg('No pude copiar el texto: copialo antes con el botón Copiar texto.'); });
+      // WhatsApp toma el texto como descripción del estado; Instagram lo ignora (por eso se copia).
+      const dat = dest === 'wa' && tx.value.trim() && navigator.canShare({ files: [file], text: tx.value }) ? { files: [file], text: tx.value } : { files: [file] };
+      navigator.share(dat).then(() => msg(dest === 'wa' ? 'Listo ✓ Si el texto no quedó, mantené apretado y tocá Pegar.' : 'Listo. Si no pegaste el texto: mantené apretado y tocá Pegar.'), (e) => { if (e && e.name !== 'AbortError') msg('No se pudo compartir. Probá con Descargar imagen.'); });
+      pc.then((ok) => { if (!ok && dest !== 'wa') msg('No pude copiar el texto: copialo antes con el botón Copiar texto.'); });
       return;
     }
     // Compu o navegador sin compartir archivos: se descarga la imagen.
-    const ok = descargar(); pc.then((c) => msg(ok ? 'En este dispositivo no se puede compartir directo: descargué la imagen' + (c ? ' y copié el texto' : '') + '. Subila desde Instagram.' : 'No pude preparar la imagen.'));
+    const ok = descargar(); pc.then((c) => msg(ok ? 'En este dispositivo no se puede compartir directo: descargué la imagen' + (c ? ' y copié el texto' : '') + '. ' + dondeSubir() : 'No pude preparar la imagen.'));
   };
-  render();
+  destino(); render();
   Promise.all([fuentes(), loadImg(o.logo).then((l) => { o._lg = l; })]).then(render);
   loadImg(o.foto).then((i) => { if (i) { img = i; render(); } return o.fotoHD ? o.fotoHD() : ''; })
     .then((hd) => (hd ? loadImg(hd) : null)).then((i) => { if (i && document.body.contains(d)) { img = i; render(); } }).catch(() => {});
