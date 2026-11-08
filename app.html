@@ -200,6 +200,7 @@ import {mergeConfig,PLAN_IDS} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {abrirInsta} from './insta.js';
 import {abrirHistorias,rubroDe} from './historias.js';
+import {abrirQR} from './qrcartel.js';
 import {abrirFotos} from './fotolib.js';
 import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
@@ -1771,6 +1772,7 @@ if(a=='msgreset'){var t=$('cat_msg');if(t)t.value=shareMsg();return}
 if(a=='slug'){saveSlug();return}
 if(a=='copy'){var l=catLink();if(navigator.clipboard)navigator.clipboard.writeText(l).then(function(){alert('Link copiado.')},function(){prompt('Copiá el link:',l)});else prompt('Copiá el link:',l);return}
 if(a=='open'){window.open(catLink(),'_blank');return}
+if(a=='qr'){var pq=PUB||{},lq=logoNow(pq);abrirQR({link:catLink(),tienda:SNAME,color:pq.color||'',logo:/^data:image\//.test(lq||'')?lq:'',rubro:rubroDe(biz(),catTp())});return}
 if(a=='nologo'){CLOGO='';var v=$('cat_lgv');if(v)v.style.display='none';return}
 if(a=='nopt'){if(!confirm('¿Quitar la foto de portada del catálogo?'))return;var b0=writeBatch(db);b0.delete(doc(db,'stores',SID,'public','portada'));b0.set(doc(db,'stores',SID,'public','info'),{pt:deleteField()},{merge:true});b0.commit().then(function(){PTIMG={at:0,f:''}}).catch(fail);return}
 if(a=='save'){
@@ -1830,6 +1832,7 @@ var link=catLink(),p=PUB||{};
 var h='<div class="card"><b style="display:flex;justify-content:space-between;align-items:center;gap:10px">📱 Catálogo<div style="display:flex;gap:6px"><button class="go alt" data-cat="copy" style="padding:8px 14px;font-size:14px">Copiar</button><button class="go alt" data-cat="open" style="padding:8px 14px;font-size:14px">Abrir</button></div></b>';
 h+='<div class="k" style="margin:8px 0 0">Compartí este link con tus clientes para que vean tu catálogo.</div>';
 h+='<div style="margin-top:10px;word-break:break-all;padding:10px;background:var(--line);border-radius:10px;font-family:monospace;font-size:14px">'+esc(link)+'</div>';
+h+='<button class="go alt" data-cat="qr" style="margin-top:10px">🔳 QR para imprimir o compartir</button>';
 h+='</div>';
 return h}
 function configCard(){
