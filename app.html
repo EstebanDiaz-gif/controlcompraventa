@@ -208,7 +208,7 @@ import {createVendedores} from './vendedores.js';
 import {PAGOS_URL} from './pagos-config.js';
 import {leerArchivo,detectar,filas,CAMPOS_ROPA,CAMPOS_FIADO} from './planilla.js';
 import {openScanner,scanButton,codeVariants,beep,canScan} from './scanner.js';
-import {makePhotos,fotoId} from './fotos.js';
+import {makePhotos,makeCover,fotoId} from './fotos.js';
 import {createPromos} from './promos-ui.js';
 import {createAgenda,DURS} from './agenda.js';
 import {cargarDemoServ,DEMO_SV} from './demo.js';
@@ -1638,7 +1638,7 @@ var PTIMG={at:0,f:''},PTL=0;
 function loadPt(){var p=PUB||{};if(!p.pt||PTIMG.at==p.pt||PTL==p.pt)return;PTL=p.pt;
 getDoc(doc(db,'stores',SID,'public','portada')).then(function(s){var f=s.exists()&&s.data().f;if(!f)return;PTIMG={at:p.pt,f:f};var v=$('cat_ptv');if(v){v.src=f;v.style.display=''}}).catch(function(){PTL=0})}
 function savePt(file){var st=$('cat_pts');if(st)st.textContent='Preparando la foto…';
-makePhotos(file).then(function(r){var f=r.hd||r.thumb;if(!f){alert('No pude leer esa foto. Probá con otra.');if(st)st.textContent='';return}
+makeCover(file).then(function(f0){return f0?{hd:f0}:makePhotos(file)}).then(function(r){var f=r.hd||r.thumb;if(!f){alert('No pude leer esa foto. Probá con otra.');if(st)st.textContent='';return}
 var at=Date.now(),v=$('cat_ptv');if(v){v.src=f;v.style.display=''}if(st)st.textContent='Subiendo…';
 var b=writeBatch(db);b.set(doc(db,'stores',SID,'public','portada'),{f:f,at:at});b.set(doc(db,'stores',SID,'public','info'),{pt:at},{merge:true});
 return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2.textContent='Portada guardada ✓'})}).catch(function(e){var s3=$('cat_pts');if(s3)s3.textContent='';fail(e)})}
@@ -1666,7 +1666,7 @@ var p=PUB||{};setTimeout(loadPt,0);
 var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style="margin:4px 0 0">Una página con tus productos, fotos y talles con stock. El cliente arma el pedido y te lo manda por WhatsApp. No muestra costos ni ganancias.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="cat_on" type="checkbox" style="width:auto"'+(p.enabled?' checked':'')+'> Catálogo activado</label>'+
 '<label>Logo de tu negocio</label><div class="row" style="gap:12px;align-items:center"><img id="cat_lgv" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--line);'+(logoNow(p)?'':'display:none')+'" src="'+esc(logoNow(p))+'"><input id="cat_logo" type="file" accept="image/*" style="flex:1"></div><button class="go alt" data-cat="nologo" style="margin-top:6px">Quitar logo</button>'+
-'<label>Foto de portada (opcional)</label><div class="k" style="margin:0 0 8px">La foto grande de arriba del catálogo: tus productos, tu local o una modelo con tu ropa. Queda mejor una foto vertical o cuadrada.</div>'+
+'<label>Foto de portada (opcional)</label><div class="k" style="margin:0 0 8px">La foto grande de arriba del catálogo: tus productos, tu local o una modelo con tu ropa. Usá una foto grande y nítida (no captura de pantalla): en la compu se ve a lo ancho de toda la pantalla.</div>'+
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+

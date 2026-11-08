@@ -8,6 +8,8 @@
 
 const THUMB = { side: 640, max: 110000, q: 0.86, minQ: 0.6 };
 const HD = { side: 1400, max: 900000, q: 0.9, minQ: 0.66 };
+// Portada del catálogo: más grande que la HD para que en la compu (pantalla ancha) se vea nítida. Entra en un documento (1 MB).
+const COVER = { side: 2200, max: 980000, q: 0.86, minQ: 0.62 };
 
 export function fotoId(k) { return 'foto_' + encodeURIComponent(String(k || '')).replace(/\./g, '%2E').slice(0, 700); }
 
@@ -96,4 +98,13 @@ export async function makePhotos(file) {
     const hd = Math.max(w, h) > THUMB.side * 1.15 ? make(im, w, h, HD) : '';
     return { thumb, hd, qs: thumb ? calidad(im, w, h) : 0 };
   } catch (e) { return { thumb: '', hd: '', qs: 0 }; }
+}
+
+// Foto de portada: hasta 2200 px de lado (si la original es más chica, queda de su tamaño).
+export async function makeCover(file) {
+  try {
+    const im = await loadImg(file), w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+    if (!w || !h) return '';
+    return make(im, w, h, Object.assign({}, COVER, { side: Math.min(COVER.side, Math.max(w, h)) }));
+  } catch (e) { return ''; }
 }
