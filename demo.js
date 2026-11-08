@@ -33,7 +33,7 @@ const SETS = {
       ['Papa', 'Verdulería', 1200, 700, 30, 1, '🥔'],
       ['Galletitas Oreo 118 g', 'Galletitas y golosinas', 1350, 950, 30, 0, '🍪'],
       ['Chocolate 100 g', 'Galletitas y golosinas', 1900, 1300, 20, 0, '🍫'],
-      ['Papas fritas 150 g', 'Galletitas y golosinas', 2100, 1450, 18, 0, '🍟'],
+      ['Papas fritas 150 g', 'Snacks', 2100, 1450, 18, 0, '🍟'],
       ['Helado 1 kg', 'Congelados', 6500, 4300, 6, 0, '🍨'],
       ['Hamburguesas x 4', 'Congelados', 4200, 2900, 10, 0, '🍔'],
       ['Lavandina 1 L', 'Limpieza', 950, 600, 20, 0, '🧴', 0, 1200],
