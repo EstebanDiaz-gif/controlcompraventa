@@ -57,6 +57,7 @@ export function calcularPedido({ items, G, info, promos, now, pago, entrega, san
     if (l.sw) {   // Armá tu sánguche: precio fijo por tamaño + extras, según public/sanguche
       if (!san || !san.on) return { ok: false, error: 'sánguche no disponible' };
       const x = calcSan(san, l.sw); if (!x.ok) return { ok: false, error: x.error };
+      if (x.conf) return { ok: false, error: 'el sánguche tiene precio a confirmar' };   // se paga cuando el negocio confirma el precio
       ls.push({ n: '🥪 ' + x.n + ' (' + x.d + ')', q, u: x.u, promo: true }); continue;
     }
     const g = gOf(l.k); if (!g) return { ok: false, error: 'producto no disponible' };

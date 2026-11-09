@@ -103,7 +103,7 @@ function css() {
 export const IMG_SW = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" rx="16" fill="#fff4e0"/><path d="M12 38c0-14 12-22 28-22s28 8 28 22z" fill="#e0a05a"/><g fill="#fff6dc"><circle cx="30" cy="26" r="1.6"/><circle cx="42" cy="22" r="1.6"/><circle cx="52" cy="28" r="1.6"/><circle cx="38" cy="31" r="1.6"/></g><path d="M9 41q31 9 62 0v4q-31 8-62 0z" fill="#7cc35a"/><rect x="11" y="45" width="58" height="5" rx="2" fill="#f7cf4a"/><rect x="10" y="50" width="60" height="7" rx="3.5" fill="#f0a3a3"/><path d="M13 57h54v4c0 4-3 6-7 6H20c-4 0-7-2-7-6z" fill="#c98543"/></svg>');
 export function tarjetaArmador(cfg, money) {
   css();
-  return '<div class="swc"><button type="button" data-swopen="1"><span class="ic">' + mini() + '</span><span class="tx"><b>🥪 ' + esc(cfg.t) + '</b><small>Elegí el pan, los fiambres, el queso y los aderezos a tu gusto · desde ' + money(desde(cfg)) + '</small></span><span class="go">Armar</span></button></div>';
+  return '<div class="swc"><button type="button" data-swopen="1"><span class="ic">' + mini() + '</span><span class="tx"><b>🥪 ' + esc(cfg.t) + '</b><small>Elegí el pan, los fiambres, el queso y los aderezos a tu gusto · desde ' + money(desde(cfg)) + (cfg.modo === 'pan' ? ' (precio a confirmar)' : '') + '</small></span><span class="go">Armar</span></button></div>';
 }
 function mini() {
   const l = (w, h, c, r, mt) => '<i style="display:block;margin:' + (mt || -2) + 'px auto 0;width:' + w + 'px;height:' + h + 'px;background:' + c + ';border-radius:' + r + '"></i>';
@@ -113,8 +113,9 @@ function mini() {
 export function abrirArmador(o) {
   css();
   const C = o.cfg, money = o.money, info = o.info || (() => ({}));
-  const pasos = [{ id: '__t', t: 'Tamaño' }].concat(C.pasos);
-  const st = { t: C.tam.length === 1 ? 0 : null, s: {}, i: 0 };
+  const PM = C.modo === 'pan';   // precio según el pan, el resto a confirmar por WhatsApp
+  const pasos = (PM ? [] : [{ id: '__t', t: 'Tamaño' }]).concat(C.pasos);
+  const st = { t: PM ? 0 : (C.tam.length === 1 ? 0 : null), s: {}, i: 0 };
   let dibujadas = {};
   const old = document.getElementById('swa'); if (old) old.remove();
   const d = document.createElement('div'); d.className = 'swa'; d.id = 'swa';
@@ -128,6 +129,7 @@ export function abrirArmador(o) {
 
   const sel = (pid) => st.s[pid] || (st.s[pid] = []);
   const res = () => (st.t == null ? null : calcular(C, { t: st.t, s: st.s }));
+  const panSel = () => PM ? ((C.pasos.find((p) => p.id === 'pan') || { it: [] }).it.find((x) => sel('pan').indexOf(x.i) >= 0)) : null;
   const listo = (p) => (p.id === '__t' ? st.t != null : sel(p.id).length >= (p.min || 0));
   const cuenta = () => C.pasos.reduce((a, p) => a + (p.cu ? sel(p.id).length : 0), 0);
 
@@ -147,7 +149,8 @@ export function abrirArmador(o) {
     const n = L.length, dk = window.matchMedia && matchMedia('(min-width:900px)').matches, sc = (n > 9 ? Math.max(0.6, 9 / n) : 1) * (dk ? (n > 12 ? 1.2 : 1.5) : 1); $('swst').style.transform = 'scale(' + sc + ')';
   }
   function precio() {
-    const r = res(), tm = st.t != null ? C.tam[st.t] : null;
+    const r = res(), tm = !PM && st.t != null ? C.tam[st.t] : null;
+    if (PM) { const pn = panSel(); $('swpr').textContent = pn ? money(pn.p) : 'desde ' + money(desde(C)); $('swsz').textContent = pn ? 'Precio a confirmar por WhatsApp' : ''; return; }
     $('swpr').textContent = tm ? money(r && r.ok ? r.u : tm.p) : 'desde ' + money(desde(C));
     $('swsz').textContent = tm ? tm.n + ' · ' + Math.min(cuenta(), tm.inc) + ' de ' + tm.inc + ' incluidos' + (cuenta() > tm.inc ? ' · ' + (cuenta() - tm.inc) + ' extra' : '') : '';
   }
@@ -161,12 +164,12 @@ export function abrirArmador(o) {
       h = '<h4>¿De qué tamaño?</h4><div class="k2">Cada tamaño incluye una cantidad de fiambres y quesos.' + (C.ex ? ' Si querés más, cada uno suma ' + money(C.ex) + '.' : '') + '</div><div class="swg">' +
         C.tam.map((t, i) => '<button type="button" class="swo tz' + (st.t === i ? ' on' : '') + '" data-swt="' + i + '"><b>' + esc(t.n) + '</b><span class="swz">' + (t.inc ? 'Incluye ' + t.inc + ' fiambre' + (t.inc > 1 ? 's' : '') + ' o queso' + (t.inc > 1 ? 's' : '') : 'Solo el pan y lo que elijas') + '</span><span class="swpp">' + money(t.p) + '</span></button>').join('') + '</div>';
     } else {
-      const s = sel(p.id), tm = st.t != null ? C.tam[st.t] : null, c = cuenta();
+      const s = sel(p.id), tm = !PM && st.t != null ? C.tam[st.t] : null, c = cuenta();
       let sub = p.max === 1 ? 'Elegí ' + (p.min ? 'uno' : 'uno (opcional)') : 'Elegí hasta ' + p.max + (p.min ? '' : ' (opcional)');
       if (p.cu && tm) sub += ' · llevás ' + c + ' de ' + tm.inc + ' incluidos' + (C.ex ? ', cada extra +' + money(C.ex) : '');
       h = '<h4>' + esc(p.t) + '</h4><div class="k2">' + sub + '</div><div class="swg">' + p.it.map((x) => {
         const on = s.indexOf(x.i) >= 0, full = !on && s.length >= p.max && p.max > 1, im = (info(x.i) || {}).img;
-        const extra = p.cu && tm && !on && C.ex && c >= tm.inc ? '<span class="swz">+' + money(C.ex) + '</span>' : '';
+        const extra = PM && p.id === 'pan' && x.p ? '<span class="swz">' + money(x.p) + '</span>' : p.cu && tm && !on && C.ex && c >= tm.inc ? '<span class="swz">+' + money(C.ex) + '</span>' : '';
         return '<button type="button" class="swo' + (on ? ' on' : '') + (full ? ' off' : '') + '" data-swi="' + esc(x.i) + '"><span class="im"' + (im ? ' style="background-image:url(\'' + esc(im) + '\')"' : '') + '>' + (im ? '' : emo(p.id, x.n)) + '</span>' + esc(x.n) + extra + '</button>';
       }).join('') + '</div>';
     }
@@ -176,7 +179,9 @@ export function abrirArmador(o) {
   function pie() {
     const ult = st.i === pasos.length - 1, r = res();
     $('swbk').style.display = st.i ? '' : 'none';
-    $('swnx').textContent = ult ? 'Agregar al pedido' + (r && r.ok ? ' · ' + money(r.u) : '') : 'Siguiente';
+    $('swnx').textContent = ult ? 'Agregar al pedido' + (r && r.ok ? ' · ' + money(r.u) + (r.conf ? '*' : '') : '') : 'Siguiente';
+    const ya = $('swconf'); if (ya) ya.remove();
+    if (PM && ult) { const n = document.createElement('div'); n.id = 'swconf'; n.className = 'k2'; n.style.cssText = 'margin:10px 2px 0'; n.textContent = '* Es el precio según el pan. El negocio te confirma el precio final por WhatsApp según lo que elegiste.'; $('swbd').appendChild(n); }
   }
   function todo(msg) { tabs(); cuerpo(msg); pila(); precio(); pie(); }
   function ir(i) {

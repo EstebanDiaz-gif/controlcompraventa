@@ -936,6 +936,7 @@ e.hidden=!L.length;if(e.dataset.h!==h){e.dataset.h=h;e.innerHTML=h}}
 var SAN=null;
 function loadSan(){getDoc(doc(db,'stores',sid,'public','sanguche')).then(function(s){SAN=s.exists()?sanCfg(s.data()):null;almSan()}).catch(function(){})}
 function almSan(){var e=$('asw');if(!e)return;var on=ALM&&sanActivo(SAN)&&!CAT&&!Q&&!FAVM;e.hidden=!on;if(on&&!e.firstChild)e.innerHTML=tarjetaArmador(SAN,money);if(!on)e.innerHTML=''}
+function swConf(){return CART.some(function(l){if(!l.sw||!SAN)return false;var r=sanCalc(SAN,l.sw);return r.ok&&r.conf})}
 function abrirSan(){if(!sanActivo(SAN))return;abrirArmador({cfg:SAN,money:money,info:function(id){return gOf(id)||{}},onAdd:function(sw,r){CART.push({k:'sw:'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),sw:sw,z:'',q:1});bar();
 var t=document.createElement('div');t.textContent='🥪 '+r.n+' agregado al pedido';t.style.cssText='position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:130;background:#111;color:#fff;padding:12px 18px;border-radius:99px;font-weight:800;font-size:14.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw;text-align:center';document.body.appendChild(t);setTimeout(function(){t.remove()},2600)}})}
 function loadHist(){getDoc(doc(db,'stores',sid,'public','historias')).then(function(s){HIST=(s.exists()&&s.data().list)||[];if(HIST.length){estilosCss();almStories()}}).catch(function(){});
@@ -1319,7 +1320,7 @@ function price(g,tot){var may=false;
 if(g.pm&&(g.pn||g.pm)){if(INFO.mode=='carrito')may=INFO.minCart>0&&tot>=INFO.minCart;else may=g.mm>0&&inCart(g)>=g.mm}
 return may?g.pm:(g.pn||g.pm)}
 function lines(){var tot=CART.reduce(function(a,l){return a+(l.promo||l.sw?0:l.q)},0);
-var ls=CART.map(function(l){if(l.sw){var sr=SAN?sanCalc(SAN,l.sw):null;if(!sr||!sr.ok)return null;return {g:{n:'🥪 '+sr.n,img:IMG_SW,inc:sr.d},l:l,u:sr.u,promo:{sw:1}}}if(l.promo){var p=pOf(l.promo);if(!p)return null;var im=pImgs(p);return {g:{n:'🔥 '+p.titulo,img:im[0]||'',inc:(p.items||[]).map(function(i){return (i.q>1?i.q+' × ':'')+i.n}).join(' + ')},l:l,u:p.precio,promo:p}}
+var ls=CART.map(function(l){if(l.sw){var sr=SAN?sanCalc(SAN,l.sw):null;if(!sr||!sr.ok)return null;return {g:{n:'🥪 '+sr.n+(sr.conf?' (precio a confirmar)':''),img:IMG_SW,inc:sr.d},l:l,u:sr.u,promo:{sw:1}}}if(l.promo){var p=pOf(l.promo);if(!p)return null;var im=pImgs(p);return {g:{n:'🔥 '+p.titulo,img:im[0]||'',inc:(p.items||[]).map(function(i){return (i.q>1?i.q+' × ':'')+i.n}).join(' + ')},l:l,u:p.precio,promo:p}}
 var g=gOf(l.k),u=g?price(g,tot):0;return g?{g:g,l:l,u:u,may:!!(g&&g.pm&&u==g.pm&&g.pn&&g.pm<g.pn)}:null}).filter(Boolean);
 var sub=ls.reduce(function(a,x){return a+x.u*x.l.q},0),suel=ls.filter(function(x){return !x.promo});
 var d=descuento(PROMOS,Date.now(),suel.map(function(x){return {cat:x.g.cat||'',unidades:cnt(x.l),total:x.u*x.l.q}}));
@@ -1336,7 +1337,7 @@ function okLink(u){return /^https:\/\/[^\s"'<>]+$/i.test(String(u||''))}
 function medios(){var P=INFO.pagos||{},l=[],n=function(v){v=+v||0;return Math.max(-90,Math.min(90,v))};
 if(P.ef&&P.ef.on)l.push({id:'ef',n:'Efectivo',ic:'💵',p:n(P.ef.p),d:P.ef});
 if(P.tr&&P.tr.on&&(P.tr.alias||P.tr.cbu))l.push({id:'tr',n:'Transferencia',ic:'🏦',p:n(P.tr.p),d:P.tr});
-var MPA=!!(PAGOS_URL&&P.mpa&&P.mpa.on&&INFO.mon!='USD');
+var MPA=!!(PAGOS_URL&&P.mpa&&P.mpa.on&&INFO.mon!='USD')&&!swConf();
 if(MPA)l.push({id:'mpa',n:'Mercado Pago',ic:'💙',p:n(P.mpa.p),d:{online:1}});
 else if(P.mp&&P.mp.on&&okLink(P.mp.link))l.push({id:'mp',n:'Mercado Pago',ic:'💙',p:n(P.mp.p),d:P.mp});
 (P.ot||[]).forEach(function(o,i){if(o&&o.n&&(!o.link||okLink(o.link)))l.push({id:'o'+i,n:String(o.n),ic:'💳',p:n(o.p),d:o})});return l}

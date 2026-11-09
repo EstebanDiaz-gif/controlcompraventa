@@ -3,6 +3,8 @@
 //
 // stores/{sid}/public/sanguche = {
 //   on, t (título), ex (precio de cada ingrediente extra),
+//   modo: 'tam' (precio fijo por tamaño, el de siempre) | 'pan' (cada pan tiene su precio; el resto se elige libre
+//         y el precio queda "a confirmar": el negocio lo confirma por WhatsApp),
 //   tam: [{ n: 'Chico', p: 3500, inc: 2 }],           // precio fijo por tamaño, con `inc` ingredientes incluidos
 //   pasos: [{ id, t, max, min, cu, it: [{ i, n, por, w }] }]
 //     cu = 1 si lo que se elige en ese paso cuenta como ingrediente (fiambres, quesos); 0 si no (pan, aderezos)
@@ -49,18 +51,23 @@ export function limpiarCfg(c) {
   const pasos = (Array.isArray(c.pasos) ? c.pasos : []).map((p) => ({
     id: String(p && p.id || '').slice(0, 12), t: String(p && p.t || '').trim().slice(0, 24) || 'Paso',
     max: Math.max(1, Math.min(10, Math.round(+(p && p.max) || 1))), min: Math.max(0, Math.min(10, Math.round(+(p && p.min) || 0))), cu: p && p.cu ? 1 : 0,
-    it: (Array.isArray(p && p.it) ? p.it : []).filter((x) => x && x.i).map((x) => ({ i: String(x.i), n: String(x.n || '').slice(0, 60), por: num(x.por) || 1, w: x.w ? 1 : 0 })).slice(0, 40),
+    it: (Array.isArray(p && p.it) ? p.it : []).filter((x) => x && x.i).map((x) => { const o = { i: String(x.i), n: String(x.n || '').slice(0, 60), por: num(x.por) || 1, w: x.w ? 1 : 0 }; if (num(x.p)) o.p = Math.round(num(x.p)); return o; }).slice(0, 40),
   })).filter((p) => p.id && p.it.length);
-  return { on: !!c.on, t: String(c.t || '').trim().slice(0, 40) || 'Armá tu sánguche', ex: Math.round(num(c.ex)), tam, pasos };
+  const modo = c.modo === 'pan' ? 'pan' : 'tam';
+  if (modo === 'pan') {   // el pan es obligatorio y solo se ofrecen los panes con precio
+    const pan = pasos.find((p) => p.id === 'pan'); if (pan) { pan.min = 1; pan.max = 1; pan.it = pan.it.filter((x) => x.p > 0); }
+  }
+  return { on: !!c.on, modo, t: String(c.t || '').trim().slice(0, 40) || 'Armá tu sánguche', ex: Math.round(num(c.ex)), tam, pasos: pasos.filter((p) => p.it.length) };
 }
-export const activo = (c) => !!(c && c.on && c.tam && c.tam.length && c.pasos && c.pasos.length);
-export const desde = (c) => (c && c.tam && c.tam.length ? Math.min.apply(null, c.tam.map((x) => x.p)) : 0);
+const panesCon = (c) => ((c.pasos || []).find((p) => p.id === 'pan') || { it: [] }).it.filter((x) => x.p > 0);
+export const activo = (c) => !!(c && c.on && c.pasos && c.pasos.length && (c.modo === 'pan' ? panesCon(c).length : c.tam && c.tam.length));
+export const desde = (c) => { if (!c) return 0; const l = c.modo === 'pan' ? panesCon(c).map((x) => x.p) : (c.tam || []).map((x) => x.p); return l.length ? Math.min.apply(null, l) : 0; };
 
 // sw = { t, s: { idPaso: [ids] } } → { ok, u (precio), n (nombre), d (detalle), cuenta, extras, error }
 export function calcular(cfg, sw) {
   const c = cfg && cfg.pasos ? cfg : limpiarCfg(cfg);
   if (!sw || typeof sw !== 'object') return { ok: false, error: 'sánguche inválido' };
-  const tm = c.tam[+sw.t]; if (!tm) return { ok: false, error: 'tamaño no disponible' };
+  const pm = c.modo === 'pan', tm = pm ? null : c.tam[+sw.t]; if (!pm && !tm) return { ok: false, error: 'tamaño no disponible' };
   const s = sw.s && typeof sw.s === 'object' ? sw.s : {};
   let cuenta = 0; const partes = [], comp = [];
   for (const p of c.pasos) {
@@ -74,6 +81,11 @@ export function calcular(cfg, sw) {
     its.forEach((x) => { partes.push(x.n); comp.push({ i: x.i, n: x.n, q: x.por, w: x.w }); });
   }
   if (!partes.length) return { ok: false, error: 'sánguche vacío' };
+  if (pm) {   // precio del pan elegido; lo demás no suma: el negocio confirma el precio final por WhatsApp
+    const pan = (c.pasos.find((p) => p.id === 'pan') || { it: [] }).it.find((x) => (s.pan || []).map(String).indexOf(x.i) >= 0);
+    if (!pan) return { ok: false, error: 'falta elegir Pan' };
+    return { ok: true, u: pan.p, n: 'Sánguche de ' + pan.n.replace(/^pan( de)? /i, '').toLowerCase(), d: partes.filter((x) => x !== pan.n).join(', ') || 'solo pan', cuenta: 0, extras: 0, comp, conf: true };
+  }
   const extras = Math.max(0, cuenta - tm.inc);
   return { ok: true, u: tm.p + extras * c.ex, n: 'Sánguche ' + tm.n.toLowerCase(), d: partes.join(', '), cuenta, extras, comp };
 }

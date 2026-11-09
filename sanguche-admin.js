@@ -25,7 +25,7 @@ export function abrirArmadorCfg(o) {
   o.leer().then((c0) => {
     const c = c0 || {};
     C = {
-      on: c.on !== false && !!c0, t: c.t || 'Armá tu sánguche', ex: c.ex || 0,
+      on: c.on !== false && !!c0, t: c.t || 'Armá tu sánguche', ex: c.ex || 0, modo: c.modo === 'pan' ? 'pan' : 'tam',
       tam: (c.tam && c.tam.length ? c.tam : TAM_DEF).map((x) => ({ n: x.n, p: x.p || '', inc: x.inc })),
       pasos: PASOS_DEF.map((p) => { const g = (c.pasos || []).find((x) => x.id === p.id) || {}; return { id: p.id, t: g.t || p.t, max: g.max || p.max, min: g.min != null ? g.min : p.min, cu: g.cu != null ? g.cu : p.cu, it: (g.it || []).slice() }; }),
     };
@@ -40,7 +40,12 @@ export function abrirArmadorCfg(o) {
       '<div class="k" style="margin-top:4px">Tus clientes eligen el tamaño, el pan, los fiambres, los quesos y los aderezos desde el catálogo, como en McDonald\'s, y te llega por WhatsApp.</div>' +
       '<label style="display:flex;gap:10px;align-items:center;margin:14px 0 0;font-weight:700"><input type="checkbox" id="swon" style="width:auto;margin:0"' + (C.on ? ' checked' : '') + '> Mostrar el armador en mi catálogo</label>' +
       '<label style="margin-top:10px">Nombre del botón</label><input id="swt" maxlength="40" value="' + esc(C.t) + '">';
+    const PM = C.modo === 'pan';
+    h += lbl('¿Cómo cobrás el sánguche?') + '<div style="display:flex;gap:6px;background:var(--card,#f4f3f0);padding:5px;border-radius:14px">' +
+      [['tam', 'Por tamaño'], ['pan', 'Por tipo de pan']].map((m) => '<button type="button" data-modo="' + m[0] + '" style="flex:1;border:0;border-radius:10px;padding:10px 6px;font:inherit;font-weight:800;font-size:14.5px;cursor:pointer;background:' + (C.modo === m[0] ? 'var(--btn,#1D3FAF)' : 'transparent') + ';color:' + (C.modo === m[0] ? 'var(--btnink,#fff)' : 'var(--ink,#111)') + '">' + m[1] + '</button>').join('') + '</div>' +
+      '<div class="k" style="margin:6px 0 0">' + (PM ? 'Cada pan tiene su precio. El cliente elige fiambres, quesos y aderezos a gusto y el precio queda <b>a confirmar</b>: le decís por WhatsApp si está bien o si sale más.' : 'Chico, mediano o grande a precio fijo, con una cantidad de fiambres y quesos incluidos; los extras suman.') + '</div>';
     // tamaños
+    if (!PM) {
     h += lbl('1. Tamaños y precios') + '<div class="k" style="margin:-2px 0 6px">Precio fijo por tamaño, con una cantidad de fiambres y quesos incluidos.</div>';
     C.tam.forEach((t, i) => {
       h += '<div style="display:grid;grid-template-columns:1.2fr 1fr .8fr auto;gap:6px;align-items:end;margin-top:6px">' +
@@ -51,18 +56,20 @@ export function abrirArmadorCfg(o) {
     });
     if (C.tam.length < 4) h += '<button type="button" class="x" data-tadd="1" style="margin-top:8px;font-weight:700;text-decoration:underline">+ Agregar tamaño</button>';
     h += '<div style="display:flex;gap:8px;align-items:center;margin-top:12px"><span style="flex:1;font-weight:600">Cada fiambre o queso extra (si se pasan de lo incluido)</span><span>$</span><input id="swex" type="number" inputmode="numeric" min="0" value="' + esc(C.ex || '') + '" style="width:110px;margin:0"></div>';
+    }
     // pasos
-    h += lbl('2. Ingredientes de tu stock') + '<div class="k" style="margin:-2px 0 6px">En cada paso elegí qué productos pueden elegir y cuánto se usa por sánguche (la porción).</div>' +
+    h += lbl(PM ? 'Panes, precios e ingredientes' : '2. Ingredientes de tu stock') + '<div class="k" style="margin:-2px 0 6px">En cada paso elegí qué productos pueden elegir y cuánto se usa por sánguche (la porción).</div>' +
       '<button type="button" class="go alt" data-auto="1" style="margin:4px 0 0">✨ Completar solo con lo que tengo en Stock</button>';
     C.pasos.forEach((p) => {
       h += '<div style="background:var(--card,#f4f3f0);border-radius:16px;padding:12px;margin-top:10px">' +
         '<div style="display:flex;gap:8px;align-items:center"><input data-pt="' + p.id + '" maxlength="24" value="' + esc(p.t) + '" style="flex:1;margin:0;font-weight:800"><span class="k" style="margin:0">hasta</span><input data-pm="' + p.id + '" type="number" min="1" max="10" value="' + p.max + '" style="width:64px;margin:0"></div>' +
-        '<label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:14px;font-weight:600"><input type="checkbox" data-pc="' + p.id + '" style="width:auto;margin:0"' + (p.cu ? ' checked' : '') + '> Cuenta como ingrediente del tamaño</label>' +
-        (p.id === 'pan' ? '<div class="k" style="margin:4px 0 0">El pan es obligatorio: el cliente elige uno.</div>' : '');
+        (PM ? '' : '<label style="display:flex;gap:8px;align-items:center;margin:8px 0 0;font-size:14px;font-weight:600"><input type="checkbox" data-pc="' + p.id + '" style="width:auto;margin:0"' + (p.cu ? ' checked' : '') + '> Cuenta como ingrediente del tamaño</label>') +
+        (p.id === 'pan' ? '<div class="k" style="margin:4px 0 0">' + (PM ? 'El cliente elige uno. <b>Poné el precio del sánguche con cada pan</b> (sin precio no se ofrece).' : 'El pan es obligatorio: el cliente elige uno.') + '</div>' : '');
       if (!p.it.length) h += '<div class="k" style="margin:8px 0 0">Todavía no elegiste productos para este paso.</div>';
       p.it.forEach((x, j) => {
         const pr = prod(x.i), w = pr ? !!pr.w : !!x.w;
         h += '<div style="display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)"><span style="flex:1;min-width:0;font-weight:600">' + esc(pr ? pr.n : x.n) + (pr ? '' : ' <small style="color:#b3261e">(ya no está en Stock)</small>') + '</span>' +
+          (PM && p.id === 'pan' ? '<span class="k" style="margin:0">$</span><input data-ppr="' + j + '" type="number" inputmode="numeric" min="0" placeholder="precio" value="' + esc(x.p || '') + '" style="width:92px;margin:0" aria-label="Precio del sánguche con este pan">' : '') +
           '<input data-por="' + p.id + ':' + j + '" type="number" inputmode="decimal" min="0" step="' + (w ? 5 : 1) + '" value="' + (w ? Math.round((x.por || 0) * 1000) : (x.por || 1)) + '" style="width:72px;margin:0" aria-label="Porción"><span class="k" style="margin:0;width:16px">' + (w ? 'g' : 'u') + '</span>' +
           '<button type="button" class="x" data-idel="' + p.id + ':' + j + '" aria-label="Quitar" style="font-size:20px;padding:4px 8px">×</button></div>';
       });
@@ -88,13 +95,15 @@ export function abrirArmadorCfg(o) {
     else if (ds.tn != null) C.tam[+ds.tn].n = t.value; else if (ds.tp != null) C.tam[+ds.tp].p = t.value; else if (ds.ti != null) C.tam[+ds.ti].inc = t.value;
     else if (ds.pt) paso(ds.pt).t = t.value; else if (ds.pm) paso(ds.pm).max = t.value;
     else if (ds.por) { const [pid, j] = ds.por.split(':'), x = paso(pid).it[+j], pr = prod(x.i), w = pr ? !!pr.w : !!x.w; x.por = w ? (+t.value || 0) / 1000 : (+t.value || 0); }
+    else if (ds.ppr != null) paso('pan').it[+ds.ppr].p = +t.value || 0;
     else if (ds.bq) { busca[ds.bq] = t.value; clearTimeout(d._t); d._t = setTimeout(pintar, 200); }
   });
   d.addEventListener('change', (e) => { const t = e.target; if (!C) return; if (t.id === 'swon') C.on = t.checked; else if (t.dataset.pc) paso(t.dataset.pc).cu = t.checked ? 1 : 0; });
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('[data-sx]')) { d.remove(); return; }
     const b = e.target.closest('button'); if (!b || !C) return; const ds = b.dataset;
-    if (ds.tadd) C.tam.push({ n: '', p: '', inc: 3 });
+    if (ds.modo) { C.modo = ds.modo; if (C.modo === 'pan' && !C.pasos.some((p) => p.id !== 'pan' && p.it.length)) setTimeout(() => { const a = box.querySelector('[data-auto]'); if (a) a.click(); }, 0); }
+    else if (ds.tadd) C.tam.push({ n: '', p: '', inc: 3 });
     else if (ds.tdel != null) C.tam.splice(+ds.tdel, 1);
     else if (ds.bop) busca[ds.bop] = '';
     else if (ds.bcl) delete busca[ds.bcl];
@@ -111,9 +120,10 @@ export function abrirArmadorCfg(o) {
   });
 
   function guardar() {
-    const out = limpiarCfg({ on: C.on, t: C.t, ex: C.ex, tam: C.tam, pasos: C.pasos.map((p) => Object.assign({}, p, { it: p.it.map((x) => ({ i: x.i, n: (prod(x.i) || x).n, por: x.por, w: x.w })) })) });
+    const out = limpiarCfg({ on: C.on, modo: C.modo, t: C.t, ex: C.ex, tam: C.tam, pasos: C.pasos.map((p) => Object.assign({}, p, { it: p.it.map((x) => ({ i: x.i, n: (prod(x.i) || x).n, por: x.por, w: x.w, p: x.p || 0 })) })) });
     const m = box.querySelector('#swmsg');
-    if (out.on && !out.tam.length) { m.textContent = '⚠️ Poné al menos un tamaño con precio.'; return; }
+    if (out.on && out.modo === 'tam' && !out.tam.length) { m.textContent = '⚠️ Poné al menos un tamaño con precio.'; return; }
+    if (out.on && out.modo === 'pan' && !out.pasos.some((p) => p.id === 'pan')) { m.textContent = '⚠️ Poné el precio del sánguche en al menos un pan.'; return; }
     if (out.on && !out.pasos.some((p) => p.id === 'pan')) { m.textContent = '⚠️ Elegí al menos un pan en el paso del pan.'; return; }
     if (out.on && out.pasos.length < 2) { m.textContent = '⚠️ Elegí ingredientes en al menos otro paso además del pan.'; return; }
     const pan = out.pasos.find((p) => p.id === 'pan'); if (pan) pan.min = 1;
