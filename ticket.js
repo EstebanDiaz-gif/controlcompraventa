@@ -8,7 +8,9 @@ const DEF = { w: 58, auto: false, pie: '¡Gracias por tu compra!', puesto: false
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export function tkConfig() {
-  try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return Object.assign({}, DEF); }
+  // Imprimir desde el celu en la compu (puesto / remoto) está pausado: se fuerza apagado aunque haya quedado guardado.
+  let c; try { c = Object.assign({}, DEF, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { c = Object.assign({}, DEF); }
+  c.puesto = false; c.remoto = false; return c;
 }
 export function tkGuardar(c) { try { localStorage.setItem(KEY, JSON.stringify(c)); } catch (e) {} }
 
@@ -70,9 +72,7 @@ export function abrirTiketera(ejemplo, onGuardar) {
     '<label style="margin-top:12px">Ancho del papel</label><div style="display:flex;gap:6px;background:var(--card,#f4f3f0);padding:5px;border-radius:14px">' + seg + '</div>' +
     '<div class="k" style="margin-top:4px">La más común es la de 58 mm (rollo angosto). La de 80 mm es la del rollo ancho.</div>' +
     '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="tkauto" type="checkbox" style="width:auto;margin:0"' + (c.auto ? ' checked' : '') + '> Imprimir el ticket solo, cada vez que cobro</label>' +
-    '<div style="background:var(--card,#f4f3f0);border-radius:14px;padding:12px;margin-top:14px"><b style="font-size:15px">Celulares + compu</b><div class="k" style="margin-top:2px">Si la tiketera está en la compu, los tickets que se cobran en el celu se pueden imprimir ahí.</div>' +
-    '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:10px;font-weight:600"><input id="tkpuesto" type="checkbox" style="width:auto;margin:3px 0 0"' + (c.puesto ? ' checked' : '') + '><span>🖥️ <b>Esta compu</b> es el puesto de impresión: imprime los tickets que mandan los celulares</span></label>' +
-    '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:10px;font-weight:600"><input id="tkremoto" type="checkbox" style="width:auto;margin:3px 0 0"' + (c.remoto ? ' checked' : '') + '><span>📱 <b>Este celu</b> manda los tickets a la compu para imprimir (en vez de imprimir acá)</span></label></div>' +
+
     '<label style="margin-top:12px">Mensaje al pie del ticket</label><input id="tkpie" maxlength="60" value="' + esc(c.pie) + '">' +
     '<button type="button" class="go" id="tkpr" style="margin-top:14px">Imprimir ticket de prueba</button>' +
     '<button type="button" class="go alt" id="tkok" style="margin-top:8px">Guardar</button></div>';
@@ -80,9 +80,7 @@ export function abrirTiketera(ejemplo, onGuardar) {
   const $ = (id) => d.querySelector('#' + id);
   let w = c.w;
   const marcar = () => d.querySelectorAll('[data-tkw]').forEach((b) => { const on = +b.dataset.tkw === w; b.style.background = on ? 'var(--btn,#1D3FAF)' : 'transparent'; b.style.color = on ? 'var(--btnink,#fff)' : 'var(--ink,#111)'; });
-  const leer = () => ({ w, auto: $('tkauto').checked, pie: $('tkpie').value.trim(), puesto: $('tkpuesto').checked, remoto: $('tkremoto').checked && !$('tkpuesto').checked });
-  $('tkpuesto').onchange = () => { if ($('tkpuesto').checked) $('tkremoto').checked = false; };
-  $('tkremoto').onchange = () => { if ($('tkremoto').checked) $('tkpuesto').checked = false; };
+  const leer = () => ({ w, auto: $('tkauto').checked, pie: $('tkpie').value.trim(), puesto: false, remoto: false });
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('[data-tkx]')) { d.remove(); return; }
     const b = e.target.closest('[data-tkw]'); if (b) { w = +b.dataset.tkw; marcar(); }
