@@ -128,8 +128,16 @@ export function openScanner(opts) {
   document.body.appendChild(o);
   }
   const msgEl = o.querySelector('#scnm'), subEl = o.querySelector('#scnk');
+  // Varios productos en pantalla completa: el cartel azul de abajo también termina el escaneo
+  // (la gente lo toca a él en vez de "Listo" de arriba).
+  const tocarTermina = opts.multi && !inline;
   const say = (t, kind) => {
     msgEl.textContent = t;
+    if (tocarTermina && count) {
+      const k = document.createElement('span'); k.textContent = 'Tocá acá para terminar ✓';
+      k.style.cssText = 'display:block;font-size:13px;font-weight:600;opacity:.9;margin-top:4px';
+      msgEl.appendChild(k); msgEl.style.cursor = 'pointer';
+    }
     msgEl.style.background = kind === 'ok' ? '#1D3FAF' : kind === 'warn' ? '#FFD6AA' : 'transparent';
     msgEl.style.color = kind === 'warn' ? '#102468' : '#fff';
   };
@@ -166,8 +174,9 @@ export function openScanner(opts) {
     try { r = opts.onCode(code) || {}; } catch (e) { r = { ok: false, msg: 'Algo falló. Probá de nuevo.' }; }
     beep(r.ok !== false);
     if (r.ok !== false) count++;
+    if (tocarTermina && count && !msgEl.onclick) msgEl.onclick = () => close();
     say(r.msg || code, r.ok === false ? 'warn' : 'ok');
-    if (opts.multi) subEl.textContent = count ? (inline ? 'Seguí escaneando' : 'Seguí escaneando o tocá Listo') : '';
+    if (opts.multi) subEl.textContent = count ? 'Seguí escaneando' : '';
     if (!inline && (r.close || !opts.multi)) { if (r.ok !== false || r.close) setTimeout(close, r.ok === false ? 900 : 250); }
   };
 
