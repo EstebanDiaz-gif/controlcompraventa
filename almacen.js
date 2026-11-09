@@ -772,15 +772,39 @@ export function createAlmacen(X) {
     const box = $('s-stk');
     if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
-      box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button>' + (adm() ? '<button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button>' : '') + '</div>' +
-        (adm() ? '<button class="go alt" data-al="mvcat" style="margin:-6px 0 14px">🗂️ Cambiar categoría a varios productos</button>' : '') : '') +
-        (adm() ? '<div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 4px 12px"><button class="x" data-al="xstk" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">⬇ Descargar stock para Excel</button><button class="x" data-al="baldlg" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">⚖️ Balanza con etiquetas' + (cfgBal() && cfgBal().on ? ' (activa)' : '') + '</button></div>' : '') +
+      box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div>' + herrStock() : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
       // Al buscar o escanear, se busca en TODOS los productos: si quedaba elegida una categoría o "Por reponer",
       // un producto de otra categoría parecía "no cargado" (pasaba con la pistola lectora en la compu).
       $('aq').oninput = function () { S.stQ = this.value; if (S.stQ.trim() && (S.stCat || S.stLow)) { S.stCat = ''; S.stLow = false; } renderStock(); };
     }
     renderStock();
+  }
+  // Herramientas de Stock en cuadraditos: ícono + nombre corto; al pasar el mouse explica qué hace.
+  const ICS = {
+    qk: '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8v8M10.5 8v8M14 8v8M17 8v8"/>',
+    imp: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/>',
+    precios: '<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+    mvcat: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13h6M13 11l2 2-2 2"/>',
+    xstk: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14l3 3 3-3"/>',
+    baldlg: '<path d="M12 4v16M8 20h8M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>'
+  };
+  function herrStock() {
+    if (!document.getElementById('hstcss')) {
+      const st = document.createElement('style'); st.id = 'hstcss';
+      st.textContent = '.hst{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 14px}@media(min-width:560px){.hst{grid-template-columns:repeat(6,1fr)}}' +
+        '.hst button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 4px;border:1.5px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;line-height:1.15;text-align:center;cursor:pointer;transition:transform .12s,border-color .12s}' +
+        '.hst button svg{width:24px;height:24px;flex:none}.hst button:active{transform:scale(.96)}.hst .dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:#2fb34a}' +
+        '@media(hover:hover){.hst button:hover{border-color:var(--btn)}.hst button[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);width:max-content;max-width:220px;padding:8px 10px;border-radius:10px;background:#111;color:#fff;font-size:12.5px;font-weight:500;line-height:1.3;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.25);pointer-events:none;white-space:normal}.hst button:nth-child(3n+1)[data-tip]:hover::after{left:0;transform:none}.hst button:nth-child(3n)[data-tip]:hover::after{left:auto;right:0;transform:none}}';
+      document.head.appendChild(st);
+    }
+    const bal = cfgBal() && cfgBal().on;
+    const t = [['qk', 'Carga rápida', 'Cargá o sumá stock escaneando los códigos de barras uno tras otro'], ['imp', 'Importar Excel', 'Subí una planilla de Excel con tus productos y precios']];
+    if (adm()) t.push(['precios', 'Precios por\u00a0%', 'Subí o bajá los precios de varios productos con un porcentaje'], ['mvcat', 'Categorías', 'Pasá varios productos juntos a otra categoría'],
+      ['xstk', 'Descargar Excel', 'Bajá todo tu stock en una planilla de Excel'], ['baldlg', 'Balanza', 'Balanza con etiquetas de código de barras' + (bal ? ' (activa)' : '')]);
+    return '<div class="hst">' + t.map((x) => '<button type="button" data-al="' + x[0] + '" data-tip="' + esc(x[2]) + '" aria-label="' + esc(x[1] + ': ' + x[2]) + '">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICS[x[0]] + '</svg>' + esc(x[1]) +
+      (x[0] === 'baldlg' && bal ? '<span class="dot"></span>' : '') + '</button>').join('') + '</div>';
   }
   function avisoOff(k) { try { return localStorage.getItem('pk_av_' + k + '_' + X.sid()) === '1'; } catch (e) { return false; } }
   function renderStock() {
