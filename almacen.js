@@ -49,7 +49,20 @@ export function createAlmacen(X) {
   const uid = () => Date.now() + '-' + X.rnd(4);
   const CATL = () => catsFor(X.cs && X.cs() && X.cs().tipo);
   const cats = () => { const o = {}; CATL().forEach((c) => { o[c] = 0; }); P().forEach((p) => { if (p.cat) o[p.cat] = (o[p.cat] || 0) + 1; }); return o; };
-  const usedCats = () => { const o = cats(); return Object.keys(o).filter((c) => o[c] > 0).sort((a, b) => CATL().indexOf(a) - CATL().indexOf(b) || a.localeCompare(b)); };
+  // Opciones de categoría: las sugeridas + las que ya usa el negocio + "Nueva categoría…" (la crea el usuario).
+  const catOptions = (sel) => Array.from(new Set(CATL().concat(usedCats()).concat(sel && sel !== '__new' ? [sel] : []))).map((x) => '<option value="' + esc(x) + '"' + (sel === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
+    '<option value="__new">➕ Nueva categoría…</option>';
+  document.addEventListener('change', (e) => {
+    const s = e.target; if (!s || (s.id !== 'fc' && s.id !== 'qk_c') || s.value !== '__new') return;
+    let n = (prompt('Nombre de la nueva categoría (ej: Desayuno y merienda, Mascotas, Bazar):') || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+    if (!n) { s.value = s.dataset.prev || ''; return; }
+    n = n.charAt(0).toUpperCase() + n.slice(1);
+    const ya = Array.from(s.options).find((o) => o.value.toLowerCase() === n.toLowerCase() && o.value !== '__new');
+    if (ya) { s.value = ya.value; s.dataset.prev = ya.value; return; }
+    const o = document.createElement('option'); o.value = n; o.textContent = n; s.insertBefore(o, s.querySelector('option[value="__new"]')); s.value = n; s.dataset.prev = n;
+  });
+  document.addEventListener('focusin', (e) => { const s = e.target; if (s && (s.id === 'fc' || s.id === 'qk_c') && s.value !== '__new') s.dataset.prev = s.value; });
+  const usedCats = () => { const o = cats(); return Object.keys(o).filter((c) => o[c] > 0).sort((a, b) => { const L = CATL(), i = (x) => { const k = L.indexOf(x); return k < 0 ? 999 : k; }; return i(a) - i(b) || a.localeCompare(b); }); };
   const priceTxt = (p) => (p.pn ? money(p.pn) + (p.w ? ' / kg' : '') : 'sin precio');
   const deny = (e) => e && /permission/.test(String(e.code || e.message));
   const rulesCard = () => '<div class="card"><b>Falta un paso</b><div class="k" style="margin-top:6px">Para usar el almacén hay que agregar las reglas nuevas en Firebase (archivo <b>ALMACEN-LEEME.md</b>, paso 2). Tus datos están a salvo.</div></div>';
@@ -797,7 +810,7 @@ export function createAlmacen(X) {
     if (id && !p) return;
     S.edit = { id: id || null, img: undefined };
     const c = p || { n: '', s: code || '', cat: S.stCat || '', w: false, pn: '', c: '', q: '', min: '' };
-    const catOpts = Array.from(new Set(CATL().concat(usedCats()))).map((x) => '<option value="' + esc(x) + '"' + (c.cat === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    const catOpts = catOptions(c.cat || '');
     let h = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver al stock</button><div class="card"><b style="font-size:19px">' + (p ? 'Editar producto' : 'Producto nuevo') + '</b>' +
       '<label>Nombre</label><input id="fn" autocomplete="off" maxlength="80" placeholder="Ej: Coca-Cola 2,25 L" value="' + esc(c.n) + '">' +
       '<label>Código de barras o código propio (opcional)</label><div style="display:flex;gap:8px;align-items:center"><input id="fs" autocomplete="off" maxlength="40" placeholder="Ej: 7790895000997" style="flex:1;min-width:0" value="' + esc(c.s) + '">' + scanButton('scanfs') + '</div>' +
@@ -827,7 +840,7 @@ export function createAlmacen(X) {
   }
   function saveProd() {
     const E = S.edit, p = E.id ? prod(E.id) : null;
-    const n = $('fn').value.trim(), s = $('fs').value.trim(), cat = $('fc').value, pn = +$('fpn').value || 0, co = +$('fco').value || 0;
+    const n = $('fn').value.trim(), s = $('fs').value.trim(), cat = $('fc').value === '__new' ? '' : $('fc').value, pn = +$('fpn').value || 0, co = +$('fco').value || 0;
     const ns = $('fns').checked;
     const qs = ns ? '' : $('fq').value.trim(), q = qs === '' ? (p && ns ? p.q : 0) : r3(pnum(qs)), mins = ns ? '' : $('fmin').value.trim(), min = mins === '' ? 0 : r3(pnum(mins));
     if (!n) { alert('Escribí el nombre del producto.'); return; }
@@ -1284,7 +1297,7 @@ export function createAlmacen(X) {
   // Formulario corto, reutilizado por la carga rápida y por la caja (código desconocido).
   function qkForm(box, code, cb) {
     const c = qkCfg(), p = code ? findByCode(P(), code) : null;
-    const catOpts = CATL().map((x) => '<option value="' + esc(x) + '"' + ((p ? p.cat : S.qkCat) === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+    const catOpts = catOptions((p ? p.cat : S.qkCat) || '');
     box.innerHTML = '<div class="card" style="border:2px solid var(--ink)">' +
       (p ? '<b style="font-size:18px">' + esc(p.n) + '</b><div class="k">Ya está cargado · código ' + esc(p.s) + ' · ' + (p.ns ? 'sin control de stock' : 'stock ' + fq(p.q, p.w)) + '</div>'
         : '<b style="font-size:18px">Producto nuevo</b><div class="k">' + (code ? 'Código ' + esc(code) : 'Sin código de barras') + '</div>' +
@@ -1310,7 +1323,7 @@ export function createAlmacen(X) {
     };
     q('qk_co').oninput = () => { const co = +q('qk_co').value; if (!pTouched && co > 0) q('qk_p').value = precioDesde(co, c); hint(); };
     q('qk_p').oninput = () => { pTouched = q('qk_p').value !== ''; hint(); };
-    if (!p) { q('qk_w').onchange = labels; q('qk_c').onchange = () => { S.qkCat = q('qk_c').value; }; }
+    if (!p) { q('qk_w').onchange = labels; q('qk_c').onchange = () => { setTimeout(() => { const v = q('qk_c').value; S.qkCat = v === '__new' ? '' : v; }); }; }
     labels(); hint();
     q('qk_ns').onchange = function () { q('qk_qrow').hidden = this.checked; if (!this.checked) q('qk_q').focus(); };
     const first = p ? (p.ns ? q('qk_p') : q('qk_q')) : q('qk_n');
@@ -1350,7 +1363,7 @@ export function createAlmacen(X) {
       if (!n) { alert('Escribí el nombre del producto.'); q('qk_n').focus(); return; }
       if (code && findByCode(P(), code)) { alert('Ese código ya está cargado.'); return; }
       const ce = coIn == null && pr > 0, co = coIn != null ? coIn : (pr > 0 ? costoDesde(pr, c) : 0);
-      const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
+      const id = 'al_' + X.rnd(10), o = { n, s: code || '', cat: q('qk_c').value === '__new' ? '' : q('qk_c').value, w, pn: pr, c: co, q: cant || 0, min: 0, oh: false, alm: 1 };
       if (ns) o.ns = true;
       if (ce) o.ce = 1;
       if (FOTO) { o.img = FOTO.thumb; if (FOTO.hd) o.hd = 1; if (FOTO.src === 'base' || FOTO.src === 'off') o.bf = 1; }   // foto de la base: se actualiza si aparece una mejor
