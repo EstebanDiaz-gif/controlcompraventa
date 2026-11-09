@@ -699,7 +699,11 @@ function favUI(){var n=FAV.filter(function(k){return gOf(k)}).length,e=$('hfn');
 function oldP(g){var b=base(g);return g.pa>b?g.pa:0}
 function pct(g){var o=oldP(g);return o?Math.round((o-base(g))/o*100):0}
 
-var fq=function(q){return (Math.round(q*1000)/1000).toLocaleString('es-AR',{maximumFractionDigits:3})+' kg'};
+var fq=function(q){q=Math.round(q*1000)/1000;return q<1?Math.round(q*1000)+' g':q.toLocaleString('es-AR',{maximumFractionDigits:3})+' kg'};
+// Productos por peso: se puede pedir desde 100 g. Pasos: 100, 200, 250, 300, 400, 500, 750 g, 1 kg y después de a 250 g.
+var WST=[0.1,0.2,0.25,0.3,0.4,0.5,0.75,1];
+function wNext(q,dir){q=Math.round(q*1000)/1000;var i;if(dir>0){for(i=0;i<WST.length;i++)if(WST[i]>q+1e-9)return WST[i];return Math.round((q+0.25)*1000)/1000}
+if(q>1+1e-9)return Math.max(1,Math.round((q-0.25)*1000)/1000);for(i=WST.length-1;i>=0;i--)if(WST[i]<q-1e-9)return WST[i];return 0}
 var CORDER=['Almacén','Bebidas','Galletitas y golosinas','Snacks','Lácteos','Fiambrería','Panadería','Verdulería','Congelados','Limpieza','Perfumería','Cigarrillos','Otros'];
 var key=function(s){return String(s||'').trim().toLowerCase()};
 var money=function(n){var r=Math.round(n||0);return (r<0?'−':'')+'$'+Math.abs(r).toLocaleString('es-AR')};
@@ -957,7 +961,7 @@ function almCats(){var e=$('acats'),hc=$('hcats');if(!e)return;var c=cats();if(c
 e.innerHTML='<button class="acat'+(CAT?'':' on')+'" data-ac=""><i>🛍️</i><span>Todo</span></button>'+c.map(function(x){var f=catImg(x);return '<button class="acat'+(CAT==x?' on':'')+'" data-ac="'+esc(x)+'"><i>'+(f?'<img alt="" loading="lazy" src="'+esc(f)+'">':catIcon(x))+'</i><span>'+esc(x)+'</span></button>'}).join('');
 if(hc)hc.innerHTML='<button data-ac=""'+(CAT?'':' class="on"')+'>Todo</button>'+c.map(function(x){return '<button data-ac="'+esc(x)+'"'+(CAT==x?' class="on"':'')+'>'+esc(x)+'</button>'}).join('')}
 function addHtml(g){var q=inCart(g);if(!q)return '<button class="add" data-ad="'+esc(g.k)+'" aria-label="Agregar">'+PLUS+'</button>';
-return '<div class="stp"><button data-dec="'+esc(g.k)+'" aria-label="Uno menos">−</button><b>'+(g.w?fq(q).replace(' kg',q<1?'':' kg').replace(/^0,(\d+)$/,function(_,d){return Math.round(+('0.'+d)*1000)+' g'}):q)+'</b><button data-inc="'+esc(g.k)+'" aria-label="Uno más">+</button></div>'}
+return '<div class="stp"><button data-dec="'+esc(g.k)+'" aria-label="Uno menos">−</button><b>'+(g.w?fq(q):q)+'</b><button data-inc="'+esc(g.k)+'" aria-label="Uno más">+</button></div>'}
 // Tarjeta de almacén. Lista (ferretería): botón a la derecha. Resto: precio arriba y el + sobre la foto.
 function acCard(g){var p=pct(g),o=oldP(g),L=document.body.classList.contains('lay-list');
 var nm='<div class="anm">'+esc(g.n)+'</div>',sub='<div class="asub">'+(g.w?'por kg':(g.d?esc(g.d):(g.cat?esc(g.cat):'&nbsp;')))+'</div>',
@@ -968,8 +972,9 @@ return '<div class="ac'+(L?'':' v2')+'" data-k="'+esc(g.k)+'">'+(p?'<span class=
 function almShelves(l){var c=cats(),h='';c.concat(['']).forEach(function(x){var xs=l.filter(function(g){return (g.cat||'')==x});if(!xs.length)return;var nm=x||'Otros';
 h+='<section class="shf"><div class="shh"><h3><i>'+catIcon(nm)+'</i>'+esc(nm)+'</h3>'+(x?'<button data-shv="'+esc(x)+'">Ver todo<b>'+xs.length+'</b></button>':'')+'</div><div class="arow">'+xs.slice(0,12).map(acCard).join('')+
 (x&&xs.length>12?'<button class="shmore" data-shv="'+esc(x)+'">Ver los '+xs.length+' ›</button>':'')+'</div></section>'});return h}
-function almStep(k,dir){var g=gOf(k);if(!g)return;var st=g.w?0.25:1,l=CART.filter(function(x){return x.k==k&&!x.promo})[0],q=l?l.q:0,mx=stockOf(g);
-var nq=Math.round((q+dir*st)*1000)/1000;if(dir>0&&nq>mx){nq=q;alert('No hay más stock de este producto por ahora.')}
+function almStep(k,dir){var g=gOf(k);if(!g)return;var l=CART.filter(function(x){return x.k==k&&!x.promo})[0],q=l?l.q:0,mx=stockOf(g);
+var nq=g.w?(q||dir<0?wNext(q,dir):0.25):Math.round((q+dir)*1000)/1000;
+if(dir>0&&nq>mx){if(g.w&&mx>q&&mx>=0.1)nq=Math.round(mx*1000)/1000;else{nq=q;alert('No hay más stock de este producto por ahora.')}}
 if(nq<=0){if(l)CART.splice(CART.indexOf(l),1)}else if(l)l.q=nq;else CART.push({k:k,z:'',q:nq,w:g.w});bar()}
 function almRefresh(){if(!ALM)return;Array.prototype.forEach.call(document.querySelectorAll('.ac'),function(c){var g=gOf(c.dataset.k),a=c.querySelector('.aadd');if(g&&a){a.innerHTML=addHtml(g);a.classList.toggle('in',!!inCart(g))}});
 var n=CART.reduce(function(a,l){return a+cnt(l)},0),e=$('acn');if(e){e.hidden=!n;e.textContent=n}}
@@ -1221,7 +1226,7 @@ var h='<div class="pimg'+(hasI?'':' noi')+'"'+(g.img?' data-zoom="1"':'')+'>'+(n
 '<div class="pbody"><h2>'+esc(g.n)+'</h2><div class="pmeta"><span class="pcat">'+(g.cat?TAGI+esc(g.cat):'')+'</span><span class="stk'+(low?' low':'')+'">'+(low?'Últimas unidades':'Disponible')+'</span></div>'+
 '<div class="pprice"><b>'+ptxt(g)+'</b>'+(o?'<s>'+money(o)+'</s><em>-'+p+'%</em>':'')+'</div>'+dl(g)+(mt?'<div class="may">'+esc(mt)+'</div>':'')+(g.d?'<p class="pdesc">'+esc(g.d)+'</p>':'')+
 (g.sz.length?'<div class="lbl">Elegí una opción</div><div class="rad">'+g.sz.map(function(z){return '<button class="ro'+(s.z==z.z?' on':'')+'" data-z="'+esc(z.z)+'"><i></i>'+esc(z.z)+'</button>'}).join('')+'</div>':'')+
-(g.w?'<div class="lbl">¿Cuánto querés? (de a 250 g)</div>':'')+'<div class="qrow"><div class="q"><button data-m="-1" aria-label="Menos">−</button><span>'+(g.w?fq(s.q):s.q)+'</span><button data-m="1" aria-label="Más">+</button></div>'+(g.w?'<b>'+money(s.q*g.pn)+'</b>':'')+'</div>'+
+(g.w?'<div class="lbl">¿Cuánto querés? (desde 100 g)</div>':'')+'<div class="qrow"><div class="q"><button data-m="-1" aria-label="Menos">−</button><span>'+(g.w?fq(s.q):s.q)+'</span><button data-m="1" aria-label="Más">+</button></div>'+(g.w?'<b>'+money(s.q*g.pn)+'</b>':'')+'</div>'+
 '<div class="acts"><button class="add" data-add="1">Agregar '+SVG.cart+'</button>'+(WAS.length?'<button class="wa1" data-wa1="1">WhatsApp</button>':'')+'</div></div>';
 $('shc').innerHTML=h;$('sh').className='sheet full';$('sh').hidden=false;$('shc').scrollTop=0;loadHD(g);if(nx)galInit(g)}
 // fotos extra: se descargan al abrir el producto (una lectura por foto) y quedan guardadas mientras se navega
@@ -1401,7 +1406,7 @@ if(d.pq){var pid=$('sh').dataset.pr;PSEL[pid]=Math.max(1,(PSEL[pid]||1)+ +d.pq);
 if(d.padd){var ex0=CART.filter(function(l){return l.promo==d.padd})[0],pq=PSEL[d.padd]||1;if(ex0)ex0.q+=pq;else CART.push({k:'promo:'+d.padd,promo:d.padd,z:'',q:pq});PSEL[d.padd]=1;$('sh').hidden=true;bar();return}
 if(!OPEN)return;var k=OPEN,g=G.filter(function(x){return x.k==k})[0],s=SEL[k];
 if(d.z!==undefined){s.z=d.z;s.q=1;prod(k);return}
-if(d.m){var mx=g.sz.length?stockOf(g,s.z)-inCart(g,s.z):g.q-inCart(g);if(g.w){s.q=Math.round(Math.max(0.25,Math.min(s.q+ +d.m*0.25,Math.max(mx,0.25)))*100)/100}else s.q=Math.max(1,Math.min(s.q+ +d.m,Math.max(mx,1)));prod(k);return}
+if(d.m){var mx=g.sz.length?stockOf(g,s.z)-inCart(g,s.z):g.q-inCart(g);if(g.w){s.q=Math.round(Math.max(0.1,Math.min(wNext(s.q,+d.m)||0.1,Math.max(mx,0.1)))*1000)/1000}else s.q=Math.max(1,Math.min(s.q+ +d.m,Math.max(mx,1)));prod(k);return}
 if(d.add){if(g.sz.length&&!s.z){alert('Elegí un talle.');return}
 var mx2=(g.sz.length?stockOf(g,s.z):g.q)-inCart(g,g.sz.length?s.z:undefined);
 if(mx2<=0){alert('Ya agregaste todo el stock disponible de este producto.');return}
