@@ -763,7 +763,8 @@ export function createAlmacen(X) {
     const box = $('s-stk');
     if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
-      box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button>' + (adm() ? '<button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button>' : '') + '</div>' : '') +
+      box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button>' + (adm() ? '<button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button>' : '') + '</div>' +
+        (adm() ? '<button class="go alt" data-al="mvcat" style="margin:-6px 0 14px">🗂️ Cambiar categoría a varios productos</button>' : '') : '') +
         (adm() ? '<div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 4px 12px"><button class="x" data-al="xstk" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">⬇ Descargar stock para Excel</button><button class="x" data-al="baldlg" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">⚖️ Balanza con etiquetas' + (cfgBal() && cfgBal().on ? ' (activa)' : '') + '</button></div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
       // Al buscar o escanear, se busca en TODOS los productos: si quedaba elegida una categoría o "Por reponer",
@@ -950,6 +951,42 @@ export function createAlmacen(X) {
     b.set(doc(db, 'stores', sid, 'totales', c.m), { co: increment(-c.tot) }, { merge: true });
     b.commit().catch(failW);
     S.rcomp.list = S.rcomp.list.filter((x) => x.id !== id); renderRepo();
+  }
+  // Cambiar de categoría varios productos juntos: se buscan por palabras (separadas por coma), se revisan con tildes y se mueven.
+  const sinAc = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const ATAJOS = { 'Desayuno y merienda': 'yerba, mate, café, té, cacao, chocolatada, dulce de leche, mermelada, edulcorante' };
+  function mvCatDlg(dest) {
+    const o = modal('<b style="font-size:19px">🗂️ Cambiar categoría a varios</b>' +
+      '<div class="k" style="margin-top:4px">Buscá los productos por palabras separadas por coma, revisá la lista y movelos todos juntos.</div>' +
+      '<div style="margin-top:10px"><button class="go alt" id="mvdes" style="margin:0">☕ Atajo: Desayuno y merienda (yerba, café, mate, dulce de leche…)</button></div>' +
+      '<label>Buscar</label><input id="mvq" placeholder="Ej: yerba, café, mermelada" autocomplete="off">' +
+      '<label>Pasarlos a la categoría</label><select id="fc">' + catOptions(dest || '') + '</select>' +
+      '<div class="k" id="mvk" style="margin-top:10px"></div><div id="mvl" style="max-height:42vh;overflow:auto;margin-top:4px"></div>' +
+      '<button class="go" id="mvok" style="margin-top:12px" disabled>Mover</button><button class="go alt" data-close="1" style="margin-top:8px">Cancelar</button>');
+    const q = (id) => o.querySelector('#' + id); let lista = [];
+    const pinta = () => {
+      const dst = q('fc').value, ts = sinAc(q('mvq').value).split(',').map((t) => t.trim()).filter(Boolean);
+      const re = ts.map((t) => new RegExp('(^|[^a-z0-9])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (t.length <= 4 ? '(?![a-z0-9])' : '')));
+      lista = !ts.length || !dst || dst === '__new' ? [] : P().filter((p) => p.cat !== dst && re.some((r) => r.test(sinAc(p.n)))).sort((a, b) => a.n.localeCompare(b.n));
+      q('mvk').textContent = !ts.length ? 'Escribí qué buscar o tocá el atajo.' : lista.length ? (lista.length === 1 ? '1 producto encontrado.' : lista.length + ' productos encontrados.') + ' Destildá los que no van.' : 'No hay productos para mover con esas palabras.';
+      q('mvl').innerHTML = lista.map((p) => '<label style="display:flex;gap:10px;align-items:center;margin:0;padding:8px 2px;border-bottom:1px solid var(--line);font-weight:600"><input type="checkbox" data-mv="' + esc(p.id) + '" checked style="width:auto;margin:0"><span style="flex:1;min-width:0">' + esc(p.n) + '<small style="display:block;font-weight:400;opacity:.7">' + esc(p.cat || 'Sin categoría') + '</small></span></label>').join('');
+      cuenta();
+    };
+    const cuenta = () => { const n = o.querySelectorAll('[data-mv]:checked').length; q('mvok').disabled = !n; q('mvok').textContent = n ? 'Mover ' + n + ' producto' + (n > 1 ? 's' : '') + ' a ' + q('fc').value : 'Mover'; };
+    let t = 0; q('mvq').oninput = () => { clearTimeout(t); t = setTimeout(pinta, 200); };
+    q('fc').addEventListener('change', () => setTimeout(pinta));
+    q('mvl').onchange = cuenta;
+    q('mvdes').onclick = () => { q('fc').value = 'Desayuno y merienda'; q('mvq').value = ATAJOS['Desayuno y merienda']; pinta(); };
+    q('mvok').onclick = () => {
+      const dst = q('fc').value, ids = Array.from(o.querySelectorAll('[data-mv]:checked')).map((x) => x.dataset.mv);
+      if (!ids.length || !dst || dst === '__new') return;
+      const sid = X.sid(), lotes = [];
+      for (let i = 0; i < ids.length; i += 400) { const b = writeBatch(db); ids.slice(i, i + 400).forEach((id) => b.set(doc(db, 'stores', sid, 'stock', id), { cat: dst }, { merge: true })); lotes.push(b.commit()); }
+      q('mvok').disabled = true; q('mvok').textContent = 'Moviendo…';
+      Promise.all(lotes).then(() => { o.remove(); alert('Listo: ' + (ids.length === 1 ? '1 producto pasó' : ids.length + ' productos pasaron') + ' a "' + dst + '". En unos segundos se actualiza el catálogo.'); }).catch(failW);
+    };
+    if (dest && ATAJOS[dest]) q('mvdes').onclick(); else pinta();
+    return o;
   }
   function preciosDlg() {
     const o = modal('<b style="font-size:19px">Actualizar precios</b><div class="k" style="margin-top:4px">Sube (o baja) el precio de venta de muchos productos de una vez. No cambia los costos.</div>' +
@@ -1691,6 +1728,7 @@ export function createAlmacen(X) {
     else if (a === 'saver') saveRepo();
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
+    else if (a === 'mvcat') mvCatDlg();
     else if (a === 'qk') qkOpen();
     else if (a === 'qkman') qkShow('');
     else if (a === 'qkcamon') qkCamOn();
