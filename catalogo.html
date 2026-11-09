@@ -845,7 +845,7 @@ function almSetup(){document.body.classList.toggle('alm',!!ALM);if(!ALM)return;
 var r=document.body,AP=ALPAL[estilo(ALPAL)||'almacen'];['ap','al','ad','abg'].forEach(function(x){r.style.setProperty('--'+x,AP[x])});AP.c.forEach(function(x,i){r.style.setProperty('--c'+(i+1),x)});if(!TEMA&&goodColor(INFO.color)&&!/^#1{6}$|^#0{6}$/i.test(INFO.color)&&lum(INFO.color)<170)r.style.setProperty('--ap',INFO.color);if(TEMA)r.style.setProperty('--ap',TEMAS[TEMA].cat.b);
 var n=INFO.name||'Catálogo',lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':esc((n[0]||'C').toUpperCase());
 var e=$('ah');e.hidden=false;
-e.innerHTML='<div class="ahb"><div class="aht"><span class="lg">'+lg+'</span><div class="nm"><b>'+esc(n)+'</b><small>'+esc(INFO.hours||INFO.addr||'Pedí online y retirá o recibí en tu casa')+'</small></div>'+
+e.innerHTML='<div class="ahb"><div class="aht"><span class="lg">'+lg+'</span><div class="nm"><b>'+esc(n)+'</b></div>'+
 '<button class="ai" data-nav="fav" aria-label="Favoritos">'+SVG.heart+'</button><button class="ai" id="acart" aria-label="Ver pedido">'+SVG.cart+'<em id="acn" hidden>0</em></button></div>'+
 '<label class="ahs"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="asq" type="search" placeholder="'+esc(AP.q)+'" autocomplete="off"></label>'+
 '<div class="abn"><div class="trk" id="abtrk"><div class="sl ahban s-bien"><div class="tx"><h2>'+esc(INFO.tag||AP.h)+'</h2><p class="asl">Elegí tus productos y mandanos el pedido por WhatsApp.</p><button class="go" id="ago">Ver productos</button></div><div class="pi" id="api" hidden></div><div class="acol" id="acol" hidden></div></div></div><div class="adots" id="abdots" hidden></div></div>'+almChips()+'</div>'+
@@ -1047,7 +1047,7 @@ var lleno=0;[[2,2],[w-3,2],[2,h-3],[w-3,h-3]].forEach(function(p){var d=x.getIma
 if(lleno>=3)b.classList.add('lgq')}catch(e){}};im.src=src}
 function head(){var n=INFO.name||'Catálogo';$('ttl').textContent=n;$('ttl2').textContent=n;document.title=n;
 if(INFO.logo&&/^data:image\//.test(INFO.logo)){['lg','lg2'].forEach(function(id){var e=$(id);e.outerHTML='<img id="'+id+'" class="logo" alt="" src="'+esc(INFO.logo)+'">'});var ic=document.querySelector('link[rel=icon]')||document.head.appendChild(document.createElement('link'));ic.rel='icon';ic.href=INFO.logo;lgForma(INFO.logo)}else{$('lg').textContent=$('lg2').textContent=(n[0]||'C').toUpperCase()}
-$('hsub').textContent=INFO.addr||INFO.hours||'';
+$('hsub').textContent=INFO.addr||'';
 if(INFO.tag){$('htag').hidden=false;$('htag').textContent=INFO.tag}
 if(INFO.pt){var hr=$('hero');hr.className='hero ph';
 getDoc(doc(db,'stores',sid,'public','portada')).then(function(d){var f=d.exists()&&d.data().f;if(!f){hr.className='hero pl'+(hr.classList.contains('dst')?' dst':'');return}var im=$('hbg');im.src=f;im.hidden=false;var ap=$('api');if(ALM&&ap){ap.innerHTML='<img alt="" src="'+esc(f)+'">';ap.hidden=false;var ac=$('acol');if(ac)ac.hidden=true}}).catch(function(){})}
