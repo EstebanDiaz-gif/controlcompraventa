@@ -32,7 +32,7 @@ async function cartel(o) {
   const nom = renglones(x, o.tienda || 'Nuestro catálogo', W - 260, 2);
   if (lg) {
     const r = 74, cx = W / 2, cy = 120; x.save(); x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill(); x.clip();
-    const s = Math.max(2 * r / lg.width, 2 * r / lg.height); x.drawImage(lg, cx - lg.width * s / 2, cy - lg.height * s / 2, lg.width * s, lg.height * s); x.restore();
+    const s = Math.min(1.84 * r / lg.width, 1.84 * r / lg.height); x.drawImage(lg, cx - lg.width * s / 2, cy - lg.height * s / 2, lg.width * s, lg.height * s); x.restore();
     x.font = '800 ' + (nom.length > 1 ? 54 : 64) + 'px ' + F; nom.forEach((l, i) => x.fillText(l, tx, 268 + i * 60 - (nom.length > 1 ? 24 : 0)));
   } else {
     x.font = '800 ' + (nom.length > 1 ? 64 : 80) + 'px ' + F; nom.forEach((l, i) => x.fillText(l, tx, (nom.length > 1 ? 170 : 210) + i * 76));

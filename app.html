@@ -1666,7 +1666,7 @@ function catCard(){
 var p=PUB||{};setTimeout(loadPt,0);
 var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style="margin:4px 0 0">Una página con tus productos, fotos y talles con stock. El cliente arma el pedido y te lo manda por WhatsApp. No muestra costos ni ganancias.</div>'+
 '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="cat_on" type="checkbox" style="width:auto"'+(p.enabled?' checked':'')+'> Catálogo activado</label>'+
-'<label>Logo de tu negocio</label><div class="row" style="gap:12px;align-items:center"><img id="cat_lgv" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--line);'+(logoNow(p)?'':'display:none')+'" src="'+esc(logoNow(p))+'"><input id="cat_logo" type="file" accept="image/*" style="flex:1"></div><button class="go alt" data-cat="nologo" style="margin-top:6px">Quitar logo</button>'+
+'<label>Logo de tu negocio</label><div class="row" style="gap:12px;align-items:center"><img id="cat_lgv" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:contain;padding:3px;box-sizing:border-box;background:#fff;border:1px solid var(--line);'+(logoNow(p)?'':'display:none')+'" src="'+esc(logoNow(p))+'"><input id="cat_logo" type="file" accept="image/*" style="flex:1"></div><button class="go alt" data-cat="nologo" style="margin-top:6px">Quitar logo</button>'+
 '<label>Foto de portada (opcional)</label><div class="k" style="margin:0 0 8px">La foto grande de arriba del catálogo: tus productos, tu local o una modelo con tu ropa. Usá una foto grande y nítida (no captura de pantalla): en la compu se ve a lo ancho de toda la pantalla.</div>'+
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
@@ -1780,7 +1780,7 @@ if(a=='save'){
 var hasCatOn=$('cat_on');
 if(!hasCatOn){
 // Solo configuraciones (desde configCard)
-setDoc(doc(db,'stores',SID,'public','info'),{color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+var hzv=hzGuardar();setDoc(doc(db,'stores',SID,'public','info'),Object.assign({color:$('cat_col').value,addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},hzv),{merge:true}).then(function(){HZE=null;alert('Guardado.')}).catch(fail);
 return}
 // Catálogo completo (desde catCard)
 var was=readWas().map(function(x){return {n:x.n,w:waNorm(x.w)}}).filter(function(x){return x.w}),wa=was.length?was[0].w:'';
@@ -1789,7 +1789,7 @@ if($('cat_on').checked&&!was.length){alert('Escribí al menos un WhatsApp para r
 if(was.length>1&&was.some(function(x){return !x.n})){alert('Poné un nombre a cada número, así el cliente sabe a quién le escribe.');return}
 $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),{alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),alx:alxVal(),color:$('cat_col').value,hours:$('cat_hrs').value.trim(),addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},{merge:true}).then(function(){alert('Guardado.')}).catch(fail);
+setDoc(doc(db,'stores',SID,'public','info'),Object.assign({alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),alx:alxVal(),color:$('cat_col').value,addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},hzGuardar()),{merge:true}).then(function(){HZE=null;alert('Guardado.')}).catch(fail);
 return}
 }
 function planCardCollapsible(){
@@ -1835,11 +1835,52 @@ h+='<div style="margin-top:10px;word-break:break-all;padding:10px;background:var
 h+='<button class="go alt" data-cat="qr" style="margin-top:10px">🔳 QR para imprimir o compartir</button>';
 h+='</div>';
 return h}
+// ---- Horario de atención: días + horario por renglón (ej: lunes a sábado 9 a 13 y 17 a 21, domingos 10 a 13).
+// Se guarda info.hz (los renglones) y info.hours (el texto que muestra el catálogo). También se puede escribir a mano (info.hzm='t').
+var HZE=null,HZD=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],HZL=['Lu','Ma','Mi','Ju','Vi','Sá','Do'];
+function hzIni(){if(HZE)return HZE;var p=PUB||{},l=Array.isArray(p.hz)?p.hz:[];
+HZE={m:p.hzm=='t'?'t':'d',t:p.hours||'',viejo:!l.length&&p.hzm!='t'&&p.hours?p.hours:'',toc:false,l:l.length?l.map(function(r){return {d:(r.d||[]).slice(),a:r.a||'',b:r.b||'',c:r.c||'',e:r.e||'',k:!!(r.c||r.e)}}):[{d:[0,1,2,3,4,5],a:'09:00',b:'18:00',c:'',e:'',k:false}]};return HZE}
+function hzHora(t){if(!/^\d{1,2}:\d{2}$/.test(t||''))return '';var x=t.split(':');return (+x[0])+(x[1]=='00'?'':':'+x[1])}
+function hzDias(d){d=d.slice().sort();if(d.length==7)return 'Todos los días';var g=[],i=0;
+while(i<d.length){var j=i;while(j+1<d.length&&d[j+1]==d[j]+1)j++;if(j-i>=2)g.push(HZD[d[i]]+' a '+HZD[d[j]].toLowerCase());else for(var k=i;k<=j;k++)g.push(HZD[d[k]]);i=j+1}
+return g.map(function(x,n){return n?x.charAt(0).toLowerCase()+x.slice(1):x}).reduce(function(a,x,n,arr){return a+(n==0?'':n==arr.length-1?' y ':', ')+x},'')}
+function hzTexto(l){return l.filter(function(r){return r.d.length&&hzHora(r.a)&&hzHora(r.b)}).map(function(r){var t=hzDias(r.d)+' '+hzHora(r.a)+' a '+hzHora(r.b);
+if(r.k&&hzHora(r.c)&&hzHora(r.e))t+=' y '+hzHora(r.c)+' a '+hzHora(r.e);return t+' hs'}).join(' · ')}
+function hzHtml(){var z=hzIni();
+if(z.m=='t')return '<input id="cat_hrs" maxlength="120" placeholder="Ej: Lunes a sábado 9 a 18 hs, domingos 9 a 13 hs" value="'+esc(z.t)+'" autocomplete="off"><button type="button" class="x" data-hz="modo" style="margin-top:6px;font-size:14px">Elegir días y horarios con tildes</button>';
+var usados={};z.l.forEach(function(r,i){r.d.forEach(function(d){usados[d]=(usados[d]||[]).concat(i)})});
+var h=z.l.map(function(r,i){var tm=function(f,v,lb){return '<div style="min-width:0"><div class="k" style="margin:0 0 3px;font-weight:700">'+lb+'</div><input type="time" data-hzt="'+i+'" data-f="'+f+'" value="'+esc(v)+'" style="width:100%;min-width:0;margin:0;box-sizing:border-box"></div>'},par=function(a,b,la,lb){return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">'+tm(a,r[a],la)+tm(b,r[b],lb)+'</div>'};
+return '<div style="background:var(--line);border-radius:14px;padding:10px 12px;margin-top:8px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:14px">'+(z.l.length>1?'Horario '+(i+1):'Días que abrís')+'</b>'+(z.l.length>1?'<button type="button" class="x" data-hz="del" data-i="'+i+'" style="font-size:14px">Quitar</button>':'')+'</div>'+
+'<div style="display:flex;gap:4px;margin-top:8px">'+HZL.map(function(n,d){var on=r.d.indexOf(d)>=0,otro=!on&&usados[d];return '<button type="button" class="ch'+(on?' on':'')+'" data-hz="dia" data-i="'+i+'" data-d="'+d+'" style="flex:1;min-width:0;padding:9px 0;text-align:center'+(otro?';opacity:.45':'')+'">'+n+'</button>'}).join('')+'</div>'+
+'<div class="chips" style="margin-top:6px;gap:5px">'+[['Lun a vie',[0,1,2,3,4]],['Lun a sáb',[0,1,2,3,4,5]],['Sáb y dom',[5,6]],['Domingo',[6]],['Todos',[0,1,2,3,4,5,6]]].map(function(x){return '<button type="button" class="x" data-hz="pre" data-i="'+i+'" data-v="'+x[1].join(',')+'" style="font-size:13px;margin-right:8px">'+x[0]+'</button>'}).join('')+'</div>'+
+par('a','b','Abre','Cierra')+
+'<label style="display:flex;align-items:center;gap:8px;margin:8px 0 0;font-weight:600;font-size:14px"><input type="checkbox" data-hz="corte" data-i="'+i+'" style="width:auto;margin:0"'+(r.k?' checked':'')+'> Cierra al mediodía (horario cortado)</label>'+
+(r.k?par('c','e','Vuelve a abrir','Cierra'):'')+'</div>'}).join('');
+var libres=[0,1,2,3,4,5,6].filter(function(d){return !usados[d]});
+h+='<button type="button" class="go alt" data-hz="add" style="margin-top:8px">+ Agregar otro horario'+(libres.length&&libres.length<7?' ('+hzDias(libres).toLowerCase()+')':'')+'</button>';
+var t=hzTexto(z.l);if(z.viejo&&!z.toc)h='<div class="k" style="margin:0 0 4px">Tu horario actual: <b>'+esc(z.viejo)+'</b>. Marcá los días y horarios abajo para cambiarlo.</div>'+h;
+h+='<div class="k" id="hzpv" style="margin-top:8px">'+(z.viejo&&!z.toc?'':t?'Se ve así en tu catálogo: <b>🕒 '+esc(t)+'</b>'+(libres.length&&libres.length<7?'<br>Los días sin horario ('+esc(hzDias(libres).toLowerCase())+') no se muestran: se entiende que está cerrado.':''):'Tocá los días y poné el horario. Si no querés mostrar horario, dejá todos los días sin marcar.')+'</div>';
+return h+'<button type="button" class="x" data-hz="modo" style="margin-top:6px;font-size:14px">Prefiero escribirlo a mano</button>'}
+function hzDraw(){var e=$('hzed');if(e)e.innerHTML=hzHtml()}
+function hzPv(){var e=$('hzpv'),z=HZE;if(!e||!z||z.m=='t')return;var t=hzTexto(z.l);if(t)e.innerHTML='Se ve así en tu catálogo: <b>🕒 '+esc(t)+'</b>'}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-hz]');if(!b||!HZE||b.dataset.hz=='corte')return;var z=HZE,i=+b.dataset.i,r=z.l[i],a=b.dataset.hz;if(a!='modo')z.toc=true;
+if(a=='modo'){if(z.m=='t'){var c=$('cat_hrs');z.t=c?c.value:z.t;z.m='d'}else{z.t=hzTexto(z.l)||z.t;z.m='t'}}
+else if(a=='dia'){var d=+b.dataset.d,k=r.d.indexOf(d);if(k>=0)r.d.splice(k,1);else{r.d.push(d);z.l.forEach(function(o,j){if(j!=i){var q=o.d.indexOf(d);if(q>=0)o.d.splice(q,1)}})}}
+else if(a=='pre'){r.d=b.dataset.v.split(',').map(Number);z.l.forEach(function(o,j){if(j!=i)o.d=o.d.filter(function(x){return r.d.indexOf(x)<0})})}
+else if(a=='del')z.l.splice(i,1);
+else if(a=='add'){var us={};z.l.forEach(function(o){o.d.forEach(function(x){us[x]=1})});var lib=[0,1,2,3,4,5,6].filter(function(x){return !us[x]});var u=z.l[z.l.length-1];z.l.push({d:lib,a:u?u.a:'09:00',b:u?u.b:'13:00',c:'',e:'',k:false})}
+hzDraw()});
+document.addEventListener('change',function(e){var t=e.target;if(!HZE)return;if(t.dataset&&t.dataset.hz=='corte'){HZE.toc=true;var r=HZE.l[+t.dataset.i];r.k=t.checked;if(r.k&&!r.c){r.c='17:00';r.e='21:00';if(r.b>'14:00')r.b='13:00'}hzDraw()}});
+document.addEventListener('input',function(e){var t=e.target;if(!HZE)return;if(t.dataset&&t.dataset.hzt!=null){HZE.toc=true;HZE.l[+t.dataset.hzt][t.dataset.f]=t.value;hzPv()}else if(t.id=='cat_hrs')HZE.t=t.value});
+function hzGuardar(){var z=hzIni();if(z.m=='t')return {hours:($('cat_hrs')?$('cat_hrs').value:z.t).trim().slice(0,120),hzm:'t'};
+if(z.viejo&&!z.toc)return {};
+var l=z.l.filter(function(r){return r.d.length&&hzHora(r.a)&&hzHora(r.b)}).map(function(r){var o={d:r.d.slice().sort(),a:r.a,b:r.b};if(r.k&&hzHora(r.c)&&hzHora(r.e)){o.c=r.c;o.e=r.e}return o});
+return {hours:hzTexto(z.l),hz:l,hzm:'d'}}
 function configCard(){
 var p=PUB||{};
 var h='<div class="card"><b style="display:flex;justify-content:space-between;align-items:center">⚙️ Configuraciones<button class="x" id="config-toggle" style="font-size:16px;text-decoration:none;color:var(--ink)">▼</button></b><div id="config-details" style="display:none;margin-top:12px">'+
 '<label>Color de tu marca</label><input id="cat_col" type="color" value="'+esc(/^#[0-9a-f]{6}$/i.test(p.color||'')?p.color:'#111111')+'" style="height:46px;padding:4px;width:100%">'+
-'<label style="margin-top:10px">Horario de atención (opcional)</label><input id="cat_hrs" maxlength="60" placeholder="Ej: Lunes a sábado 9 a 18 hs" value="'+esc(p.hours||'')+'" autocomplete="off">'+
+'<label style="margin-top:10px">Horario de atención (opcional)</label><div id="hzed">'+hzHtml()+'</div>'+
 '<label>Dirección o zona (opcional)</label><input id="cat_adr" maxlength="80" placeholder="Ej: Yerba Buena, Tucumán" value="'+esc(p.addr||'')+'" autocomplete="off">'+
 '<label>Instagram (opcional)</label><input id="cat_ig" maxlength="40" placeholder="Ej: @minegocio" value="'+esc(p.ig||'')+'" autocomplete="off">'+
 '<button class="go" data-cat="save" style="margin-top:12px">Guardar configuraciones</button></div></div>';
