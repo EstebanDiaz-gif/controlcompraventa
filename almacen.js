@@ -341,9 +341,8 @@ export function createAlmacen(X) {
       return;
     }
     if (!$('cjq')) {
-      box.innerHTML = '<div id="cjbar"></div><div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
-        '<button class="x" data-al="libre" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:8px">+ Importe libre (algo que no está cargado)</button>' +
-        '<div id="cjcats" class="chips"></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
+      box.innerHTML = '<div id="cjbar"></div><div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar o escanear" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
+        '<div id="cjcats" class="chips r1"></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
       const qi = $('cjq');
       qi.oninput = () => { S.q = qi.value; if (S.cat && S.q.trim()) { S.cat = ''; renderCats(); } renderRes(); };
       qi.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAdd(); } };
@@ -356,7 +355,22 @@ export function createAlmacen(X) {
   }
   function renderCats() {
     const e = $('cjcats'); if (!e) return;
-    e.innerHTML = usedCats().map((c) => '<button class="ch' + (S.cat === c ? ' on' : '') + '" data-al="cat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
+    e.innerHTML = '<button class="ch lib" data-al="libre" title="Cobrar algo que no está cargado">＋ Importe libre</button>' +
+      usedCats().map((c) => '<button class="ch' + (S.cat === c ? ' on' : '') + '" data-al="cat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
+    filaFin(e);
+  }
+  // Filas de categorías: se deslizan de costado; con la rueda del mouse también (en la compu).
+  function filaFin(e) { if (e) e.classList.toggle('fin', e.scrollLeft + e.clientWidth >= e.scrollWidth - 4); }
+  if (!window.__r1) {
+    window.__r1 = 1;
+    document.addEventListener('scroll', (ev) => { const t = ev.target; if (t && t.classList && t.classList.contains('r1')) filaFin(t); }, true);
+    document.addEventListener('wheel', (ev) => {
+      const r = ev.target && ev.target.closest && ev.target.closest('.chips.r1');
+      if (!r || r.scrollWidth <= r.clientWidth || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
+      const max = r.scrollWidth - r.clientWidth;
+      if ((ev.deltaY > 0 && r.scrollLeft >= max) || (ev.deltaY < 0 && r.scrollLeft <= 0)) return;
+      r.scrollLeft += ev.deltaY; ev.preventDefault();
+    }, { passive: false });
   }
   function results() {
     if (!S.q.trim() && !S.cat) return null;
@@ -369,7 +383,7 @@ export function createAlmacen(X) {
     if (!r) {
       const ps = combos(X.promos(), Date.now());
       e.innerHTML = (ps.length ? '<div class="k" style="margin:12px 0 2px"><b>🔥 Promos</b></div>' + ps.map((p) => '<button class="pl" data-al="addpromo" data-id="' + esc(p.id) + '"><span><b>' + esc(p.titulo) + '</b>' + (p.items && p.items.length ? '<small>' + p.items.map((i) => (i.q > 1 ? i.q + '× ' : '') + esc(i.n)).join(' + ') + '</small>' : '') + '</span><b>' + money(p.precio) + '</b></button>').join('') : '') +
-        '<div class="k" style="margin-top:10px">Escribí el nombre o el código, o elegí una categoría. Para escanear, tocá el botón de la cámara o usá un lector de códigos: el producto se agrega solo.</div>';
+        '';
       return;
     }
     if (!r.length) { e.innerHTML = '<div class="empty">No encontré productos.</div>'; return; }
@@ -773,7 +787,7 @@ export function createAlmacen(X) {
     if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
       box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div>' + herrStock() : '') +
-        '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
+        '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips r1" style="margin:10px 0 12px"></div><div id="abody"></div>';
       // Al buscar o escanear, se busca en TODOS los productos: si quedaba elegida una categoría o "Por reponer",
       // un producto de otra categoría parecía "no cargado" (pasaba con la pistola lectora en la compu).
       $('aq').oninput = function () { S.stQ = this.value; if (S.stQ.trim() && (S.stCat || S.stLow)) { S.stCat = ''; S.stLow = false; } renderStock(); };
@@ -816,6 +830,7 @@ export function createAlmacen(X) {
       '<button class="ch' + (S.stLow ? ' on' : '') + '" data-al="slow">Por reponer (' + low + ')</button>' +
       (load() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
+    filaFin($('acats'));
     const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
