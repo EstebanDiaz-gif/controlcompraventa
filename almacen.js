@@ -717,7 +717,7 @@ export function createAlmacen(X) {
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>' + (adm() ? 'Ventas de hoy' : 'Tus ventas de hoy') + '</b><b>' + money(t) + '</b></div><div class="k">' + S.hoy.length + ' venta' + (S.hoy.length === 1 ? '' : 's') + '</div>';
     h += ventasHtml(S.hoy.slice(0, 15), adm());
     const tc = tkConfig();
-    h += '<button class="x" data-al="tkcfg" style="margin-top:8px;font-size:14px">' + (tc.puesto ? '🖥️ Puesto de impresión activo: imprime los tickets de los celulares · configurar' : tc.remoto ? '📱 Los tickets se imprimen en la compu · configurar' : '🧾 Tiketera: configurar e imprimir prueba') + '</button>';
+    h += '<button class="x" data-al="tkcfg" style="margin-top:8px;font-size:14px">' + (tc.puesto ? (S.impErr ? '⚠️ Puesto de impresión sin conexión: reintentando… · configurar' : '🖥️ Puesto de impresión activo: imprime los tickets de los celulares · configurar') : tc.remoto ? '📱 Los tickets se imprimen en la compu · configurar' : '🧾 Tiketera: configurar e imprimir prueba') + '</button>';
     if (S.hoy.length > 15) h += '<div class="k" style="margin-top:8px">' + (adm() ? 'Ves todas en Resumen.' : 'Se muestran las últimas 15.') + '</div>';
     e.innerHTML = h + '</div>';
   }
@@ -758,10 +758,16 @@ export function createAlmacen(X) {
         if (ch.type !== 'added') return;
         const d = ch.doc.data() || {};
         deleteDoc(ch.doc.ref).catch(() => {});
-        if (!d.tk || Date.now() - (d.at || 0) > 15 * 60000) return;   // los viejos (la compu estaba apagada) no se imprimen
+        if (!d.tk || Math.abs(Date.now() - (d.at || 0)) > 15 * 60000) return;   // los viejos (la compu estaba apagada) no se imprimen
+        aviso('🖨️ Imprimiendo ticket' + (d.bn ? ' de ' + d.bn : '') + '…');
         colaImp.push(Object.assign({}, d.tk, { fecha: new Date(d.tk.fecha || d.at) })); sigImp();
       });
-    }, (e) => { if (deny(e)) S.impErr = true; });
+      if (S.impErr) { S.impErr = false; renderHoy(); }
+    }, () => {
+      // Si falla (sin internet, o la regla de Firebase todavía no estaba publicada), se vuelve a intentar sola.
+      S.impErr = true; off('imp'); renderHoy();
+      clearTimeout(S.impT); S.impT = setTimeout(syncPuesto, 20000);
+    });
   }
   // Ticket de una venta ya hecha (para reimprimir). Los combos van en una línea; el envío aparte.
   function ticketDeVenta(v) {
