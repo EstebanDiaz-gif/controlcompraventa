@@ -13,6 +13,7 @@ import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, onSnaps
 import { fotoId, makePhotos } from './fotos.js';
 import { abrirInsta } from './insta.js';
 import { tkConfig, imprimirTicket, abrirTiketera } from './ticket.js';
+import { calcular as sanCalc, limpiarCfg as sanCfg, activo as sanActivo } from './sanguche.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
@@ -343,6 +344,7 @@ export function createAlmacen(X) {
     if (!$('cjq')) {
       box.innerHTML = '<div id="cjbar"></div><div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar o escanear" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
         '<div class="r1w"><button type="button" class="r1a l" data-r1="-1" aria-label="Ver categorías anteriores">‹</button><div id="cjcats" class="chips r1"></div><button type="button" class="r1a r" data-r1="1" aria-label="Ver más categorías">›</button></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
+      loadSan();
       const qi = $('cjq');
       qi.oninput = () => { S.q = qi.value; if (S.cat && S.q.trim()) { S.cat = ''; renderCats(); } renderRes(); };
       qi.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAdd(); } };
@@ -356,6 +358,7 @@ export function createAlmacen(X) {
   function renderCats() {
     const e = $('cjcats'); if (!e) return;
     e.innerHTML = '<button class="ch lib" data-al="libre" title="Cobrar algo que no está cargado">＋ Importe libre</button>' +
+      (sanActivo(S.san) ? '<button class="ch lib" data-al="sw" title="Armar un sánguche y descontar sus ingredientes del stock">🥪 Sánguche</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.cat === c ? ' on' : '') + '" data-al="cat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     filaFin(e);
   }
@@ -466,6 +469,68 @@ export function createAlmacen(X) {
       o.remove(); S.last = ''; clearSearch(); renderCart();
     };
     show(); setTimeout(() => wk.focus(), 50);
+  }
+  // ---------- Armá tu sánguche en la caja: una sola pantalla, todo a la vista, y descuenta las porciones del stock ----------
+  function loadSan() {
+    const sid = X.sid(); if (!sid) return;
+    getDoc(doc(db, 'stores', sid, 'public', 'sanguche')).then((d) => { if (X.sid() !== sid) return; S.san = d.exists() ? sanCfg(d.data()) : null; renderCats(); }).catch(() => {});
+  }
+  function swDlg(pre) {
+    const C = S.san; if (!sanActivo(C)) return;
+    const st = pre ? { t: pre.t, s: JSON.parse(JSON.stringify(pre.s)) } : { t: S.swT != null && C.tam[S.swT] ? S.swT : (C.tam.length === 1 ? 0 : null), s: {} };
+    C.pasos.forEach((p) => { if (!st.s[p.id]) st.s[p.id] = []; if (p.min && p.max === 1 && p.it.length === 1 && !st.s[p.id].length) st.s[p.id] = [p.it[0].i]; });
+    let n = 1;
+    const o = modal('<div id="swc"></div>'), box = o.querySelector('#swc');
+    const r = () => (st.t == null ? null : sanCalc(C, st));
+    const cuenta = () => C.pasos.reduce((a, p) => a + (p.cu ? st.s[p.id].length : 0), 0);
+    const chip = (on, attrs, txt) => '<button type="button" class="ch' + (on ? ' on' : '') + '" ' + attrs + ' style="margin:0">' + txt + '</button>';
+    const pinta = (msg) => {
+      const x = r(), tm = st.t != null ? C.tam[st.t] : null, c = cuenta();
+      let h = '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b style="font-size:19px">🥪 Sánguche</b><b style="font-size:24px">' + (x && x.ok ? money(x.u * n) : tm ? money(tm.p * n) : '') + '</b></div>' +
+        '<div class="k" style="margin:2px 0 0">' + (tm ? esc(tm.n) + ' · ' + Math.min(c, tm.inc) + ' de ' + tm.inc + ' incluidos' + (c > tm.inc ? ' · ' + (c - tm.inc) + ' extra (+' + money((c - tm.inc) * C.ex) + ')' : '') : 'Elegí el tamaño') + '</div>';
+      if (S.swPrev && !pre) h += '<button type="button" class="x" data-swrep="1" style="margin-top:6px;font-size:14px;font-weight:700;text-decoration:underline">↺ Repetir el último (' + esc(S.swPrev.txt) + ')</button>';
+      h += '<div style="font-weight:800;font-size:14px;margin:12px 0 6px">Tamaño</div><div class="chips" style="margin:0;gap:6px">' + C.tam.map((t, i) => chip(st.t === i, 'data-swt="' + i + '"', esc(t.n) + ' ' + money(t.p))).join('') + '</div>';
+      C.pasos.forEach((p) => {
+        const sel = st.s[p.id];
+        h += '<div style="font-weight:800;font-size:14px;margin:12px 0 6px">' + esc(p.t) + ' <span style="font-weight:500;opacity:.65">' + (p.max === 1 ? (p.min ? '· uno' : '· uno, opcional') : '· hasta ' + p.max) + (p.cu ? ' · entran en el tamaño' : '') + '</span></div><div class="chips" style="margin:0;gap:6px">' +
+          p.it.map((it) => chip(sel.indexOf(it.i) >= 0, 'data-swp="' + esc(p.id) + '" data-swi="' + esc(it.i) + '"', esc(it.n))).join('') + '</div>';
+      });
+      h += '<div class="k" style="min-height:18px;margin-top:10px;color:#b3261e;font-weight:700">' + esc(msg || '') + '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button type="button" class="qb" data-swn="-1" aria-label="Uno menos">−</button><b style="min-width:22px;text-align:center">' + n + '</b><button type="button" class="qb" data-swn="1" aria-label="Uno más">+</button>' +
+        '<button type="button" class="go" id="swadd" style="margin:0;flex:1">Agregar' + (x && x.ok ? ' · ' + money(x.u * n) : '') + '</button></div>' +
+        '<button type="button" class="go alt" data-close="1" style="margin-top:8px">Cancelar</button>';
+      box.innerHTML = h;
+    };
+    const agregar = () => {
+      const x = r();
+      if (st.t == null) { pinta('Elegí el tamaño.'); return; }
+      if (!x || !x.ok) { pinta(x && x.error ? 'Falta: ' + x.error.replace(/^falta elegir /, '') : 'Revisá lo elegido.'); return; }
+      const c = x.comp.reduce((a, it) => a + (((prod(it.i) || {}).c) || 0) * it.q, 0);
+      S.cart.push({ promo: 'sw:' + uid(), sw: 1, n: '🥪 ' + x.n, q: n, u: x.u, w: false, items: x.comp.map((it) => ({ id: it.i, n: it.n, q: it.q })), c: Math.round(c) });
+      const resto = x.comp.filter((it) => !(C.pasos[0] && C.pasos[0].id === 'pan' && C.pasos[0].it.some((p) => p.i === it.i))).map((it) => it.n);
+      S.swT = st.t; S.swPrev = { t: st.t, s: JSON.parse(JSON.stringify(st.s)), txt: C.tam[st.t].n + ': ' + resto.slice(0, 3).join(', ') + (resto.length > 3 ? '…' : '') };
+      S.last = ''; o.remove(); renderCart();
+    };
+    o.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || !box.contains(b)) return; const ds = b.dataset;
+      if (ds.swt != null) st.t = +ds.swt;
+      else if (ds.swi != null) {
+        const p = C.pasos.find((q) => q.id === ds.swp), sel = st.s[p.id], k = sel.indexOf(ds.swi);
+        if (k >= 0) sel.splice(k, 1); else if (p.max === 1) { sel.length = 0; sel.push(ds.swi); } else if (sel.length >= p.max) { pinta('En ' + p.t + ' van hasta ' + p.max + '.'); return; } else sel.push(ds.swi);
+      } else if (ds.swn) n = Math.max(1, Math.min(50, n + +ds.swn));
+      else if (ds.swrep) { const pv = S.swPrev; st.t = pv.t; Object.keys(st.s).forEach((k) => { st.s[k] = (pv.s[k] || []).slice(); }); }
+      else if (b.id === 'swadd') { agregar(); return; }
+      else return;
+      pinta();
+    });
+    // Enter agrega y Escape cierra (antes que el lector de códigos de la compu, que también escucha el teclado).
+    const tecla = (e) => {
+      if (!document.body.contains(o)) { window.removeEventListener('keydown', tecla, true); return; }
+      if (e.key === 'Enter') { e.preventDefault(); e.stopImmediatePropagation(); agregar(); }
+      else if (e.key === 'Escape') { e.stopImmediatePropagation(); o.remove(); }
+    };
+    window.addEventListener('keydown', tecla, true);
+    o.tabIndex = -1; pinta(); setTimeout(() => o.focus(), 0);
   }
   function addPromo(id) {
     const p = combos(X.promos(), Date.now()).find((x) => x.id === id); if (!p) return;
@@ -1736,6 +1801,7 @@ export function createAlmacen(X) {
     if (a === 'cat') { S.cat = S.cat === el.dataset.v ? '' : el.dataset.v; renderCats(); renderRes(); }
     else if (a === 'add') { const p = prod(id); if (p) addProd(p); }
     else if (a === 'addpromo') addPromo(id);
+    else if (a === 'sw') swDlg();
     else if (a === 'inc') { S.cart[i].q += 1; renderCart(); }
     else if (a === 'dec') { if (S.cart[i].q > 1) S.cart[i].q -= 1; else S.cart.splice(i, 1); renderCart(); }
     else if (a === 'rm') { S.cart.splice(i, 1); renderCart(); }
