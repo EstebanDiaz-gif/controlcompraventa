@@ -814,12 +814,17 @@ export function createAlmacen(X) {
     }
     renderFiList();
   }
-  function lunes() { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function renderFiList() {
     let t = 0, n = 0; S.cl.forEach((c) => { if (c.s > 0) { t += c.s; n++; } });
     $('fitot').textContent = money(t); $('ficnt').textContent = n + ' cliente' + (n === 1 ? '' : 's') + ' con deuda';
-    const lu = lunes(), l = S.cl.filter((c) => match(c.n + ' ' + c.tel, S.fq)).sort((a, b) => a.n.localeCompare(b.n, 'es', { sensitivity: 'base' }));
-    $('filist').innerHTML = '<div class="card">' + (l.length ? l.map((c) => '<button class="pl" data-al="opencli" data-id="' + esc(c.id) + '"><span><b>' + esc(c.n) + '</b>' + (c.s > 0 ? (c.up && c.up >= lu ? '<span class="fch ok">✓ Pagó esta semana</span>' : c.fd && c.fd >= lu ? '<span class="fch nv">Compró esta semana · paga desde la próxima</span>' : '<span class="fch no">Sin pagos esta semana</span>') : '') + '<small>' + (c.tel ? esc(c.tel) + ' · ' : '') + (c.up ? 'último pago ' + c.up.split('-').reverse().slice(0, 2).join('/') : c.u ? 'último movimiento ' + new Date(c.u).toLocaleDateString('es-AR') : 'sin movimientos') + '</small></span><b class="' + (c.s > 0 ? 'neg' : 'pos') + '">' + (c.s > 0 ? money(c.s) : (c.s < 0 ? 'a favor ' + money(-c.s) : 'al día')) + '</b></button>').join('') :
+    // Alerta solo cuando pasó un mes (30 días) sin pagar: desde el último pago o, si nunca pagó, desde que empezó a deber.
+    const hoy0 = new Date(X.today() + 'T00:00:00').getTime();
+    const sinPagar = (c) => { if (!(c.s > 0)) return 0; const ref = c.up || c.fd || (c.u ? new Date(c.u).toISOString().slice(0, 10) : ''); if (!ref) return 0; const d = Math.floor((hoy0 - new Date(ref + 'T00:00:00').getTime()) / 86400000); return d >= 30 ? d : 0; };
+    const atr = S.cl.filter((c) => sinPagar(c)).sort((a, b) => sinPagar(b) - sinPagar(a));
+    const l = S.cl.filter((c) => match(c.n + ' ' + c.tel, S.fq) && (!S.fAtr || sinPagar(c))).sort((a, b) => a.n.localeCompare(b.n, 'es', { sensitivity: 'base' }));
+    $('filist').innerHTML = (atr.length ? '<div class="bn warn" style="margin:0 0 12px"><b>⚠️ ' + (atr.length === 1 ? '1 cliente lleva' : atr.length + ' clientes llevan') + ' más de un mes sin pagar</b><div style="margin:4px 0 8px;font-size:14px">' + esc(atr.slice(0, 4).map((c) => c.n).join(', ')) + (atr.length > 4 ? ' y ' + (atr.length - 4) + ' más' : '') + '</div>' +
+      '<button class="x" data-al="fatr" style="font-size:14px;font-weight:700;text-decoration:underline">' + (S.fAtr ? 'Ver todos los clientes' : 'Ver solo esos') + '</button></div>' : '') +
+      '<div class="card">' + (l.length ? l.map((c) => { const dsp = sinPagar(c); return '<button class="pl" data-al="opencli" data-id="' + esc(c.id) + '"><span><b>' + esc(c.n) + '</b>' + (dsp ? '<span class="fch no">⚠️ Hace ' + dsp + ' días que no paga</span>' : '') + '<small>' + (c.tel ? esc(c.tel) + ' · ' : '') + (c.up ? 'último pago ' + c.up.split('-').reverse().slice(0, 2).join('/') : c.u ? 'último movimiento ' + new Date(c.u).toLocaleDateString('es-AR') : 'sin movimientos') + '</small></span><b class="' + (c.s > 0 ? 'neg' : 'pos') + '">' + (c.s > 0 ? money(c.s) : (c.s < 0 ? 'a favor ' + money(-c.s) : 'al día')) + '</b></button>'; }).join('') :
       '<div class="empty">' + (S.cl.length ? 'No encontré ese cliente.' : 'Todavía no anotaste clientes. Se crean acá o al cobrar con Fiado.') + '</div>') + '</div>';
   }
   function openCli(id) {
@@ -1904,6 +1909,7 @@ export function createAlmacen(X) {
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
     else if (a === 'mvcat') mvCatDlg();
+    else if (a === 'fatr') { S.fAtr = !S.fAtr; renderFiList(); }
     else if (a === 'sueltos') abrirSueltos({
       existe: (n) => P().some((p) => sinAc(p.n) === sinAc(n)),
       guardar: (items) => {
