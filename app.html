@@ -208,6 +208,7 @@ import {createAlmacen} from './almacen.js';
 import {abrirInsta} from './insta.js';
 import {abrirHistorias,rubroDe} from './historias.js';
 import {abrirQR} from './qrcartel.js';
+import {abrirArmadorCfg} from './sanguche-admin.js';
 import {abrirFotos} from './fotolib.js';
 import {createCaja,PAGOS} from './caja.js';
 import {createTraspasos} from './traspasos.js';
@@ -1619,7 +1620,7 @@ limpiarCodigos();var USO={};MEM.forEach(function(m){if(m.code)USO[m.code]=1});va
 if(INVa.length){h+='<div class="card"><b>Códigos activos</b>';
 INVa.forEach(function(v){var c=invCode(v);h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.re?'para que vuelva a entrar '+esc(((MEM.filter(function(m){return m.id==v.re})[0])||{}).name||''):(v.role=='admin'?'administrador':'empleado'))+' · '+esc(SNAME)+(v.exp?' · vence el '+fdate(v.exp):'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Cada código es para una sola persona. El de <b>empleado</b> no vence: es con lo que entra siempre. El de <b>administrador</b> vence a los '+CODE_DIAS+' días y se borra cuando la persona entra.</div></div>'}
-h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+histCard()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
+h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+histCard()+swCard()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
 $('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open},true)}}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
@@ -1653,6 +1654,13 @@ return b.commit().then(function(){PTIMG={at:at,f:f};var s2=$('cat_pts');if(s2)s2
 // Historias del catálogo (duran 24 h). Ver historias.js. Las publica un administrador.
 function histCard(){if(ROLE!='admin')return '';return '<div class="card"><b>📲 Historias del catálogo</b><div class="k" style="margin:4px 0 0">Subí ofertas, novedades o un aviso ("Hoy 20% OFF comprando desde la web") que se ven arriba de tu catálogo en círculos, como en Instagram. Duran 24 horas y tenés 10 diseños para elegir.</div>'+
 '<div class="row" style="gap:8px"><button class="go" data-hist="new" style="margin:10px 0 0">+ Nueva historia</button><button class="go alt" data-hist="list" style="margin:10px 0 0">Mis historias</button></div></div>'}
+// Armá tu sánguche (almacenes / fiambrerías): el cliente lo arma en el catálogo con productos del stock.
+function swCard(){if(ROLE!='admin'||biz()!='almacen')return '';return '<div class="card"><b>🥪 Armá tu sánguche</b><div class="k" style="margin:4px 0 0">Tus clientes arman su sánguche desde el catálogo: eligen tamaño, pan, fiambres, quesos y aderezos de tu stock, como en McDonald\'s. Te llega por WhatsApp con todo el detalle.</div>'+
+'<button class="go alt" data-swcfg="1" style="margin:10px 0 0">Configurar el armador</button></div>'}
+function openSw(){var ref=doc(db,'stores',SID,'public','sanguche');
+abrirArmadorCfg({leer:function(){return getDoc(ref).then(function(d){return d.exists()?d.data():null})},guardar:function(c){return setDoc(ref,c)},
+productos:function(){return ST.filter(function(p){return p&&p.n}).map(function(p){return {id:p.id,n:p.n,w:!!p.w,cat:p.cat||''}})},money:money,fail:function(e){fail(e)}})}
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-swcfg]');if(b)openSw()});
 function histItems(){var b=biz(),out=[];
 if(b=='almacen')ST.forEach(function(p){if(!p.n||p.oh||!(p.pn>0)||!(p.ns||(p.w?p.q>=0.1:p.q>=1)))return;out.push({k:'p',id:p.id,n:p.n,p:p.pn||0,pa:p.pa||0,img:p.img||'',cat:p.cat,kg:p.w})});
 else stkRows().forEach(function(g){if(g.q<=0||fieldOf(g.b,'oh')||!(g.pn||g.pm))return;out.push({k:'p',id:g.b,n:g.n,p:g.pn||g.pm||0,pa:fieldOf(g.b,'pa')||0,img:photoOf(g.b),cat:g.cat})});

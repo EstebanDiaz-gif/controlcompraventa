@@ -2,6 +2,7 @@
 // con Mercado Pago el monto correcto: recalcula todo con los datos públicos del catálogo, así nadie
 // puede cambiar el precio desde el celular. Tiene que dar lo mismo que lines()/sheet() de catalogo.html.
 import { combos, descuento } from './promos.js';
+import { calcular as calcSan } from './sanguche.js';
 
 const key = (s) => String(s || '').trim().toLowerCase();
 
@@ -33,11 +34,11 @@ export function ajustePago(info, id) {
 
 // items: [{ k, z, q, promo }] como el CART del catálogo.
 // Devuelve { ok, total, sub, dsc, aj, env, lineas: [{ n, q, u }] } o { ok:false, error }.
-export function calcularPedido({ items, G, info, promos, now, pago, entrega }) {
+export function calcularPedido({ items, G, info, promos, now, pago, entrega, san }) {
   info = info || {};
   if (!Array.isArray(items) || !items.length || items.length > 200) return { ok: false, error: 'pedido vacío' };
   const gOf = (k) => G.find((g) => g.k === k);
-  const tot = items.reduce((a, l) => a + (l.promo ? 0 : (+l.q || 0)), 0);
+  const tot = items.reduce((a, l) => a + (l.promo || l.sw ? 0 : (+l.q || 0)), 0);
   const inCart = (k) => items.reduce((a, l) => a + (l.k === k ? (+l.q || 0) : 0), 0);
   const price = (g) => {
     let may = false;
@@ -52,6 +53,11 @@ export function calcularPedido({ items, G, info, promos, now, pago, entrega }) {
     if (l.promo) {
       const p = cmb.find((x) => x.id === l.promo); if (!p) return { ok: false, error: 'promo no disponible' };
       ls.push({ n: '🔥 ' + p.titulo, q, u: +p.precio || 0, promo: true }); continue;
+    }
+    if (l.sw) {   // Armá tu sánguche: precio fijo por tamaño + extras, según public/sanguche
+      if (!san || !san.on) return { ok: false, error: 'sánguche no disponible' };
+      const x = calcSan(san, l.sw); if (!x.ok) return { ok: false, error: x.error };
+      ls.push({ n: '🥪 ' + x.n + ' (' + x.d + ')', q, u: x.u, promo: true }); continue;
     }
     const g = gOf(l.k); if (!g) return { ok: false, error: 'producto no disponible' };
     ls.push({ n: g.n + (l.z ? ' (' + l.z + ')' : ''), q, u: price(g), cat: g.cat || '', w: !!g.w });

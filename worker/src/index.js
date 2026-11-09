@@ -9,6 +9,7 @@
 //   FB_SA (cuenta de servicio de Firebase: extender abonos)
 // KV: MP  →  tok:{sid} = {at, rt, exp, mpuid, nick, conn}   st:{state} = {sid, uid, vuelta}   cfg:fee = {pct}
 import { calcularPedido, gruposStock, gruposLista } from '../../pedido.js';
+import { limpiarCfg } from '../../sanguche.js';
 import * as SUS from './suscripciones.js';
 import * as AV from './avisos.js';
 import * as PUSH from './push.js';
@@ -176,7 +177,8 @@ async function pagar(req, env) {
     G = gruposStock(await fsList(env, 'stores/' + b.sid + '/stock', ['n', 's', 'pm', 'pn', 'mm', 'oh', 'q', 'w', 'cat']));
   }
   const pr = await fsGet(env, 'stores/' + b.sid + '/public/promos');
-  const c = calcularPedido({ items: b.items, G, info, promos: (pr.data && pr.data.list) || [], now: Date.now(), pago: 'mpa', entrega: b.entrega });
+  const san = Array.isArray(b.items) && b.items.some((l) => l && l.sw) ? limpiarCfg((await fsGet(env, 'stores/' + b.sid + '/public/sanguche')).data) : null;
+  const c = calcularPedido({ items: b.items, G, info, promos: (pr.data && pr.data.list) || [], now: Date.now(), pago: 'mpa', entrega: b.entrega, san });
   if (!c.ok) return err(req, env, 'No pude armar el cobro: ' + c.error + '. Actualizá la página y probá de nuevo.', 409);
   if (!(c.total > 0)) return err(req, env, 'El total del pedido no es válido.', 409);
   if (Math.abs(c.total - Math.round(+b.total || 0)) > 1) return err(req, env, 'Los precios cambiaron. Actualizá la página para ver el total nuevo.', 409, { total: c.total });
