@@ -14,6 +14,7 @@ import { fotoId, makePhotos } from './fotos.js';
 import { abrirInsta } from './insta.js';
 import { tkConfig, imprimirTicket, abrirTiketera } from './ticket.js';
 import { calcular as sanCalc, limpiarCfg as sanCfg, activo as sanActivo } from './sanguche.js';
+import { abrirSueltos } from './sueltos.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
@@ -916,19 +917,20 @@ export function createAlmacen(X) {
     precios: '<path d="M19 5 5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
     mvcat: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 13h6M13 11l2 2-2 2"/>',
     xstk: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14l3 3 3-3"/>',
+    sueltos: '<path d="M7 3h10v3H7z"/><path d="M6 6h12l-1 3v10a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9z"/><path d="M9 13h6M9 16h4"/>',
     baldlg: '<path d="M12 4v16M8 20h8M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>'
   };
   function herrStock() {
     if (!document.getElementById('hstcss')) {
       const st = document.createElement('style'); st.id = 'hstcss';
-      st.textContent = '.hst{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 14px}@media(min-width:560px){.hst{grid-template-columns:repeat(6,1fr)}}' +
+      st.textContent = '.hst{display:grid;grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:8px;margin:10px 0 14px}' +
         '.hst button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:76px;padding:10px 4px;border:1.5px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;line-height:1.15;text-align:center;cursor:pointer;transition:transform .12s,border-color .12s}' +
         '.hst button svg{width:24px;height:24px;flex:none}.hst button:active{transform:scale(.96)}.hst .dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:#2fb34a}' +
         '@media(hover:hover){.hst button:hover{border-color:var(--btn)}.hst button[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);width:max-content;max-width:220px;padding:8px 10px;border-radius:10px;background:#111;color:#fff;font-size:12.5px;font-weight:500;line-height:1.3;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.25);pointer-events:none;white-space:normal}.hst button:nth-child(3n+1)[data-tip]:hover::after{left:0;transform:none}.hst button:nth-child(3n)[data-tip]:hover::after{left:auto;right:0;transform:none}}';
       document.head.appendChild(st);
     }
     const bal = cfgBal() && cfgBal().on;
-    const t = [['qk', 'Carga rápida', 'Cargá o sumá stock escaneando los códigos de barras uno tras otro'], ['imp', 'Importar Excel', 'Subí una planilla de Excel con tus productos y precios']];
+    const t = [['qk', 'Carga rápida', 'Cargá o sumá stock escaneando los códigos de barras uno tras otro'], ['imp', 'Importar Excel', 'Subí una planilla de Excel con tus productos y precios'], ['sueltos', 'Sueltos', 'Agregá de una lista los productos sueltos (frutos secos, cereales, semillas, golosinas…) sin escribirlos']];
     if (adm()) t.push(['precios', 'Precios por\u00a0%', 'Subí o bajá los precios de varios productos con un porcentaje'], ['mvcat', 'Categorías', 'Pasá varios productos juntos a otra categoría'],
       ['xstk', 'Descargar Excel', 'Bajá todo tu stock en una planilla de Excel'], ['baldlg', 'Balanza', 'Balanza con etiquetas de código de barras' + (bal ? ' (activa)' : '')]);
     return '<div class="hst">' + t.map((x) => '<button type="button" data-al="' + x[0] + '" data-tip="' + esc(x[2]) + '" aria-label="' + esc(x[1] + ': ' + x[2]) + '">' +
@@ -1896,6 +1898,21 @@ export function createAlmacen(X) {
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
     else if (a === 'mvcat') mvCatDlg();
+    else if (a === 'sueltos') abrirSueltos({
+      existe: (n) => P().some((p) => sinAc(p.n) === sinAc(n)),
+      guardar: (items) => {
+        const sid = X.sid(), c = qkCfg(), lotes = [];
+        for (let i = 0; i < items.length; i += 400) {
+          const b = writeBatch(db);
+          items.slice(i, i + 400).forEach((x) => {
+            const o = { n: x.n, s: '', cat: x.cat, w: true, pn: x.pk, c: x.pk ? costoDesde(x.pk, c) : 0, q: 0, min: 0, oh: false, alm: 1, ns: true };
+            if (x.pk) o.ce = 1;
+            b.set(doc(db, 'stores', sid, 'stock', 'al_' + X.rnd(10)), o);
+          });
+          lotes.push(b.commit());
+        }
+        return Promise.all(lotes).catch((e) => { failW(e); throw e; });
+      } });
     else if (a === 'mvdes') mvCatDlg('Desayuno y merienda');
     else if (a === 'avoff') { try { localStorage.setItem('pk_av_' + el.dataset.v + '_' + X.sid(), '1'); } catch (e) { /* nada */ } renderStock(); }
     else if (a === 'qk') qkOpen();
