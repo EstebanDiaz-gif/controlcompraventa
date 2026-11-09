@@ -342,7 +342,7 @@ export function createAlmacen(X) {
     }
     if (!$('cjq')) {
       box.innerHTML = '<div id="cjbar"></div><div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar o escanear" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
-        '<div id="cjcats" class="chips r1"></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
+        '<div class="r1w"><button type="button" class="r1a l" data-r1="-1" aria-label="Ver categorías anteriores">‹</button><div id="cjcats" class="chips r1"></div><button type="button" class="r1a r" data-r1="1" aria-label="Ver más categorías">›</button></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
       const qi = $('cjq');
       qi.oninput = () => { S.q = qi.value; if (S.cat && S.q.trim()) { S.cat = ''; renderCats(); } renderRes(); };
       qi.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAdd(); } };
@@ -360,10 +360,23 @@ export function createAlmacen(X) {
     filaFin(e);
   }
   // Filas de categorías: se deslizan de costado; con la rueda del mouse también (en la compu).
-  function filaFin(e) { if (e) e.classList.toggle('fin', e.scrollLeft + e.clientWidth >= e.scrollWidth - 4); }
+  function filaFin(e) {
+    if (!e) return; const fin = e.scrollLeft + e.clientWidth >= e.scrollWidth - 4, ini = e.scrollLeft <= 4, w = e.parentNode;
+    e.classList.toggle('fin', fin); if (w && w.classList.contains('r1w')) { w.classList.toggle('fin', fin); w.classList.toggle('ini', ini); }
+  }
   if (!window.__r1) {
     window.__r1 = 1;
     document.addEventListener('scroll', (ev) => { const t = ev.target; if (t && t.classList && t.classList.contains('r1')) filaFin(t); }, true);
+    // Flechitas ‹ › (compu) y arrastrar con el mouse.
+    document.addEventListener('click', (ev) => {
+      const b = ev.target.closest && ev.target.closest('[data-r1]'); if (!b) return;
+      const r = b.parentNode.querySelector('.chips.r1'); if (r) r.scrollBy({ left: +b.dataset.r1 * Math.max(160, r.clientWidth * 0.7), behavior: 'smooth' });
+    });
+    let dr = null;
+    document.addEventListener('pointerdown', (ev) => { if (ev.pointerType !== 'mouse' || ev.button !== 0) return; const r = ev.target.closest && ev.target.closest('.chips.r1'); if (r && r.scrollWidth > r.clientWidth) dr = { r, x: ev.clientX, s: r.scrollLeft, mov: false }; });
+    document.addEventListener('pointermove', (ev) => { if (!dr) return; const dx = ev.clientX - dr.x; if (Math.abs(dx) > 5) { dr.mov = true; dr.r.classList.add('drag'); } if (dr.mov) dr.r.scrollLeft = dr.s - dx; });
+    document.addEventListener('pointerup', () => { if (!dr) return; const d = dr; dr = null; d.r.classList.remove('drag');
+      if (d.mov) { const stop = (e) => { e.stopPropagation(); e.preventDefault(); }; document.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', stop, true), 50); } });
     document.addEventListener('wheel', (ev) => {
       const r = ev.target && ev.target.closest && ev.target.closest('.chips.r1');
       if (!r || r.scrollWidth <= r.clientWidth || Math.abs(ev.deltaX) > Math.abs(ev.deltaY)) return;
@@ -787,7 +800,7 @@ export function createAlmacen(X) {
     if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
     if (!$('aq')) {
       box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div>' + herrStock() : '') +
-        '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips r1" style="margin:10px 0 12px"></div><div id="abody"></div>';
+        '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div class="r1w" style="margin:10px 0 12px"><button type="button" class="r1a l" data-r1="-1" aria-label="Ver categorías anteriores">‹</button><div id="acats" class="chips r1"></div><button type="button" class="r1a r" data-r1="1" aria-label="Ver más categorías">›</button></div><div id="abody"></div>';
       // Al buscar o escanear, se busca en TODOS los productos: si quedaba elegida una categoría o "Por reponer",
       // un producto de otra categoría parecía "no cargado" (pasaba con la pistola lectora en la compu).
       $('aq').oninput = function () { S.stQ = this.value; if (S.stQ.trim() && (S.stCat || S.stLow)) { S.stCat = ''; S.stLow = false; } renderStock(); };
