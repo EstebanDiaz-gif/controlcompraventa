@@ -94,7 +94,7 @@ export function createAlmacen(X) {
       sn.forEach((d) => { const x = d.data(); S.cl.push({ id: d.id, n: x.n || '', tel: x.tel || '', s: r2(x.s || 0), u: x.u || 0, up: x.up || '', fd: x.fd || '' }); });
       redraw();
     }, () => { S.clErr = true; redraw(); });
-    listenHoy(); listenCaja();
+    listenHoy(); listenCaja(); syncPuesto();
     if (adm()) un.lista = onSnapshot(ref('public', 'lista'), (sn) => { S.lista = sn.exists() ? sn.data() : {}; publishSoon(); }, () => { S.lista = null; });
   }
   // ---------- lista de precios del catálogo web ----------
@@ -705,7 +705,7 @@ export function createAlmacen(X) {
     S.lastTk = { tienda: X.sname(), dir: (X.pub() || {}).addr || '', fecha: new Date(), atendio: X.nm(), cliente: S.pay === 'fi' ? cli(S.cli).n : '',
       lineas: S.cart.map((l) => ({ n: l.n, q: l.w ? r3(l.q) : l.q, u: l.u, w: !!l.w })), dsc: EF.dsc || null, env: ENV && ENV.cob > 0 ? ENV.cob : 0,
       tot, pago: payLabel(v), paga: S.pay === 'ef' && pg >= tot && pg > 0 ? pg : 0, vuelto: S.pay === 'ef' && pg >= tot ? pg - tot : 0 };
-    if (tkConfig().auto) imprimirTicket(S.lastTk);
+    if (tkConfig().auto) imprimir(S.lastTk);
     S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
     S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; S.env = null; renderCats();
     renderCart(); clearSearch();
@@ -715,7 +715,8 @@ export function createAlmacen(X) {
     let t = 0; S.hoy.forEach((v) => { t += v.tot || 0; });
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>' + (adm() ? 'Ventas de hoy' : 'Tus ventas de hoy') + '</b><b>' + money(t) + '</b></div><div class="k">' + S.hoy.length + ' venta' + (S.hoy.length === 1 ? '' : 's') + '</div>';
     h += ventasHtml(S.hoy.slice(0, 15), adm());
-    h += '<button class="x" data-al="tkcfg" style="margin-top:8px;font-size:14px">🧾 Tiketera: configurar e imprimir prueba</button>';
+    const tc = tkConfig();
+    h += '<button class="x" data-al="tkcfg" style="margin-top:8px;font-size:14px">' + (tc.puesto ? '🖥️ Puesto de impresión activo: imprime los tickets de los celulares · configurar' : tc.remoto ? '📱 Los tickets se imprimen en la compu · configurar' : '🧾 Tiketera: configurar e imprimir prueba') + '</button>';
     if (S.hoy.length > 15) h += '<div class="k" style="margin-top:8px">' + (adm() ? 'Ves todas en Resumen.' : 'Se muestran las últimas 15.') + '</div>';
     e.innerHTML = h + '</div>';
   }
@@ -724,6 +725,42 @@ export function createAlmacen(X) {
       '<small>' + (v.h || '') + (v.d !== X.today() ? ' · ' + dmy(v.d) : '') + ' · ' + (v.it || []).map((x) => esc(x.n) + (x.w ? ' ' + fq(x.q, 1) : (x.q !== 1 ? ' x' + n3(x.q) : ''))).join(', ') + (adm() && v.bn ? ' · ' + esc(v.bn) : '') + '</small></div>' +
       '<div style="display:flex;gap:4px;align-items:center;flex:none"><button class="x" data-al="tkv" data-id="' + esc(v.id) + '" aria-label="Imprimir ticket" title="Imprimir ticket" style="font-size:18px;text-decoration:none">🧾</button>' +
       (canDel ? '<button class="x" data-al="delv" data-id="' + esc(v.id) + '" aria-label="Anular venta">×</button>' : '') + '</div></div>').join('');
+  }
+  // ---------- Impresión desde el celu en la tiketera de la compu ----------
+  // El celu (tiketera: "manda a la compu") deja el ticket en stores/{sid}/impresion; la compu marcada como
+  // "puesto de impresión" lo recibe al instante, lo imprime y lo borra.
+  function imprimir(t) {
+    const c = tkConfig();
+    if (!c.remoto || c.puesto) { imprimirTicket(t); return; }
+    const sid = X.sid(), id = uid(), tk = Object.assign({}, t, { fecha: (t.fecha instanceof Date ? t.fecha : new Date()).getTime() });
+    setDoc(doc(db, 'stores', sid, 'impresion', id), { tk: JSON.parse(JSON.stringify(tk)), at: Date.now(), by: X.user().uid, bn: X.nm() })
+      .then(() => aviso('🖨️ Ticket enviado a la compu'))
+      .catch((e) => { if (deny(e)) alert('Todavía no está activada la impresión desde el celu: falta publicar la regla "impresion" en Firebase (te la pasa Claude). Mientras, imprimí desde la compu con el botón 🧾 de la venta.'); else X.fail(e); });
+  }
+  function aviso(t) {
+    const e = document.createElement('div'); e.textContent = t;
+    e.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:80;background:#111;color:#fff;padding:11px 16px;border-radius:99px;font-weight:700;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25)';
+    document.body.appendChild(e); setTimeout(() => e.remove(), 2400);
+  }
+  let colaImp = [], imprimiendo = false;
+  function sigImp() {
+    if (imprimiendo || !colaImp.length) return; imprimiendo = true;
+    const t = colaImp.shift(); try { imprimirTicket(t); } catch (e) { /* nada */ }
+    setTimeout(() => { imprimiendo = false; sigImp(); }, 3000);   // de a uno: cada ticket usa la misma hoja oculta
+  }
+  function syncPuesto() {
+    const quiere = !!tkConfig().puesto && !!X.sid();
+    if (!quiere) { off('imp'); return; }
+    if (un.imp) return;
+    un.imp = onSnapshot(col('impresion'), (sn) => {
+      sn.docChanges().forEach((ch) => {
+        if (ch.type !== 'added') return;
+        const d = ch.doc.data() || {};
+        deleteDoc(ch.doc.ref).catch(() => {});
+        if (!d.tk || Date.now() - (d.at || 0) > 15 * 60000) return;   // los viejos (la compu estaba apagada) no se imprimen
+        colaImp.push(Object.assign({}, d.tk, { fecha: new Date(d.tk.fecha || d.at) })); sigImp();
+      });
+    }, (e) => { if (deny(e)) S.impErr = true; });
   }
   // Ticket de una venta ya hecha (para reimprimir). Los combos van en una línea; el envío aparte.
   function ticketDeVenta(v) {
@@ -1811,9 +1848,9 @@ export function createAlmacen(X) {
     else if (a === 'envx') { S.env = null; renderCart(); }
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
     else if (a === 'paga') { S.paga = el.dataset.v; renderCart(); }
-    else if (a === 'tkpr') { if (S.lastTk) imprimirTicket(S.lastTk); }
-    else if (a === 'tkv') { const v = S.hoy.concat(S.dayV || []).find((x) => String(x.id) === String(el.dataset.id)); if (v) imprimirTicket(ticketDeVenta(v)); }
-    else if (a === 'tkcfg') abrirTiketera(S.lastTk || { tienda: X.sname(), dir: (X.pub() || {}).addr || '', atendio: X.nm(), lineas: [{ n: 'Yerba mate 1 kg', q: 2, u: 4500 }, { n: 'Queso cremoso', q: 0.35, u: 9800, w: true }], tot: 12430, pago: 'Efectivo', paga: 15000, vuelto: 2570 });
+    else if (a === 'tkpr') { if (S.lastTk) imprimir(S.lastTk); }
+    else if (a === 'tkv') { const v = S.hoy.concat(S.dayV || []).find((x) => String(x.id) === String(el.dataset.id)); if (v) imprimir(ticketDeVenta(v)); }
+    else if (a === 'tkcfg') abrirTiketera(S.lastTk || { tienda: X.sname(), dir: (X.pub() || {}).addr || '', atendio: X.nm(), lineas: [{ n: 'Yerba mate 1 kg', q: 2, u: 4500 }, { n: 'Queso cremoso', q: 0.35, u: 9800, w: true }], tot: 12430, pago: 'Efectivo', paga: 15000, vuelto: 2570 }, (cf, ej) => { syncPuesto(); if (ej) imprimir(ej); renderHoy(); });
     else if (a === 'pickcli') { S.cli = id || ''; renderCart(); }
     else if (a === 'cobrar') cobrar();
     else if (a === 'cjopen') cajaOpen();

@@ -363,6 +363,12 @@ service cloud.firestore {
       }
       // Cierre de caja: la caja abierta la ven y la actualizan todos los de la tienda (cada venta suma);
       // una caja ya cerrada solo la puede cambiar un administrador.
+      // Tickets que se cobran en un celu y se imprimen en la tiketera de la compu (puesto de impresión).
+      // El celu los crea; la compu los lee, los imprime y los borra.
+      match /impresion/{id} {
+        allow read, delete: if isMember(sid);
+        allow create: if isMember(sid) && accessOk(sid) && request.resource.data.by == request.auth.uid;
+      }
       match /cajas/{id} {
         allow read: if isMember(sid);
         allow create: if isMember(sid) && accessOk(sid);
