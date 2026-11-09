@@ -12,6 +12,7 @@ import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, updateDoc, onSnaps
 
 import { fotoId, makePhotos } from './fotos.js';
 import { abrirInsta } from './insta.js';
+import { tkConfig, imprimirTicket, abrirTiketera } from './ticket.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
@@ -443,7 +444,8 @@ export function createAlmacen(X) {
   const envCob = () => (S.env && S.env.cob) || 0;
   function renderCart() {
     const e = $('cjcart'); if (!e) return;
-    if (!S.cart.length) { e.innerHTML = S.last ? '<div class="card"><div class="tot" style="color:var(--sell);font-size:16px;margin:0">' + S.last + '</div></div>' : ''; return; }
+    if (!S.cart.length) { e.innerHTML = S.last ? '<div class="card"><div class="tot" style="color:var(--sell);font-size:16px;margin:0">' + S.last + '</div>' +
+      (S.lastTk ? '<div style="display:flex;gap:8px;margin-top:10px"><button class="go alt" data-al="tkpr" style="margin:0;flex:1">🧾 Imprimir ticket</button><button class="go alt" data-al="tkcfg" style="margin:0;width:auto;padding:0 14px" aria-label="Configurar tiketera">⚙️</button></div>' : '') + '</div>' : ''; return; }
     const EF = efectivo(), tot = cartTotals(EF.lines).tot + envCob();
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>Venta en curso</b><button class="x" data-al="clear" style="font-size:14px;text-decoration:underline">Vaciar</button></div>';
     S.cart.forEach((l, i) => {
@@ -585,6 +587,11 @@ export function createAlmacen(X) {
     if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
     if (ENV && RPm()) RPm().registrar(ENV, { det: it.filter((x) => !x.env).map((x) => x.n).join(', '), vid: id });
     const pg = +S.paga;
+    // Ticket de la venta (para la tiketera): con los precios de lista, el descuento aparte y el vuelto.
+    S.lastTk = { tienda: X.sname(), dir: (X.pub() || {}).addr || '', fecha: new Date(), atendio: X.nm(), cliente: S.pay === 'fi' ? cli(S.cli).n : '',
+      lineas: S.cart.map((l) => ({ n: l.n, q: l.w ? r3(l.q) : l.q, u: l.u, w: !!l.w })), dsc: EF.dsc || null, env: ENV && ENV.cob > 0 ? ENV.cob : 0,
+      tot, pago: payLabel(v), paga: S.pay === 'ef' && pg >= tot && pg > 0 ? pg : 0, vuelto: S.pay === 'ef' && pg >= tot ? pg - tot : 0 };
+    if (tkConfig().auto) imprimirTicket(S.lastTk);
     S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
     S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; S.env = null; renderCats();
     renderCart(); clearSearch();
@@ -594,6 +601,7 @@ export function createAlmacen(X) {
     let t = 0; S.hoy.forEach((v) => { t += v.tot || 0; });
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b>' + (adm() ? 'Ventas de hoy' : 'Tus ventas de hoy') + '</b><b>' + money(t) + '</b></div><div class="k">' + S.hoy.length + ' venta' + (S.hoy.length === 1 ? '' : 's') + '</div>';
     h += ventasHtml(S.hoy.slice(0, 15), adm());
+    h += '<button class="x" data-al="tkcfg" style="margin-top:8px;font-size:14px">🧾 Tiketera: configurar e imprimir prueba</button>';
     if (S.hoy.length > 15) h += '<div class="k" style="margin-top:8px">' + (adm() ? 'Ves todas en Resumen.' : 'Se muestran las últimas 15.') + '</div>';
     e.innerHTML = h + '</div>';
   }
@@ -1610,6 +1618,8 @@ export function createAlmacen(X) {
     else if (a === 'envx') { S.env = null; renderCart(); }
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
     else if (a === 'paga') { S.paga = el.dataset.v; renderCart(); }
+    else if (a === 'tkpr') { if (S.lastTk) imprimirTicket(S.lastTk); }
+    else if (a === 'tkcfg') abrirTiketera(S.lastTk || { tienda: X.sname(), dir: (X.pub() || {}).addr || '', atendio: X.nm(), lineas: [{ n: 'Yerba mate 1 kg', q: 2, u: 4500 }, { n: 'Queso cremoso', q: 0.35, u: 9800, w: true }], tot: 12430, pago: 'Efectivo', paga: 15000, vuelto: 2570 });
     else if (a === 'pickcli') { S.cli = id || ''; renderCart(); }
     else if (a === 'cobrar') cobrar();
     else if (a === 'cjopen') cajaOpen();
