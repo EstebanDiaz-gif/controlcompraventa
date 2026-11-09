@@ -608,7 +608,20 @@ export function createAlmacen(X) {
   function ventasHtml(l, canDel) {
     return l.map((v) => '<div class="it"><div><b>' + money(v.tot) + '</b> <em class="tag">' + esc(payLabel(v)) + '</em>' + (v.cn ? '<span class="sku">' + esc(v.cn) + '</span>' : '') +
       '<small>' + (v.h || '') + (v.d !== X.today() ? ' · ' + dmy(v.d) : '') + ' · ' + (v.it || []).map((x) => esc(x.n) + (x.w ? ' ' + fq(x.q, 1) : (x.q !== 1 ? ' x' + n3(x.q) : ''))).join(', ') + (adm() && v.bn ? ' · ' + esc(v.bn) : '') + '</small></div>' +
-      (canDel ? '<button class="x" data-al="delv" data-id="' + esc(v.id) + '" aria-label="Anular venta">×</button>' : '') + '</div>').join('');
+      '<div style="display:flex;gap:4px;align-items:center;flex:none"><button class="x" data-al="tkv" data-id="' + esc(v.id) + '" aria-label="Imprimir ticket" title="Imprimir ticket" style="font-size:18px;text-decoration:none">🧾</button>' +
+      (canDel ? '<button class="x" data-al="delv" data-id="' + esc(v.id) + '" aria-label="Anular venta">×</button>' : '') + '</div></div>').join('');
+  }
+  // Ticket de una venta ya hecha (para reimprimir). Los combos van en una línea; el envío aparte.
+  function ticketDeVenta(v) {
+    const lineas = [], combos = {};
+    (v.it || []).forEach((x) => {
+      if (x.env) return;
+      if (x.pr) { let c = combos[x.pr]; if (!c) { c = combos[x.pr] = { n: x.pr, q: 1, u: 0 }; lineas.push(c); } c.u += Math.round(x.q * x.u); return; }
+      lineas.push({ n: x.n, q: x.q, u: x.u, w: !!x.w });
+    });
+    const env = (v.it || []).filter((x) => x.env).reduce((a, x) => a + Math.round(x.q * x.u), 0);
+    const f = v.d ? new Date(v.d + 'T' + (/^\d{1,2}:\d{2}$/.test(v.h || '') ? ('0' + v.h).slice(-5) : '12:00') + ':00') : new Date();
+    return { tienda: X.sname(), dir: (X.pub() || {}).addr || '', fecha: f, atendio: v.bn || '', cliente: v.cn || '', lineas, env, tot: v.tot, pago: payLabel(v) };
   }
   // Productos con control de stock (los marcados "sin control" no suben ni bajan con las ventas).
   function ctl(id) { const p = prod(id); return !!p && !p.ns; }
@@ -1619,6 +1632,7 @@ export function createAlmacen(X) {
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
     else if (a === 'paga') { S.paga = el.dataset.v; renderCart(); }
     else if (a === 'tkpr') { if (S.lastTk) imprimirTicket(S.lastTk); }
+    else if (a === 'tkv') { const v = S.hoy.concat(S.dayV || []).find((x) => String(x.id) === String(el.dataset.id)); if (v) imprimirTicket(ticketDeVenta(v)); }
     else if (a === 'tkcfg') abrirTiketera(S.lastTk || { tienda: X.sname(), dir: (X.pub() || {}).addr || '', atendio: X.nm(), lineas: [{ n: 'Yerba mate 1 kg', q: 2, u: 4500 }, { n: 'Queso cremoso', q: 0.35, u: 9800, w: true }], tot: 12430, pago: 'Efectivo', paga: 15000, vuelto: 2570 });
     else if (a === 'pickcli') { S.cli = id || ''; renderCart(); }
     else if (a === 'cobrar') cobrar();
