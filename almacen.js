@@ -337,7 +337,7 @@ export function createAlmacen(X) {
   }
   function results() {
     if (!S.q.trim() && !S.cat) return null;
-    return P().filter((p) => (!S.cat || p.cat === S.cat) && match(p.n + ' ' + p.s + ' ' + p.cat, S.q))
+    return P().filter((p) => (!S.cat || p.cat === S.cat) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.q) || (S.q.trim() && findByCode([p], S.q))))
       .sort((a, b) => a.n.localeCompare(b.n)).slice(0, 40);
   }
   function renderRes() {
@@ -732,7 +732,9 @@ export function createAlmacen(X) {
       box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div><button class="go" data-al="qk" style="margin:4px 0 6px">📷 Carga rápida escaneando</button><div class="row" style="gap:8px;margin:4px 0 14px"><button class="go alt" data-al="imp" style="margin-top:0">Importar desde Excel</button>' + (adm() ? '<button class="go alt" data-al="precios" style="margin-top:0">Precios por %</button>' : '') + '</div>' : '') +
         (adm() ? '<div style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 4px 12px"><button class="x" data-al="xstk" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">⬇ Descargar stock para Excel</button><button class="x" data-al="baldlg" style="font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">⚖️ Balanza con etiquetas' + (cfgBal() && cfgBal().on ? ' (activa)' : '') + '</button></div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div id="acats" class="chips" style="margin:10px 0 12px"></div><div id="abody"></div>';
-      $('aq').oninput = function () { S.stQ = this.value; renderStock(); };
+      // Al buscar o escanear, se busca en TODOS los productos: si quedaba elegida una categoría o "Por reponer",
+      // un producto de otra categoría parecía "no cargado" (pasaba con la pistola lectora en la compu).
+      $('aq').oninput = function () { S.stQ = this.value; if (S.stQ.trim() && (S.stCat || S.stLow)) { S.stCat = ''; S.stLow = false; } renderStock(); };
     }
     renderStock();
   }
@@ -745,7 +747,7 @@ export function createAlmacen(X) {
       '<button class="ch' + (S.stLow ? ' on' : '') + '" data-al="slow">Por reponer (' + low + ')</button>' +
       (load() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
-    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ)).sort((a, b) => a.n.localeCompare(b.n));
+    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
     h += '<div class="card">';
