@@ -62,6 +62,15 @@ export function createAlmacen(X) {
     const o = document.createElement('option'); o.value = n; o.textContent = n; s.insertBefore(o, s.querySelector('option[value="__new"]')); s.value = n; s.dataset.prev = n;
   });
   document.addEventListener('focusin', (e) => { const s = e.target; if (s && (s.id === 'fc' || s.id === 'qk_c') && s.value !== '__new') s.dataset.prev = s.value; });
+  const sinAc = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const ATAJOS = { 'Desayuno y merienda': 'yerba, mate, café, té, cacao, chocolatada, dulce de leche, mermelada, edulcorante' };
+  // Productos cuyo nombre tiene alguna de las palabras (separadas por coma) y que no están ya en la categoría dst.
+  // Palabras cortas van enteras: "mate" no agarra "tomate", "té" no agarra "aceite".
+  function porPalabras(texto, dst) {
+    const ts = sinAc(texto).split(',').map((t) => t.trim()).filter(Boolean); if (!ts.length || !dst || dst === '__new') return [];
+    const re = ts.map((t) => new RegExp('(^|[^a-z0-9])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (t.length <= 4 ? '(?![a-z0-9])' : '')));
+    return P().filter((p) => p.cat !== dst && re.some((r) => r.test(sinAc(p.n)))).sort((a, b) => a.n.localeCompare(b.n));
+  }
   const usedCats = () => { const o = cats(); return Object.keys(o).filter((c) => o[c] > 0).sort((a, b) => { const L = CATL(), i = (x) => { const k = L.indexOf(x); return k < 0 ? 999 : k; }; return i(a) - i(b) || a.localeCompare(b); }); };
   const priceTxt = (p) => (p.pn ? money(p.pn) + (p.w ? ' / kg' : '') : 'sin precio');
   const deny = (e) => e && /permission/.test(String(e.code || e.message));
@@ -773,6 +782,7 @@ export function createAlmacen(X) {
     }
     renderStock();
   }
+  function avisoOff(k) { try { return localStorage.getItem('pk_av_' + k + '_' + X.sid()) === '1'; } catch (e) { return false; } }
   function renderStock() {
     if (P().length) syncFotosBase();
     const isLow = (p) => !p.ns && p.q <= (p.min || 0) && (p.min || p.q <= 0);
@@ -789,6 +799,11 @@ export function createAlmacen(X) {
     if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
     const own = X.isOwner && X.isOwner() && adm();
     if (own && !all.length) h += '<div class="bn" style="margin:0 0 12px"><b>✨ Demo para mostrar</b><div style="margin:4px 0 10px;font-size:14px">Llená esta tienda con productos de ejemplo, fotos, destacados y el catálogo listo. Solo lo ves vos (dueño de Pekeron).</div><button class="go" data-al="demo" style="margin:0">Cargar demo</button></div>';
+    // Aviso: productos ya cargados (ej. en Almacén) que van en Desayuno y merienda.
+    const avDes = adm() && !S.stQ && !avisoOff('des') ? porPalabras(ATAJOS['Desayuno y merienda'], 'Desayuno y merienda') : [];
+    if (avDes.length) h += '<div class="bn" style="margin:0 0 12px"><b>☕ ' + (avDes.length === 1 ? '1 producto parece' : avDes.length + ' productos parecen') + ' de Desayuno y merienda</b>' +
+      '<div style="margin:4px 0 10px;font-size:14px">' + esc(avDes.slice(0, 4).map((p) => p.n).join(', ')) + (avDes.length > 4 ? ' y ' + (avDes.length - 4) + ' más' : '') + '. Pasalos todos juntos a esa categoría (antes podés destildar los que no van).</div>' +
+      '<div class="row" style="gap:8px"><button class="go" data-al="mvdes" style="margin:0">Revisar y pasar</button><button class="go alt" data-al="avoff" data-v="des" style="margin:0;width:auto;padding:0 16px">Ahora no</button></div></div>';
     if (own && all.some((p) => p.demo)) h += '<button class="x" data-al="demodel" style="font-size:13px;text-decoration:underline;margin:0 4px 10px;color:#b3261e">Borrar los productos de ejemplo</button>';
     if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (load() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
     const shown = l.slice(0, 300);
@@ -953,8 +968,6 @@ export function createAlmacen(X) {
     S.rcomp.list = S.rcomp.list.filter((x) => x.id !== id); renderRepo();
   }
   // Cambiar de categoría varios productos juntos: se buscan por palabras (separadas por coma), se revisan con tildes y se mueven.
-  const sinAc = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const ATAJOS = { 'Desayuno y merienda': 'yerba, mate, café, té, cacao, chocolatada, dulce de leche, mermelada, edulcorante' };
   function mvCatDlg(dest) {
     const o = modal('<b style="font-size:19px">🗂️ Cambiar categoría a varios</b>' +
       '<div class="k" style="margin-top:4px">Buscá los productos por palabras separadas por coma, revisá la lista y movelos todos juntos.</div>' +
@@ -965,9 +978,8 @@ export function createAlmacen(X) {
       '<button class="go" id="mvok" style="margin-top:12px" disabled>Mover</button><button class="go alt" data-close="1" style="margin-top:8px">Cancelar</button>');
     const q = (id) => o.querySelector('#' + id); let lista = [];
     const pinta = () => {
-      const dst = q('fc').value, ts = sinAc(q('mvq').value).split(',').map((t) => t.trim()).filter(Boolean);
-      const re = ts.map((t) => new RegExp('(^|[^a-z0-9])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (t.length <= 4 ? '(?![a-z0-9])' : '')));
-      lista = !ts.length || !dst || dst === '__new' ? [] : P().filter((p) => p.cat !== dst && re.some((r) => r.test(sinAc(p.n)))).sort((a, b) => a.n.localeCompare(b.n));
+      const dst = q('fc').value, ts = q('mvq').value.split(',').filter((t) => t.trim());
+      lista = porPalabras(q('mvq').value, dst);
       q('mvk').textContent = !ts.length ? 'Escribí qué buscar o tocá el atajo.' : lista.length ? (lista.length === 1 ? '1 producto encontrado.' : lista.length + ' productos encontrados.') + ' Destildá los que no van.' : 'No hay productos para mover con esas palabras.';
       q('mvl').innerHTML = lista.map((p) => '<label style="display:flex;gap:10px;align-items:center;margin:0;padding:8px 2px;border-bottom:1px solid var(--line);font-weight:600"><input type="checkbox" data-mv="' + esc(p.id) + '" checked style="width:auto;margin:0"><span style="flex:1;min-width:0">' + esc(p.n) + '<small style="display:block;font-weight:400;opacity:.7">' + esc(p.cat || 'Sin categoría') + '</small></span></label>').join('');
       cuenta();
@@ -1729,6 +1741,8 @@ export function createAlmacen(X) {
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
     else if (a === 'mvcat') mvCatDlg();
+    else if (a === 'mvdes') mvCatDlg('Desayuno y merienda');
+    else if (a === 'avoff') { try { localStorage.setItem('pk_av_' + el.dataset.v + '_' + X.sid(), '1'); } catch (e) { /* nada */ } renderStock(); }
     else if (a === 'qk') qkOpen();
     else if (a === 'qkman') qkShow('');
     else if (a === 'qkcamon') qkCamOn();
