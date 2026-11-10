@@ -15,6 +15,7 @@ import { abrirInsta } from './insta.js';
 import { tkConfig, imprimirTicket, abrirTiketera } from './ticket.js';
 import { calcular as sanCalc, limpiarCfg as sanCfg, activo as sanActivo } from './sanguche.js';
 import { abrirSueltos } from './sueltos.js';
+import { limpiarOps, calcOps, tocarOps, selInicial, reglaOps, MODELOS_OPS, MAX_GRUPOS, MAX_OPCIONES } from './opciones.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
@@ -447,6 +448,7 @@ export function createAlmacen(X) {
   function addProd(p, noFocus) {
     if (!p.pn) { precioDlg(p, (np) => addProd(np, noFocus)); return; }
     if (p.w) { weightDlg(p); return; }
+    if (p.op && limpiarOps(p.op).length) { opsDlg(p, noFocus); return; }
     const l = S.cart.find((x) => x.id === p.id && !x.w);
     if (l) l.q += 1; else S.cart.push({ id: p.id, n: p.n, q: 1, u: p.pn, c: p.c || 0, w: false });
     S.last = ''; clearSearch(noFocus); renderCart();
@@ -1008,6 +1010,7 @@ export function createAlmacen(X) {
       '<label>Descripción para el catálogo (opcional)</label><textarea id="fdsc" maxlength="160" rows="2" placeholder="Ej: Dulce de leche clásico, pote de 200 g." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">' + esc(c.d || '') + '</textarea>' +
       '<label>¿Cómo se vende?</label><div class="seg"><button class="pay' + (!c.w ? ' on' : '') + '" data-al="fw" data-v="0">Por unidad</button><button class="pay' + (c.w ? ' on' : '') + '" data-al="fw" data-v="1">Por peso (kg)</button></div>' +
       '<div class="row"><div><label id="lpn">Precio de venta</label><input id="fpn" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.pn || '') + '"></div><div><label id="lco">Costo</label><input id="fco" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.c || '') + '"></div></div><div class="tot" id="fmg"></div>' +
+      '<div id="fopw"' + (c.w ? ' hidden' : '') + '><label>Opciones para elegir (opcional)</label><div class="k" style="margin:0 0 6px">Tamaños, punto de la carne, "sin cebolla", extras con precio, gustos… El cliente las elige en el catálogo y vos en la caja. El precio de cada opción se suma al precio de venta.</div><div id="fops"></div></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-weight:600"><input id="fns" type="checkbox" style="width:auto;margin-top:3px"' + (c.ns ? ' checked' : '') + '><span>Sin control de stock (siempre disponible)<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Para fiambres, quesos o cosas que también usás para preparar (sánguches, pizzas) y no sabés cuánto hay. Se vende igual y aparece siempre en el catálogo.</small></span></label>' +
       '<div id="fqrow"' + (c.ns ? ' hidden' : '') + '><div class="row"><div><label id="lq">' + (p ? 'Stock actual (contado)' : 'Stock inicial') + '</label><input id="fq" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + (p ? n3(c.q) : '') + '"></div><div><label>Avisar cuando quede (opcional)</label><input id="fmin" type="text" inputmode="decimal" placeholder="Ej: 3" autocomplete="off" value="' + (c.min ? n3(c.min) : '') + '"></div></div>' +
       (p ? '<div class="k" style="margin-top:6px">Si contás la mercadería y no coincide, corregí el stock acá. Para cargar mercadería que compraste usá Reponer (así se calcula bien el costo).</div>' : '') + '</div>' +
@@ -1018,14 +1021,81 @@ export function createAlmacen(X) {
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="foh" type="checkbox" style="width:auto"' + (c.oh ? ' checked' : '') + '> No mostrar en el catálogo</label>' +
       '<button class="go" data-al="savep">Guardar</button>' + (p && adm() ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:#b3261e">Eliminar este producto</button>' : '') + '</div>';
     $('s-stk').innerHTML = h;
-    S.edit.w = !!c.w;
+    S.edit.w = !!c.w; S.edit.op = limpiarOps(c.op); opsDraw();
+    $('fops').onclick = opsClick; $('fops').onchange = (e) => { if (e.target.classList.contains('opm')) { opsRead(); opsDraw(); } };
     const mg = () => { const pn = +$('fpn').value, co = +$('fco').value; $('fmg').textContent = pn > 0 && co > 0 ? 'Ganás ' + money(pn - co) + (S.edit.w ? ' por kilo' : ' por unidad') + ' (' + Math.round((pn - co) / pn * 100) + '% del precio)' : ''; };
-    const lbl = () => { $('lpn').textContent = S.edit.w ? 'Precio de venta por kilo' : 'Precio de venta'; $('lco').textContent = S.edit.w ? 'Costo por kilo' : 'Costo por unidad'; $('lq').textContent = (p ? 'Stock actual (contado)' : 'Stock inicial') + (S.edit.w ? ' en kg' : ''); };
+    const lbl = () => { $('lpn').textContent = S.edit.w ? 'Precio de venta por kilo' : 'Precio de venta'; $('lco').textContent = S.edit.w ? 'Costo por kilo' : 'Costo por unidad'; $('lq').textContent = (p ? 'Stock actual (contado)' : 'Stock inicial') + (S.edit.w ? ' en kg' : ''); $('fopw').hidden = S.edit.w; };
     $('fpn').oninput = mg; $('fco').oninput = mg; mg(); lbl(); S.edit.lbl = () => { lbl(); mg(); };
     $('fns').onchange = function () { $('fqrow').hidden = this.checked; };
     $('fpf').onchange = function () { const f = this.files && this.files[0]; if (!f) return; X.readPhoto(f, (o, hd, qs) => { if (!o) { alert('No pude leer esa foto. Probá con otra.'); return; } S.edit.img = o; S.edit.hd = hd || ''; S.edit.qs = qs || 0; const v = $('fph'); v.src = o; v.style.display = ''; }); };
     window.scrollTo(0, 0);
     if (!p) setTimeout(() => $('fn').focus(), 50);
+  }
+  // ---------- Opciones del producto (editor del Stock): grupos con sus opciones y lo que suma cada una ----------
+  // modo del grupo: '1' = elegir 1 obligatorio, '0' = elegir 1 opcional, 'n' = puede elegir varias
+  const opsModo = (g) => (g.max > 1 ? 'n' : g.min ? '1' : '0');
+  function opsRead() {
+    const E = S.edit, box = $('fops'); if (!E || !box) return;
+    E.op = Array.from(box.querySelectorAll('.opsg')).map((gd) => {
+      const o = Array.from(gd.querySelectorAll('.opsr')).map((r) => ({ n: r.querySelector('.opn').value.replace(/\s+/g, ' ').trim().slice(0, 40), p: Math.max(0, Math.round(+r.querySelector('.opp').value || 0)) }));
+      const m = gd.querySelector('.opm').value;
+      return { t: gd.querySelector('.opt').value.replace(/\s+/g, ' ').trim().slice(0, 30), min: m === '1' ? 1 : 0, max: m === 'n' ? Math.max(1, o.length) : 1, o };
+    });
+  }
+  function opsDraw() {
+    const E = S.edit, box = $('fops'); if (!E || !box) return;
+    const G = E.op || [];
+    let h = G.map((g, gi) => '<div class="opsg" style="background:var(--bg);border-radius:16px;padding:12px;margin-top:8px">' +
+      '<div style="display:flex;gap:8px;align-items:center"><input class="opt" maxlength="30" placeholder="Nombre del grupo (ej: Tamaño)" value="' + esc(g.t) + '" style="flex:1;min-width:0;margin:0;font-weight:800"><button type="button" class="x" data-op="gdel" data-g="' + gi + '" style="font-size:13px;text-decoration:underline;color:#b3261e">Quitar</button></div>' +
+      '<select class="opm" style="margin-top:8px">' + [['1', 'Tiene que elegir 1'], ['0', 'Puede elegir 1 (opcional)'], ['n', 'Puede elegir varias']].map((x) => '<option value="' + x[0] + '"' + (opsModo(g) === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select>' +
+      g.o.map((x, oi) => '<div class="opsr" style="display:flex;gap:6px;align-items:center;margin-top:6px"><input class="opn" maxlength="40" placeholder="Opción (ej: Doble)" value="' + esc(x.n) + '" style="flex:1;min-width:0;margin:0"><span style="font-weight:700;color:var(--mut)">+$</span><input class="opp" type="number" inputmode="numeric" min="0" placeholder="0" value="' + (x.p || '') + '" style="width:92px;margin:0"><button type="button" class="qb" data-op="odel" data-g="' + gi + '" data-o="' + oi + '" aria-label="Quitar opción" style="flex:none">×</button></div>').join('') +
+      (g.o.length < MAX_OPCIONES ? '<button type="button" class="x" data-op="oadd" data-g="' + gi + '" style="display:block;margin-top:8px;font-size:14px;font-weight:700;text-decoration:underline;color:var(--ink)">+ Agregar opción</button>' : '') + '</div>').join('');
+    if (G.length < MAX_GRUPOS) h += '<div class="k" style="margin:10px 0 0">' + (G.length ? 'Agregar otro grupo:' : 'Agregar un grupo:') + '</div><div class="chips" style="margin-top:6px">' + MODELOS_OPS.map((m, i) => '<button type="button" class="ch" data-op="mod" data-i="' + i + '">+ ' + esc(m[0]) + '</button>').join('') + '<button type="button" class="ch" data-op="gadd">+ Otro</button></div>';
+    box.innerHTML = h;
+  }
+  function opsClick(e) {
+    const b = e.target.closest('[data-op]'); if (!b) return; e.preventDefault(); opsRead();
+    const E = S.edit, a = b.dataset.op, gi = +b.dataset.g;
+    if (a === 'mod') E.op.push(JSON.parse(JSON.stringify(MODELOS_OPS[+b.dataset.i][1])));
+    else if (a === 'gadd') E.op.push({ t: '', min: 0, max: 1, o: [{ n: '', p: 0 }] });
+    else if (a === 'gdel') E.op.splice(gi, 1);
+    else if (a === 'oadd') { const g = E.op[gi]; g.o.push({ n: '', p: 0 }); if (g.max > 1) g.max = g.o.length; }
+    else if (a === 'odel') { const g = E.op[gi]; g.o.splice(+b.dataset.o, 1); if (!g.o.length) E.op.splice(gi, 1); else if (g.max > 1) g.max = g.o.length; }
+    opsDraw();
+    if (a === 'mod' || a === 'gadd' || a === 'oadd') { const gs = $('fops').querySelectorAll('.opsg'), gd = gs[a === 'oadd' ? gi : gs.length - 1]; const ins = gd && gd.querySelectorAll(a === 'oadd' ? '.opn' : '.opt'); if (ins && ins.length) ins[ins.length - 1].focus(); }
+  }
+  // ---------- Caja: elegir las opciones de un producto (una pantalla, todo a la vista) ----------
+  function opsDlg(p, noFocus) {
+    const G = limpiarOps(p.op); let sel = selInicial(G), n = 1;
+    const o = modal('<div id="opc"></div>'), box = o.querySelector('#opc');
+    const pinta = (msg) => {
+      const u = p.pn + G.reduce((a, g, gi) => a + (sel[gi] || []).reduce((b, oi) => b + g.o[oi].p, 0), 0);
+      let h = '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b style="font-size:19px">' + esc(p.n) + '</b><b style="font-size:24px">' + money(u * n) + '</b></div>';
+      G.forEach((g, gi) => {
+        h += '<div style="font-weight:800;font-size:14px;margin:12px 0 6px">' + esc(g.t) + ' <span style="font-weight:500;opacity:.65">· ' + esc(reglaOps(g)) + '</span></div><div class="chips" style="margin:0;gap:6px">' +
+          g.o.map((x, oi) => '<button type="button" class="ch' + ((sel[gi] || []).indexOf(oi) >= 0 ? ' on' : '') + '" data-og="' + gi + '" data-oo="' + oi + '" style="margin:0">' + esc(x.n) + (x.p ? ' +' + money(x.p) : '') + '</button>').join('') + '</div>';
+      });
+      h += '<div class="k" style="min-height:18px;margin-top:10px;color:#b3261e;font-weight:700">' + esc(msg || '') + '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><button type="button" class="qb" data-on="-1" aria-label="Uno menos">−</button><b style="min-width:22px;text-align:center">' + n + '</b><button type="button" class="qb" data-on="1" aria-label="Uno más">+</button>' +
+        '<button type="button" class="go" id="opadd" style="margin:0;flex:1">Agregar · ' + money(u * n) + '</button></div>' +
+        '<button type="button" class="go alt" data-close="1" style="margin-top:8px">Cancelar</button>';
+      box.innerHTML = h;
+    };
+    const agregar = () => {
+      const x = calcOps(G, sel); if (!x.ok) { pinta(x.error.replace(/^falta elegir /, 'Falta elegir: ')); return; }
+      const nm = p.n + (x.txt ? ' (' + x.txt + ')' : ''), u = p.pn + x.extra, l = S.cart.find((y) => y.id === p.id && y.n === nm && !y.w);
+      if (l) l.q += n; else S.cart.push({ id: p.id, n: nm, q: n, u, c: p.c || 0, w: false, op: 1 });
+      o.remove(); S.last = ''; clearSearch(noFocus); renderCart();
+    };
+    o.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || !box.contains(b)) return; const ds = b.dataset;
+      if (ds.og !== undefined) { sel = tocarOps(G, sel, +ds.og, +ds.oo); pinta(); }
+      else if (ds.on) { n = Math.max(1, Math.min(99, n + +ds.on)); pinta(); }
+      else if (b.id === 'opadd') agregar();
+    });
+    const tecla = (e) => { if (!document.body.contains(o)) { window.removeEventListener('keydown', tecla, true); return; } if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); agregar(); } else if (e.key === 'Escape') { e.stopPropagation(); o.remove(); } };
+    window.addEventListener('keydown', tecla, true);
+    pinta();
   }
   function saveProd() {
     const E = S.edit, p = E.id ? prod(E.id) : null;
@@ -1042,7 +1112,10 @@ export function createAlmacen(X) {
     if (s && P().some((x) => x.id !== E.id && x.s && x.s.toLowerCase() === s.toLowerCase())) { alert('Ya hay otro producto con el código ' + s + '.'); return; }
     if (!E.id && P().some((x) => x.n.toLowerCase() === n.toLowerCase()) && !confirm('Ya existe "' + n + '". ¿Crear otro con el mismo nombre?')) return;
     const id = E.id || 'al_' + X.rnd(10);
-    const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns };
+    opsRead(); const op = E.w ? [] : limpiarOps(E.op);
+    const malo = (E.op || []).find((g) => g.o.some((x) => !x.n) || !g.t);
+    if (!E.w && malo) { alert('Completá el nombre de cada grupo y de cada opción (o quitá las que estén vacías).'); return; }
+    const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns, op: op.length ? op : deleteField() };
     const b = writeBatch(db);
     if (E.img !== undefined) {
       o.img = E.img; o.hd = E.hd ? 1 : deleteField(); o.bf = deleteField();   // foto propia: ya no sigue a la base

@@ -3,6 +3,7 @@
 // puede cambiar el precio desde el celular. Tiene que dar lo mismo que lines()/sheet() de catalogo.html.
 import { combos, descuento } from './promos.js';
 import { calcular as calcSan } from './sanguche.js';
+import { calcOps } from './opciones.js';
 
 const key = (s) => String(s || '').trim().toLowerCase();
 
@@ -20,7 +21,7 @@ export function gruposStock(docs) {
 // Almacén: lista de precios resumida (public/lista_d*: { p: [{ i, n, p, q, w, c }] }).
 export function gruposLista(partes) {
   const G = [];
-  partes.forEach((p) => (p || []).forEach((x) => G.push({ k: x.i, n: x.n, pm: 0, pn: x.p, mm: 0, q: x.q, w: !!x.w, cat: x.c || '' })));
+  partes.forEach((p) => (p || []).forEach((x) => G.push({ k: x.i, n: x.n, pm: 0, pn: x.p, mm: 0, q: x.q, w: !!x.w, cat: x.c || '', op: x.op || null })));
   return G;
 }
 
@@ -59,6 +60,11 @@ export function calcularPedido({ items, G, info, promos, now, pago, entrega, san
       const x = calcSan(san, l.sw); if (!x.ok) return { ok: false, error: x.error };
       if (x.conf) return { ok: false, error: 'el sánguche tiene precio a confirmar' };   // se paga cuando el negocio confirma el precio
       ls.push({ n: '🥪 ' + x.n + ' (' + x.d + ')', q, u: x.u, promo: true }); continue;
+    }
+    if (l.op) {   // producto con opciones (tamaño, extras…): el precio suma lo elegido
+      const g = gOf(l.pk); if (!g || g.w) return { ok: false, error: 'producto no disponible' };
+      const x = calcOps(g.op, l.op); if (!x.ok) return { ok: false, error: x.error };
+      ls.push({ n: g.n + (x.txt ? ' (' + x.txt + ')' : ''), q, u: price(g) + x.extra, cat: g.cat || '', w: false }); continue;
     }
     const g = gOf(l.k); if (!g) return { ok: false, error: 'producto no disponible' };
     ls.push({ n: g.n + (l.z ? ' (' + l.z + ')' : ''), q, u: price(g), cat: g.cat || '', w: !!g.w });

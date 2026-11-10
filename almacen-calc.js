@@ -2,6 +2,12 @@
 export const CATS = ['Almacén', 'Bebidas', 'Galletitas y golosinas', 'Desayuno y merienda', 'Snacks', 'Lácteos', 'Fiambrería', 'Panadería', 'Verdulería', 'Congelados', 'Limpieza', 'Perfumería', 'Cigarrillos', 'Otros'];
 // Categorías sugeridas según el tipo de negocio (cfg/servicios.tipo). Si no tiene, las de almacén.
 export const CATS_TIPO = {
+  sang: ['Sánguches', 'Lomitos', 'Hamburguesas', 'Papas', 'Combos', 'Bebidas', 'Postres', 'Otros'],
+  burger: ['Hamburguesas', 'Combos', 'Papas', 'Sánguches', 'Bebidas', 'Postres', 'Otros'],
+  pizza: ['Pizzas', 'Empanadas', 'Combos', 'Bebidas', 'Cervezas', 'Postres', 'Otros'],
+  roti: ['Platos', 'Pollo', 'Empanadas', 'Tartas', 'Pastas', 'Guarniciones', 'Ensaladas', 'Postres', 'Bebidas', 'Otros'],
+  bar: ['Cervezas', 'Tragos', 'Vinos', 'Picadas', 'Hamburguesas', 'Pizzas', 'Papas', 'Bebidas', 'Otros'],
+  cafe: ['Cafetería', 'Pastelería', 'Tortas', 'Sánguches', 'Licuados y jugos', 'Bebidas', 'Otros'],
   panaderia: ['Panadería', 'Facturas', 'Tortas y postres', 'Masas y confitería', 'Sándwiches y salados', 'Galletitas y budines', 'Bebidas', 'Almacén', 'Lácteos', 'Otros'],
 };
 export const catsFor = (tipo) => CATS_TIPO[tipo] || CATS;
@@ -68,6 +74,7 @@ export function buildLista(products, max = 700000) {
     const o = { i: p.id, n: p.n, p: p.pn, q: qOf(p) };
     if (p.cat) o.c = p.cat; if (p.w) o.w = 1; if (p.img) o.f = p.hd ? 2 : 1;
     if (p.d) o.d = p.d;                 // descripción
+    if (!p.w && Array.isArray(p.op) && p.op.length) o.op = p.op;   // opciones (tamaño, extras…), ver opciones.js
     if (p.pa > p.pn) o.a = p.pa;        // precio anterior (tachado)
     if (p.dt) o.t = typeof p.dt === 'number' && p.dt > 0 && p.dt < 999 ? p.dt : 999;   // destacado (número = orden)
     return o;
