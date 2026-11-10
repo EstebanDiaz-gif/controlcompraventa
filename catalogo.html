@@ -1538,7 +1538,13 @@ alert(e&&e.code=='permission-denied'?'Este local todavía no recibe pedidos onli
 // Seguimiento en vivo (un solo pedido a la vez: el último de este celular)
 function pedEscuchar(id){if(PEDV&&PEDV.id==id&&PEDUN)return;if(PEDUN)PEDUN();PEDV={id:id,d:null};
 PEDUN=onSnapshot(doc(db,'stores',sid,'pedidos',id),function(s){PEDV.d=s.exists()?s.data():null;pedPintar()},function(){})}
-function pedInicio(){var l=pedLista();if(l.length)pedEscuchar(l[0].id)}
+function pedInicio(){var q=String(Q0.get('ped')||'').replace(/[^A-Za-z0-9]/g,'');if(q.length>=16){try{history.replaceState(null,'',location.pathname+location.search.replace(/[?&]ped=[^&]*/,'').replace(/^&/,'?'))}catch(e){}pedEstado(q);return}var l=pedLista();if(l.length)pedEscuchar(l[0].id)}
+// Mensaje de WhatsApp del pedido (opcional: el pedido ya entró a la app del local). Lleva el link para seguirlo.
+function pedMsg(p){var L='--------------------------',m='Hola! Soy '+(p.cl||'')+' y hice el pedido #'+pedCod(p.id)+':\n'+L+'\n',sub=0;
+(p.it||[]).forEach(function(l){var t=Math.round(l.u*l.q);sub+=t;m+=(l.w?String(l.q).replace('.',',')+' kg':l.q+'x')+' '+l.n+' — '+money(t)+'\n'+(l.x?'   + '+l.x+'\n':'')});
+m+=L+'\n'+(p.env?'Subtotal: '+money(sub)+'\nEnvío: '+money(p.env)+'\n':'')+'Total: '+money(p.tot||0)+(p.pago?' ('+p.pago+')':'')+'\n';
+if(p.paga)m+='Abono con: '+money(p.paga)+'\n';if(p.tipo=='env'&&p.dir)m+='\nCon envío a: '+p.dir+'\n';else if(p.tipo=='ret')m+='\nLo retiro en el local.\n';if(p.nota)m+='Aclaración: '+p.nota+'\n';
+return m+'\nSeguilo acá: '+location.origin+BASE+(INFO.slug?INFO.slug+'?':'catalogo.html?t='+sid+'&')+'ped='+p.id}
 function pedEstado(id){OPEN='';pedEscuchar(id);$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div id="pstx"><div style="text-align:center;padding:30px 0;color:var(--mut)">Cargando tu pedido…</div></div>';$('sh').hidden=false;pedPintar()}
 function pedTxt(p){var hm=function(ms){return new Date(ms).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})},eta=p.min&&p.acc?' Estimado: '+hm(p.acc+p.min*60000)+' (unos '+p.min+' min).':'';
 return {nuevo:['⏳','Esperando que el local lo confirme','Ya le llegó tu pedido. En un ratito te lo confirman.'],ok:['👨‍🍳','Lo están preparando',(p.tipo=='env'?'Después sale para tu casa.':p.tipo=='mesa'?'Te lo llevan a la mesa.':'Te avisamos acá cuando esté listo.')+eta],
@@ -1554,7 +1560,8 @@ var h='<div class="pstc'+(p.st=='cancelado'?' no':'')+'"><div class="pe">'+t2[0]
 if(i!=null)h+='<div class="psteps">'+pasos.map(function(n,k){return '<div class="'+(k<=i?'on':'')+(k==i?' cur':'')+'"><i></i><span>'+n+'</span></div>'}).join('')+'</div>';
 h+='<div class="lbl">Pedido #'+esc(pedCod(p.id))+' · '+(p.tipo=='mesa'?'Mesa '+esc(p.mesa||''):p.tipo=='env'?'Envío':'Retiro en el local')+'</div>'+(p.it||[]).map(function(l){return '<div class="pli"><span>'+(l.w?String(l.q).replace('.',',')+' kg':l.q+' ×')+' '+esc(l.n)+(l.x?'<small>'+esc(l.x)+'</small>':'')+'</span><b>'+money(l.u*l.q)+'</b></div>'}).join('')+
 (p.env?'<div class="pli"><span>🛵 Envío</span><b>'+money(p.env)+'</b></div>':'')+'<div class="tot"><span>Total</span><span>'+money(p.tot||0)+'</span></div>'+(p.pago?'<div class="k" style="color:var(--mut);text-align:center">'+esc(p.pago)+(p.pag?' · <b style="color:#1a8f4c">pagado ✓</b>':'')+'</div>':'');
-if(WAS.length)h+='<a class="wa" target="_blank" rel="noopener" style="margin-top:14px" href="'+esc(waUrl(WAS[0].w,'Hola! Te escribo por mi pedido #'+pedCod(p.id)+' ('+(p.cl||'')+').'))+'">Escribirle al local</a>';
+if(WAS.length){var wm=p.st=='nuevo'&&p.tipo!='mesa';h+=(wm?'<div class="note" style="margin-top:14px">✅ Tu pedido ya está en el sistema del local. Si querés, avisales también por WhatsApp (no hace falta).</div>':'')+
+'<a class="wa" target="_blank" rel="noopener" style="margin-top:'+(wm?8:14)+'px'+(wm?'':';background:var(--soft);color:var(--ink)')+'" href="'+esc(waUrl(WAS[0].w,wm?pedMsg(p):'Hola! Te escribo por mi pedido #'+pedCod(p.id)+' ('+(p.cl||'')+').'))+'">'+(wm?'Mandar también por WhatsApp':'Escribirle al local')+'</a>'}
 x.innerHTML=h+'<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>'}
 // Envío a domicilio (lo configura el negocio): el cliente elige retiro o envío y se suma el costo.
 var ENTREGA='ret',EDIR='';function envOn(){return !!(INFO.env&&INFO.env.on)}function envCosto(){return envOn()&&ENTREGA=='env'?(+INFO.env.precio||0):0}
