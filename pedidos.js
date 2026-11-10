@@ -8,6 +8,7 @@
 import { collection, doc, onSnapshot, query, where, updateDoc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { tkConfig, imprimirComanda, codPedido } from './ticket.js';
 import { qrCanvas } from './qr.js';
+import { PAGOS_URL } from './pagos-config.js';
 
 const ACTIVOS = ['nuevo', 'ok', 'listo', 'camino'];
 const TIPO = { mesa: ['🍽️', 'Mesa'], env: ['🛵', 'Delivery'], ret: ['🏪', 'Retiro'] };
@@ -23,11 +24,20 @@ function proxima(p) {
   return null;
 }
 const pago = (p) => !!(p.pag || p.pg || p.cob);
+// Mesas que atiende cada mozo: "4, 5, 6" o "1-8" (igual que worker/src/avisos.js)
+export function mesasDe(t) {
+  const s = new Set();
+  String(t || '').split(/[\s,;y]+/).forEach((x) => { const m = /^(\d+)-(\d+)$/.exec(x); if (m) { for (let i = +m[1]; i <= Math.min(+m[2], +m[1] + 200); i++) s.add(String(i)); } else if (x.trim()) s.add(x.trim().toLowerCase()); });
+  return s;
+}
 
 export function createPedidos(X) {
   const { db, esc, money } = X;
   let un = null, sidOn = '', L = [], abierto = false, vistos = null, sonT = null, titT = null, titulo = '', audio = null, impresos = {};
-  let tab = 'nuevo', modo = 'act', busca = '', HIST = null, det = null;
+  let tab = 'nuevo', modo = 'act', busca = '', HIST = null, det = null, prevSt = {}, soloMias = null, toastT = null;
+  const MIAS = () => mesasDe(X.misMesas ? X.misMesas() : '');
+  const mia = (p) => p.tipo === 'mesa' && MIAS().has(String(p.mesa || '').trim().toLowerCase());
+  const listosMios = () => L.filter((p) => p.st === 'listo' && mia(p));
 
   // ---------- estilos ----------
   if (!document.getElementById('pedcss')) {
@@ -35,7 +45,9 @@ export function createPedidos(X) {
     st.textContent = [
       '#pedfab{position:fixed;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:55;display:flex;align-items:center;gap:8px;border:0;border-radius:99px;padding:12px 18px;background:#111827;color:#fff;font:inherit;font-size:15px;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25);cursor:pointer}',
       '#pedfab b{background:#e11d48;color:#fff;border-radius:99px;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0 7px;font-size:13px}',
-      '#pedfab.nuevo{background:#e11d48;animation:pedpul 1s ease-in-out infinite}#pedfab.nuevo b{background:#fff;color:#e11d48}',
+      '#pedfab.nuevo{background:#e11d48;animation:pedpul 1s ease-in-out infinite}#pedfab.nuevo b{background:#fff;color:#e11d48}#pedfab.listo{background:#16A34A}#pedfab.listo b{color:#16A34A}',
+      '#pedtoast{position:fixed;left:50%;transform:translateX(-50%);top:calc(14px + env(safe-area-inset-top));z-index:90;border:0;border-radius:18px;background:#16A34A;color:#fff;font:inherit;padding:14px 20px;box-shadow:0 12px 30px rgba(0,0,0,.3);text-align:left;cursor:pointer;max-width:calc(100% - 24px);animation:pdup .25s ease}#pedtoast b{display:block;font-size:16px}#pedtoast span{font-size:13px;opacity:.85}',
+      '#pedp .pch.on{background:var(--pa);color:#fff}',
       '@keyframes pedpul{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(225,29,72,.55)}50%{transform:scale(1.05);box-shadow:0 0 0 14px rgba(225,29,72,0)}}',
       '@media (min-width:900px){#pedfab{bottom:24px;right:24px}}',
       '#pedp{--pa:var(--btn,#1D3FAF);--pf:#F3F4F8;--pl:#E7E8EF;--pt:#111827;--pm:#6B7280;position:fixed;inset:0;z-index:70;background:var(--pf);color:var(--pt);overflow:auto;font-size:15px;padding-bottom:110px}',
@@ -103,6 +115,24 @@ export function createPedidos(X) {
   // el navegador solo deja sonar después de que la persona tocó algo en la página
   document.addEventListener('pointerdown', () => { try { if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); } catch (e) {} }, { once: true, capture: true });
 
+  function sonarListo() {
+    try {
+      if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+      const t0 = audio.currentTime;
+      [[0, 784], [0.16, 988], [0.32, 1175], [0.7, 784], [0.86, 988], [1.02, 1175]].forEach((n) => {
+        const o = audio.createOscillator(), g = audio.createGain(); o.type = 'sine'; o.frequency.value = n[1];
+        g.gain.setValueAtTime(0.0001, t0 + n[0]); g.gain.exponentialRampToValueAtTime(0.3, t0 + n[0] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + n[0] + 0.25);
+        o.connect(g); g.connect(audio.destination); o.start(t0 + n[0]); o.stop(t0 + n[0] + 0.26);
+      });
+    } catch (e) {}
+    try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]); } catch (e) {}
+  }
+  function toast(t) {
+    let e = document.getElementById('pedtoast');
+    if (!e) { e = document.createElement('button'); e.id = 'pedtoast'; e.type = 'button'; e.onclick = () => { e.remove(); modo = 'act'; tab = 'listo'; abrir(); }; document.body.appendChild(e); }
+    e.innerHTML = '<b>' + esc(t) + '</b><span>Tocá para verlo</span>'; clearTimeout(toastT); toastT = setTimeout(() => { if (e.parentNode) e.remove(); }, 15000);
+  }
   const nuevos = () => L.filter((p) => p.st === 'nuevo');
   function alerta() {
     const n = nuevos().length;
@@ -123,6 +153,9 @@ export function createPedidos(X) {
       L.sort((a, b) => (a.at || 0) - (b.at || 0));
       const ids = L.filter((p) => p.st === 'nuevo').map((p) => p.id);
       if (vistos && ids.some((id) => !vistos[id])) { sonar(); if (abierto && modo === 'act') tab = 'nuevo'; }
+      const nl = L.filter((p) => p.st === 'listo' && mia(p) && prevSt[p.id] && prevSt[p.id] !== 'listo');
+      if (vistos && nl.length) { sonarListo(); toast('🍽️ Mesa ' + nl.map((p) => p.mesa).join(', ') + ': ' + (nl.length === 1 ? 'pedido listo' : 'pedidos listos') + ' para llevar'); }
+      prevSt = {}; L.forEach((p) => { prevSt[p.id] = p.st; });
       vistos = {}; L.forEach((p) => { vistos[p.id] = 1; });
       if (det) { const d2 = L.find((x) => x.id === det.id); if (d2) det = d2; }
       alerta(); comandas(); pintar();
@@ -177,18 +210,20 @@ export function createPedidos(X) {
     const nn = nuevos().length;
     if (!sidOn || (!L.length && !abierto)) { if (f) f.remove(); return; }
     if (!f) { f = document.createElement('button'); f.id = 'pedfab'; f.type = 'button'; f.onclick = abrir; document.body.appendChild(f); }
-    f.className = nn ? 'nuevo' : ''; f.hidden = abierto;
-    f.innerHTML = '🛎️ ' + (nn ? (nn === 1 ? 'Pedido nuevo' : 'Pedidos nuevos') : 'Pedidos') + ' <b>' + (nn || L.length) + '</b>';
+    const lm = listosMios();
+    f.className = nn ? 'nuevo' : lm.length ? 'nuevo listo' : ''; f.hidden = abierto;
+    f.innerHTML = nn ? '🛎️ ' + (nn === 1 ? 'Pedido nuevo' : 'Pedidos nuevos') + ' <b>' + nn + '</b>' : lm.length ? '🍽️ Llevar a Mesa ' + lm.map((p) => esc(p.mesa)).join(', ') + ' <b>' + lm.length + '</b>' : '🛎️ Pedidos <b>' + L.length + '</b>';
     if (abierto) dibujar();
     if (det) detalle(det.id, true);
   }
   function cabecera() {
     const pub = (X.pub && X.pub()) || {}, cerr = !!pub.cerr, adm = X.isAdm && X.isAdm(), lg = pub.logo || '';
-    const cnt = (k) => L.filter((p) => p.st === k).length;
+    const cnt = (k) => L.filter((p) => p.st === k && (!misOn() || mia(p))).length;
     return '<div class="ppt"><span class="plg">' + (/^(data:image|https:)/.test(lg) ? '<img alt="" src="' + esc(lg) + '">' : esc((X.tienda() || 'P').charAt(0).toUpperCase())) + '</span>' +
       '<a class="pch" href="' + esc(X.catLink ? X.catLink() : '#') + '" target="_blank" rel="noopener">👁️ Ver menú</a>' +
       (adm ? '<button type="button" class="pch ' + (cerr ? 'ce' : 'ab') + '" data-pa="abierto" title="Tocá para ' + (cerr ? 'abrir' : 'cerrar') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</button>' : '<span class="pch ' + (cerr ? 'ce' : 'ab') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</span>') +
       '<button type="button" class="px" data-pa="cerrar" aria-label="Cerrar">×</button></div>' +
+      (MIAS().size || (X.push && /off|ios/.test(X.push.est())) ? '<div class="ppt" style="margin-top:8px;flex-wrap:wrap">' + (MIAS().size ? '<button type="button" class="pch' + (misOn() ? ' on' : '') + '" data-pa="mias">🍽️ ' + (misOn() ? 'Solo mis mesas: ' : 'Mis mesas: ') + esc(X.misMesas()) + '</button>' : '') + (X.push && /off|ios/.test(X.push.est()) ? '<button type="button" class="pch" data-pa="push" style="background:#FEF3C7;color:#92400E">🔔 Activar avisos en este celu</button>' : '') + '</div>' : '') +
       '<h2>Pedidos</h2>' +
       '<div class="pfl"><button type="button" class="pm' + (modo === 'todos' ? ' on' : '') + '" data-pa="todos">Todos</button><button type="button" class="pm' + (modo === 'hist' ? ' on' : '') + '" data-pa="hist">Historial</button>' +
       '<label class="pse">🔍<input id="pedq" type="search" placeholder="Buscar…" value="' + esc(busca) + '" autocomplete="off"></label>' +
@@ -203,12 +238,13 @@ export function createPedidos(X) {
       const l = filtra(HIST);
       return l.length ? l.map((p) => tarjeta(p, true)).join('') : vacio('📭', 'Sin pedidos terminados', 'Acá ves los entregados y cancelados de hoy y ayer.');
     }
-    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab));
+    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab)).filter((p) => !misOn() || mia(p));
     if (l.length) return l.map((p) => tarjeta(p, modo === 'todos')).join('');
     return modo === 'todos' ? vacio('📭', 'No hay pedidos activos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
       : tab === 'nuevo' ? vacio('📥', 'No hay pedidos nuevos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
       : vacio(tab === 'ok' ? '👨‍🍳' : tab === 'listo' ? '✅' : '🛵', 'Nada por acá', tab === 'ok' ? 'Los pedidos que aceptás aparecen acá mientras se preparan.' : tab === 'listo' ? 'Cuando marcás un pedido como listo, aparece acá.' : 'Los envíos que salieron aparecen acá hasta que confirmás la entrega.');
   }
+  function misOn() { const m = MIAS(); if (!m.size) return false; if (soloMias === null) soloMias = !(X.isAdm && X.isAdm()); return soloMias; }
   const vacio = (ic, t, s) => '<div class="pvac"><i>' + ic + '</i><b>' + t + '</b>' + s + '</div>';
   function dibujar() {
     const p = document.getElementById('pedp'); if (!p) return;
@@ -235,7 +271,7 @@ export function createPedidos(X) {
     const nx = proxima(p); if (!nx) return;
     if (nx[0] === 'ok') { aceptar(p); return; }
     if (nx[0] === 'entregado' && !p.cob && X.cobrar) { cobrarDlg(p, 'entregado'); return; }   // al entregar: ¿lo cobraste?
-    set(p.id, { st: nx[0] }); online(p);
+    set(p.id, { st: nx[0] }); online(p); if (nx[0] === 'listo') avisarListo(p);
     if (desde === 'det') cerrarDet();
   }
   // ---------- cobro: el pedido pagado se registra como venta (Resumen, stock y caja), sin pasar por la caja ----------
@@ -248,6 +284,7 @@ export function createPedidos(X) {
   }
   // Pagado online con Mercado Pago: la venta se registra sola la primera vez que el local lo mueve.
   function online(p) { if (p.pag && !p.cob && X.cobrar) registrar(p, 'qr'); }
+  function avisarListo(p) { if (p.tipo === 'mesa' && PAGOS_URL) setTimeout(() => fetch(PAGOS_URL + '/push/listo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid: sidOn, id: p.id }) }).catch(() => {}), 1500); }
   function cobrarDlg(p, luego) {
     det = p; const sug = payDe(p.pago) || 'ef', ent = luego === 'entregado';
     hoja('<div class="pgr"></div><h3>' + (ent ? '¿Ya lo cobraste?' : '¿Cómo pagó?') + '</h3><div class="pds">#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + ' · <b>' + money(p.tot || 0) + '</b>' + (p.paga > 0 ? ' · abona con ' + money(p.paga) + ' (vuelto ' + money(Math.max(0, p.paga - (p.tot || 0))) + ')' : '') + '</div>' +
@@ -279,6 +316,8 @@ export function createPedidos(X) {
       const a = b.dataset.pa;
       if (a === 'cerrar') cerrar();
       else if (a === 'tk') X.tiketera();
+      else if (a === 'mias') { soloMias = !misOn(); dibujar(); }
+      else if (a === 'push') { if (X.push.est() === 'ios') alert('En iPhone los avisos llegan solo con la app instalada: tocá Compartir → Agregar a inicio, abrí Pekeron desde ese ícono y activalos acá.'); else { X.push.alta(b); setTimeout(dibujar, 4000); } }
       else if (a === 'todos') { modo = modo === 'todos' ? 'act' : 'todos'; dibujar(); }
       else if (a === 'hist') { if (modo === 'hist') { modo = 'act'; dibujar(); } else { modo = 'hist'; cargarHist(); } }
       else if (a === 'nuevo') { cerrar(); X.nuevoPedido(); }
@@ -344,7 +383,7 @@ export function createPedidos(X) {
     if (a === 'sinco') { set(p.id, { st: 'entregado' }); cerrarDet(); return; }
     if (a === 'pg') { togPago(p); return; }
     if (a === 'estado') { estados(p); return; }
-    if (a === 'setst') { const s = b.dataset.st, o = { st: s }; if (s === 'ok' && !p.acc) o.acc = Date.now(); set(p.id, o); cerrarDet(); return; }
+    if (a === 'setst') { const s = b.dataset.st, o = { st: s }; if (s === 'ok' && !p.acc) o.acc = Date.now(); set(p.id, o); if (s === 'listo') avisarListo(p); cerrarDet(); return; }
     if (a === 'com') { imprimirComanda(p); updateDoc(ref(p.id), { imp: true }).catch(() => {}); return; }
     if (a === 'caja') { if (X.aCaja(p)) cerrar(); return; }
     if (a === 'cancel') cancelar(p);

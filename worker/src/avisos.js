@@ -55,6 +55,24 @@ export async function pedidoNuevo(env, sid, id) {
   await enviar(env, quien, { t: '🛎️ Pedido nuevo · ' + (TIPO_PED[d.tipo] || '') + (d.tipo === 'mesa' ? (d.mesa || '') : '') + ' · ' + money(d.tot || 0), b: (d.cl || 'Un cliente') + ' pidió ' + n + ' producto' + (n === 1 ? '' : 's') + '. Tocá para verlo y aceptarlo.', u: APP(env) + '?ped=1', tag: 'ped-' + id });
   return true;
 }
+// Mesas que atiende cada mozo (cfg/servicios.mozos = { uid: '4, 5, 6' | '1-8' }), igual que en pedidos.js
+export function mesasDe(t) {
+  const s = new Set();
+  String(t || '').split(/[\s,;y]+/).forEach((x) => { const m = /^(\d+)-(\d+)$/.exec(x); if (m) { for (let i = +m[1]; i <= Math.min(+m[2], +m[1] + 200); i++) s.add(String(i)); } else if (x.trim()) s.add(x.trim().toLowerCase()); });
+  return s;
+}
+// Pedido de una mesa marcado "listo": avisa a los mozos que atienden esa mesa.
+export async function pedidoListo(env, sid, id) {
+  if (!/^[A-Za-z0-9]{12,40}$/.test(String(id))) return false;
+  const d = await aGet(env, 'stores/' + sid + '/pedidos/' + id);
+  if (!d || d.st !== 'listo' || d.tipo !== 'mesa' || !(Math.abs(Date.now() - (d.upd || 0)) < 10 * 60000)) return false;
+  const cfg = (await aGet(env, 'stores/' + sid + '/cfg/servicios')) || {}, mz = cfg.mozos || {}, mesa = String(d.mesa || '').trim().toLowerCase();
+  const quien = Object.keys(mz).filter((u) => mesasDe(mz[u]).has(mesa));
+  if (!quien.length) return false;
+  if (!await una(env, 'listo:' + sid + ':' + id)) return false;
+  await enviar(env, quien, { t: '🍽️ Mesa ' + (d.mesa || '') + ' · pedido listo', b: 'El pedido #' + String(id).slice(-4).toUpperCase() + (d.cl ? ' de ' + d.cl : '') + ' está listo para llevar a la mesa.', u: APP(env) + '?ped=1', tag: 'listo-' + id });
+  return true;
+}
 // Turno reservado desde el catálogo (se verifica que el turno exista y sea de recién).
 export async function turnoNuevo(env, sid, tid) {
   if (!/^[A-Za-z0-9_-]{4,40}$/.test(String(tid))) return false;

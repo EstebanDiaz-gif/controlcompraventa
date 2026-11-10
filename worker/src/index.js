@@ -228,6 +228,7 @@ async function pushRuta(req, env, path) {
   if (!env.FB_SA) return json(req, env, { ok: false });
   // Avisos que dispara el catálogo (sin sesión): el servidor verifica todo antes de mandar.
   if (path === '/push/pedido') { if (sidOk(b.sid)) { try { await AV.pedidoNuevo(env, b.sid, String(b.id || '')); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
+  if (path === '/push/listo') { if (sidOk(b.sid)) { try { await AV.pedidoListo(env, b.sid, String(b.id || '')); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
   if (path === '/push/turno') { if (sidOk(b.sid)) { try { await AV.turnoNuevo(env, b.sid, String(b.id || '')); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
   if (path === '/push/pago') { if (sidOk(b.sid)) { try { const t = await claveDe(env, b.sid); if (t) await AV.pagoCatalogo(env, b.sid, String(b.id || ''), t.at); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
   const uid = await verificar(env, tokenDe(req)); if (!uid) return err(req, env, 'Iniciá sesión de nuevo.', 401);
