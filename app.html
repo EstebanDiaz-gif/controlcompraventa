@@ -236,6 +236,8 @@ import {cargarDemoServ,DEMO_SV} from './demo.js';
 import {normDur,durTxt} from './turnos.js';
 import {TEMAS,temaActivo,temaGeneral,temaEfectivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
 import {introTema} from './intro.js';
+import {createPedidos} from './pedidos.js';
+import {abrirTiketera} from './ticket.js';
 
 var $=function(i){return document.getElementById(i)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
@@ -260,7 +262,7 @@ var app=initializeApp(firebaseConfig),auth=getAuth(app);
 var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
 var STCREADA=0,PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
-function stopStore(){['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','sus','costos'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
+function stopStore(){if(window.PD)PD.stop();['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','sus','costos'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui','vpanel'].forEach(function(i){$(i).hidden=i!=g})}
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
@@ -344,6 +346,12 @@ base:function(){return catBase()},modal:function(h){return CJ.modal(h)},changed:
 VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
+var PED0=(function(){try{return new URLSearchParams(location.search).get('ped')=='1'}catch(e){return false}})();
+var PD=window.PD=createPedidos({db:db,esc:esc,money:money,fail:function(e){fail(e)},tienda:function(){return SNAME},
+abrirAlInicio:function(){var r=PED0;PED0=false;return r},
+tiketera:function(){abrirTiketera({tienda:SNAME,dir:(PUB||{}).addr||'',lineas:[{n:'Producto de prueba',q:1,u:1000}],tot:1000,pago:'Efectivo'})},
+aCaja:function(p){if(biz()!='almacen'||!ALM.cargarPedido)return false;show('caja');return ALM.cargarPedido(p)}});
+function pedSync(){var p=PUB||{};if(SID&&ROLE&&biz()=='almacen'&&p.enabled&&p.ped&&p.ped.on)PD.start(SID);else PD.stop()}
 var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
@@ -721,7 +729,7 @@ un.att=onSnapshot(ROLE=='admin'?collection(db,'stores',SID,'atenciones'):query(c
 SUS=null;un.sus=onSnapshot(doc(db,'stores',SID,'billing','sus'),function(sn){SUS=sn.exists()?sn.data():null;if(TAB=='team'){var e=$('susbox');if(e)e.outerHTML=susHtml()}},function(){SUS=null});
 un.acc=onSnapshot(doc(db,'stores',SID,'billing','access'),function(sn){var w=canWrite();ACC=sn.exists()?sn.data():null;drawBanner();if(w!=canWrite()){if(TAB=='add')drawAdd();else if(TAB=='sell')drawSell()}redrawData()},function(e){ACC=null;drawBanner();sdErr(e)});
 un.prm=onSnapshot(doc(db,'stores',SID,'public','promos'),function(sn){PRM=(sn.exists()&&sn.data().list)||[];if(TAB=='promo'&&!PRO.editing())PRO.draw();else if(TAB=='team')drawTeam();else redrawData()},function(){PRM=[]});
-un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;applyTema();autoActivateTema();syncCatRubro();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
+un.pub=onSnapshot(doc(db,'stores',SID,'public','info'),function(sn){PUB=sn.exists()?sn.data():null;pedSync();applyTema();autoActivateTema();syncCatRubro();if(TAB=='team')drawTeam();if(ROLE=='admin'&&biz()=='almacen')ALM.publishSoon()},function(){PUB=null;applyTema()});
 if(ROLE=='admin'){
 un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=false;sn.forEach(function(d){GA.push(d.data())});redrawData()},function(){GAERR=true;redrawData()});
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},sdErr);
@@ -1714,6 +1722,13 @@ return '<label>Secciones del catálogo</label><div class="k" style="margin:0 0 4
 L.map(function(x){
 return '<label style="display:flex;gap:10px;align-items:center;font-weight:600;margin-top:8px"><input type="checkbox" data-alx="'+x[0]+'" style="width:auto"'+(a[x[0]]===false?'':' checked')+'> '+x[1]+'</label>'}).join('')}
 function alxVal(){var cb=document.querySelectorAll('[data-alx]');if(!cb.length)return (PUB&&PUB.alx)||{};var o={};Array.prototype.forEach.call(cb,function(c){o[c.dataset.alx]=c.checked});return o}
+// Pedidos que entran a la app (ver pedidos.js): public/info.ped = { on, mesa, nm (cantidad de mesas) }
+function pedCfgHtml(p){var c=p.ped||{};return '<div style="margin-top:18px;padding:14px;border-radius:16px;background:var(--bg)"><b>🛎️ Pedidos en la app</b><div class="k" style="margin:4px 0 0">El pedido le llega directo a la app con una alerta, lo aceptás con el tiempo de espera, sale la comanda en la tiketera y el cliente ve en su celular cómo va. Si no lo activás, los pedidos llegan por WhatsApp como siempre.</div>'+
+'<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input id="ped_on" type="checkbox" style="width:auto"'+(c.on?' checked':'')+'> Recibir los pedidos en la app</label>'+
+'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:10px;font-weight:600"><input id="ped_mesa" type="checkbox" style="width:auto;margin-top:3px"'+(c.mesa?' checked':'')+'><span>Pedidos desde la mesa con QR<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Para bares y restaurantes: cada mesa tiene su QR, el cliente lo escanea, pide y se lo llevan a la mesa.</small></span></label>'+
+'<div style="display:flex;gap:8px;align-items:center;margin-top:10px"><input id="ped_nm" type="number" inputmode="numeric" min="1" max="60" placeholder="Cantidad de mesas" value="'+(c.nm||'')+'" style="flex:1;min-width:0;margin:0"><button type="button" class="go alt" data-cat="pedqr" style="margin:0;width:auto;padding:12px 14px">🔳 QR de las mesas</button></div>'+
+(c.on?'<button type="button" class="go alt" data-cat="pedver" style="margin-top:10px">Ver los pedidos</button>':'')+'</div>'}
+function pedVal(){var o=$('ped_on');if(!o)return (PUB&&PUB.ped)||{on:false};var n=Math.max(0,Math.min(60,Math.round(+$('ped_nm').value||0)));return {on:o.checked,mesa:$('ped_mesa').checked,nm:n}}
 function catCard(){
 var p=PUB||{};setTimeout(loadPt,0);
 var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style="margin:4px 0 0">Una página con tus productos, fotos y talles con stock. El cliente arma el pedido y te lo manda por WhatsApp. No muestra costos ni ganancias.</div>'+
@@ -1724,7 +1739,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
 '<div class="k" style="margin-top:12px">🎨 Los colores y el diseño se eligen arriba, en <b>Estilo del catálogo</b>.</div>'+alxRows(p)+
-'<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
+(biz()=='almacen'?pedCfgHtml(p):'')+'<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
 '<div class="k" style="margin-top:6px">En el modo por producto, el mínimo de cada uno se pone en Stock → Editar.</div></div>'+(biz()=='almacen'?'<div class="k" style="margin-top:10px">Los precios y productos del catálogo se actualizan solos unos segundos después de cada cambio, mientras un administrador tenga la app abierta con internet.</div>':'')+
@@ -1824,6 +1839,10 @@ if(a=='msgreset'){var t=$('cat_msg');if(t)t.value=shareMsg();return}
 if(a=='slug'){saveSlug();return}
 if(a=='copy'){var l=catLink();if(navigator.clipboard)navigator.clipboard.writeText(l).then(function(){alert('Link copiado.')},function(){prompt('Copiá el link:',l)});else prompt('Copiá el link:',l);return}
 if(a=='open'){window.open(catLink(),'_blank');return}
+if(a=='pedver'){PD.abrir();return}
+if(a=='pedqr'){var nm=Math.round(+(($('ped_nm')||{}).value)||0);if(!(nm>0)){alert('Escribí cuántas mesas tenés.');var pn=$('ped_nm');if(pn)pn.focus();return}
+if(!(PUB&&PUB.ped&&PUB.ped.on&&PUB.ped.mesa))alert('Acordate de tildar "Recibir los pedidos en la app" y "Pedidos desde la mesa con QR" y tocar Guardar catálogo: si no, el QR abre el catálogo pero el pedido no llega a la app.');
+PD.qrMesas(catLink(),nm,SNAME,(PUB||{}).color||'');return}
 if(a=='qr'){var pq=PUB||{},lq=logoNow(pq);abrirQR({link:catLink(),tienda:SNAME,color:pq.color||'',logo:/^data:image\//.test(lq||'')?lq:'',rubro:rubroDe(biz(),catTp())});return}
 if(a=='nologo'){CLOGO='';var v=$('cat_lgv');if(v)v.style.display='none';return}
 if(a=='nopt'){if(!confirm('¿Quitar la foto de portada del catálogo?'))return;var b0=writeBatch(db);b0.delete(doc(db,'stores',SID,'public','portada'));b0.set(doc(db,'stores',SID,'public','info'),{pt:deleteField()},{merge:true});b0.commit().then(function(){PTIMG={at:0,f:''}}).catch(fail);return}
@@ -1841,7 +1860,7 @@ if($('cat_on').checked&&!was.length){alert('Escribí al menos un WhatsApp para r
 if(was.length>1&&was.some(function(x){return !x.n})){alert('Poné un nombre a cada número, así el cliente sabe a quién le escribe.');return}
 $('cat_was').innerHTML=waRows(was.length?was:[{n:'',w:''}]);
 var mode=$('cat_mode').value,mc=Math.max(0,Math.floor(+$('cat_min').value)||0);
-setDoc(doc(db,'stores',SID,'public','info'),Object.assign({alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),alx:alxVal(),color:$('cat_col').value,addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},hzGuardar()),{merge:true}).then(function(){HZE=null;alert('Guardado.')}).catch(fail);
+setDoc(doc(db,'stores',SID,'public','info'),Object.assign({alm:biz()=='almacen',biz:biz(),svs:$('cat_svs')?$('cat_svs').value:((PUB&&PUB.svs)||''),est:$('cat_est')?$('cat_est').value:((PUB&&PUB.est)||''),tp:catTp()||((PUB&&PUB.tp)||''),ped:pedVal(),enabled:$('cat_on').checked,wa:wa,was:was,mode:mode,minCart:mc,name:SNAME,logo:logoNow(PUB||{}),tag:$('cat_tag').value.trim(),alx:alxVal(),color:$('cat_col').value,addr:$('cat_adr').value.trim(),ig:$('cat_ig').value.trim()},hzGuardar()),{merge:true}).then(function(){HZE=null;alert('Guardado.')}).catch(fail);
 return}
 }
 function planCardCollapsible(){

@@ -69,3 +69,7 @@ export const MODELOS_OPS = [
   ['Acompañamiento', { t: 'Acompañamiento', min: 0, max: 1, o: [{ n: 'Papas fritas', p: 0 }, { n: 'Ensalada', p: 0 }] }],
   ['Gustos', { t: 'Gustos', min: 1, max: 2, o: [{ n: 'Gusto 1', p: 0 }, { n: 'Gusto 2', p: 0 }] }],
 ];
+
+// Lo elegido como texto, para guardarlo en Firestore (no admite listas dentro de listas): [[1],[],[0,2]] ↔ "1;;0,2"
+export const selTxt = (sel) => (Array.isArray(sel) ? sel : []).map((a) => (Array.isArray(a) ? a.join(',') : '')).join(';');
+export const selDe = (t) => String(t || '').split(';').map((a) => (a ? a.split(',').map((x) => +x).filter((x) => Number.isInteger(x) && x >= 0) : []));

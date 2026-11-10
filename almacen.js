@@ -15,7 +15,7 @@ import { abrirInsta } from './insta.js';
 import { tkConfig, imprimirTicket, abrirTiketera } from './ticket.js';
 import { calcular as sanCalc, limpiarCfg as sanCfg, activo as sanActivo } from './sanguche.js';
 import { abrirSueltos } from './sueltos.js';
-import { limpiarOps, calcOps, tocarOps, selInicial, reglaOps, MODELOS_OPS, MAX_GRUPOS, MAX_OPCIONES } from './opciones.js';
+import { limpiarOps, calcOps, tocarOps, selInicial, reglaOps, MODELOS_OPS, MAX_GRUPOS, MAX_OPCIONES, selDe } from './opciones.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
@@ -715,9 +715,26 @@ export function createAlmacen(X) {
       lineas: S.cart.map((l) => ({ n: l.n, q: l.w ? r3(l.q) : l.q, u: l.u, w: !!l.w })), dsc: EF.dsc || null, env: ENV && ENV.cob > 0 ? ENV.cob : 0,
       tot, pago: payLabel(v), paga: S.pay === 'ef' && pg >= tot && pg > 0 ? pg : 0, vuelto: S.pay === 'ef' && pg >= tot ? pg - tot : 0 };
     if (tkConfig().auto) imprimir(S.lastTk);
+    if (S.ped) { updateDoc(doc(db, 'stores', sid, 'pedidos', S.ped), { cob: true, vid: id, cpay: payLabel(v) }).catch(() => {}); S.ped = null; }
     S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
     S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; S.env = null; renderCats();
     renderCart(); clearSearch();
+  }
+  // Pedido del catálogo → venta en curso de la caja. Los precios salen del Stock de ahora (no del celular del cliente).
+  function cargarPedido(p) {
+    if (S.cart.length && !confirm('Hay una venta en curso en la caja. ¿La reemplazo por este pedido?')) return false;
+    S.cart = []; S.env = null;
+    (p.it || []).forEach((l) => {
+      const pr = l.t ? null : prod(l.k), q = +l.q || 1;
+      if (pr && pr.pn > 0) {
+        if (pr.w) { S.cart.push({ id: pr.id, n: pr.n, q: r3(q), u: pr.pn, c: pr.c || 0, w: true }); return; }
+        const G = limpiarOps(pr.op), x = G.length ? calcOps(G, selDe(l.o)) : { ok: true, extra: 0, txt: '' };
+        if (x.ok) { const o = { id: pr.id, n: pr.n + (x.txt ? ' (' + x.txt + ')' : ''), q, u: pr.pn + x.extra, c: pr.c || 0, w: false }; if (G.length) o.op = 1; S.cart.push(o); return; }
+      }
+      S.cart.push({ id: 'lib_' + uid(), n: (l.n || 'Producto') + (l.x ? ' (' + l.x + ')' : ''), q, u: Math.round(+l.u || 0), c: 0, w: false });
+    });
+    if (p.env > 0) S.cart.push({ id: 'lib_' + uid(), n: 'Envío a domicilio', q: 1, u: Math.round(p.env), c: 0, w: false });
+    S.ped = p.id; S.last = ''; renderCart(); return true;
   }
   function renderHoy() {
     const e = $('cjhoy'); if (!e) return;
@@ -1935,7 +1952,7 @@ export function createAlmacen(X) {
     else if (a === 'dec') { if (S.cart[i].q > 1) S.cart[i].q -= 1; else S.cart.splice(i, 1); renderCart(); }
     else if (a === 'rm') { S.cart.splice(i, 1); renderCart(); }
     else if (a === 'wedit') { const l = S.cart[i], p = prod(l.id) || { n: l.n, pn: l.u }; weightDlg(Object.assign({}, p, { pn: l.u }), i); }
-    else if (a === 'clear') { if (confirm('¿Vaciar la venta en curso?')) { S.cart = []; S.paga = ''; S.env = null; renderCart(); } }
+    else if (a === 'clear') { if (confirm('¿Vaciar la venta en curso?')) { S.cart = []; S.paga = ''; S.env = null; S.ped = null; renderCart(); } }
     else if (a === 'envadd') { if (RPm()) RPm().dlg((v) => { S.env = v; renderCart(); }); }
     else if (a === 'envx') { S.env = null; renderCart(); }
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
@@ -2041,7 +2058,7 @@ export function createAlmacen(X) {
   });
 
   return {
-    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes,
+    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido,
     resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }

@@ -4,7 +4,7 @@
 
 const KEY = 'pk_tk';
 // puesto: esta compu imprime los tickets que mandan los celulares; remoto: este equipo los manda a la compu en vez de imprimir.
-const DEF = { w: 58, auto: false, pie: '¡Gracias por tu compra!', puesto: false, remoto: false };
+const DEF = { w: 58, auto: false, pie: '¡Gracias por tu compra!', puesto: false, remoto: false, com: false };
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 export function tkConfig() {
@@ -46,13 +46,40 @@ export function ticketHtml(t, cfg) {
     '</style></head><body>' + h + '</body></html>';
 }
 
+// Comanda para la cocina: letra grande, lo que hay que preparar y las aclaraciones bien visibles. Sin precios.
+// p = pedido (stores/{sid}/pedidos): { id, tipo, mesa, cl, tel, dir, nota, it: [{ n, q, w, x }], at, min }
+const TIPO = { mesa: 'MESA', env: 'ENVÍO', ret: 'RETIRA' };
+export const codPedido = (id) => String(id || '').slice(-4).toUpperCase();
+export function comandaHtml(p, cfg) {
+  const c = cfg || tkConfig(), ancho = c.w === 80 ? 72 : 48, f = new Date(p.at || Date.now());
+  const hora = f.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  let h = '<div class="c big">' + (TIPO[p.tipo] || 'PEDIDO') + (p.tipo === 'mesa' ? ' ' + esc(p.mesa || '') : '') + '</div>' +
+    '<div class="f"><span>#' + esc(codPedido(p.id)) + ' · ' + hora + '</span><b>' + (p.min ? 'en ' + p.min + ' min' : '') + '</b></div>' +
+    '<div>' + esc(p.cl || '') + (p.tel ? ' · ' + esc(p.tel) : '') + '</div>' + (p.dir ? '<div class="n">' + esc(p.dir) + '</div>' : '') + '<hr>';
+  (p.it || []).forEach((l) => {
+    h += '<div class="it"><b>' + (l.w ? kg(l.q) : l.q + ' x') + '</b> ' + esc(l.b || l.n) + '</div>' + (l.x ? '<div class="op">' + esc(l.x).replace(/, /g, '<br>') + '</div>' : '');
+  });
+  if (p.nota) h += '<hr><div class="nota">' + esc(p.nota) + '</div>';
+  h += '<hr><div class="c chico">' + esc(p.pago || '') + (p.pag ? ' · PAGADO' : '') + '</div>';
+  return '<!doctype html><html><head><meta charset="utf-8"><title>Comanda</title><style>' +
+    '@page{size:' + c.w + 'mm 200mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000}' +
+    'body{width:' + ancho + 'mm;margin:0 auto;padding:2mm 0 8mm;font:' + (c.w === 80 ? 14 : 12.5) + 'px/1.3 "Courier New",ui-monospace,monospace;-webkit-print-color-adjust:exact}' +
+    '.c{text-align:center}.big{font-size:2em;font-weight:900;margin-bottom:1mm;letter-spacing:.04em}.chico{font-size:.9em}' +
+    'hr{border:0;border-top:1px dashed #000;margin:1.5mm 0}.f{display:flex;justify-content:space-between;gap:2mm;font-weight:700}' +
+    '.it{font-size:1.35em;font-weight:900;margin-top:1.5mm;word-break:break-word}.op{font-size:1.15em;font-weight:700;padding-left:4mm;text-transform:uppercase}' +
+    '.n{font-weight:700}.nota{font-size:1.2em;font-weight:900;text-transform:uppercase}' +
+    '</style></head><body>' + h + '</body></html>';
+}
+export function imprimirComanda(p, cfg) { imprimirHtml(comandaHtml(p, cfg), cfg || tkConfig()); }
+
 // Imprime con un iframe oculto (no abre ventanas nuevas, así el navegador no lo bloquea).
-export function imprimirTicket(t, cfg) {
+export function imprimirTicket(t, cfg) { const c = cfg || tkConfig(); imprimirHtml(ticketHtml(t, c), c); }
+function imprimirHtml(html, cfg) {
   const old = document.getElementById('tkframe'); if (old) old.remove();
   const fr = document.createElement('iframe'); fr.id = 'tkframe';
   fr.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
   document.body.appendChild(fr);
-  const c = cfg || tkConfig(), d = fr.contentWindow.document; d.open(); d.write(ticketHtml(t, c)); d.close();
+  const c = cfg || tkConfig(), d = fr.contentWindow.document; d.open(); d.write(html); d.close();
   setTimeout(() => { try {
     // El largo de la hoja = el largo del ticket (si no, la tiketera tira papel de más o achica la letra).
     const mm = Math.ceil(d.body.scrollHeight * 25.4 / 96) + 8, st = d.createElement('style');
@@ -73,6 +100,7 @@ export function abrirTiketera(ejemplo, onGuardar) {
     '<div class="k" style="margin-top:4px">La más común es la de 58 mm (rollo angosto). La de 80 mm es la del rollo ancho.</div>' +
     '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="tkauto" type="checkbox" style="width:auto;margin:0"' + (c.auto ? ' checked' : '') + '> Imprimir el ticket solo, cada vez que cobro</label>' +
 
+    '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-weight:600"><input id="tkcom" type="checkbox" style="width:auto;margin:3px 0 0"' + (c.com ? ' checked' : '') + '><span>Imprimir la comanda sola cuando se acepta un pedido<small style="display:block;font-weight:400;opacity:.7;margin-top:2px">Activalo solo en la compu que tiene la tiketera: imprime los pedidos que se aceptan desde cualquier celu del equipo.</small></span></label>' +
     '<label style="margin-top:12px">Mensaje al pie del ticket</label><input id="tkpie" maxlength="60" value="' + esc(c.pie) + '">' +
     '<button type="button" class="go" id="tkpr" style="margin-top:14px">Imprimir ticket de prueba</button>' +
     '<button type="button" class="go alt" id="tkok" style="margin-top:8px">Guardar</button></div>';
@@ -80,7 +108,7 @@ export function abrirTiketera(ejemplo, onGuardar) {
   const $ = (id) => d.querySelector('#' + id);
   let w = c.w;
   const marcar = () => d.querySelectorAll('[data-tkw]').forEach((b) => { const on = +b.dataset.tkw === w; b.style.background = on ? 'var(--btn,#1D3FAF)' : 'transparent'; b.style.color = on ? 'var(--btnink,#fff)' : 'var(--ink,#111)'; });
-  const leer = () => ({ w, auto: $('tkauto').checked, pie: $('tkpie').value.trim(), puesto: false, remoto: false });
+  const leer = () => ({ w, auto: $('tkauto').checked, com: $('tkcom').checked, pie: $('tkpie').value.trim(), puesto: false, remoto: false });
   d.addEventListener('click', (e) => {
     if (e.target === d || e.target.closest('[data-tkx]')) { d.remove(); return; }
     const b = e.target.closest('[data-tkw]'); if (b) { w = +b.dataset.tkw; marcar(); }

@@ -36,7 +36,23 @@ export async function pagoCatalogo(env, sid, pid, claveTienda) {
   if (p.status !== 'approved' || sidPago !== sid) return false;
   if (!await una(env, 'cat:' + pid)) return false;
   const st = await aGet(env, 'stores/' + sid);
-  await enviar(env, await adminsDe(env, sid), { t: '💙 Pago aprobado · ' + money(p.transaction_amount), b: (p.description || 'Pedido del catálogo') + ' · ' + nombre(st) + '. Fijate el pedido en tu WhatsApp.', u: APP(env), tag: 'pago-' + pid });
+  // Si el pago es de un pedido que entró a la app (ref = id del pedido), se marca pagado en el pedido.
+  const ref = String((p.metadata && p.metadata.ref) || p.external_reference || '');
+  let ped = null;
+  if (/^[A-Za-z0-9]{12,40}$/.test(ref)) { try { ped = await aGet(env, 'stores/' + sid + '/pedidos/' + ref); if (ped) await aMerge(env, 'stores/' + sid + '/pedidos/' + ref, { pag: Math.round(+p.transaction_amount || 0), pid: String(pid) }); } catch (e) { ped = null; } }
+  await enviar(env, await adminsDe(env, sid), { t: '💙 Pago aprobado · ' + money(p.transaction_amount), b: (p.description || 'Pedido del catálogo') + ' · ' + nombre(st) + (ped ? '. Ya está marcado como pagado en Pedidos.' : '. Fijate el pedido en tu WhatsApp.'), u: APP(env), tag: 'pago-' + pid });
+  return true;
+}
+// Pedido hecho desde el catálogo (mesa, retiro o envío): avisa a todo el equipo del local.
+const TIPO_PED = { mesa: '🍽️ Mesa ', env: '🛵 Envío', ret: '🏪 Retiro' };
+export async function pedidoNuevo(env, sid, id) {
+  if (!/^[A-Za-z0-9]{12,40}$/.test(String(id))) return false;
+  const d = await aGet(env, 'stores/' + sid + '/pedidos/' + id);
+  if (!d || d.src !== 'web' || !(Math.abs(Date.now() - (d.at || 0)) < 15 * 60000)) return false;
+  if (!await una(env, 'ped:' + sid + ':' + id)) return false;
+  const quien = (await aQuery(env, 'stores/' + sid, 'members', [])).map((x) => x.id);
+  const n = (d.it || []).reduce((a, x) => a + (x.w ? 1 : (+x.q || 0)), 0);
+  await enviar(env, quien, { t: '🛎️ Pedido nuevo · ' + (TIPO_PED[d.tipo] || '') + (d.tipo === 'mesa' ? (d.mesa || '') : '') + ' · ' + money(d.tot || 0), b: (d.cl || 'Un cliente') + ' pidió ' + n + ' producto' + (n === 1 ? '' : 's') + '. Tocá para verlo y aceptarlo.', u: APP(env) + '?ped=1', tag: 'ped-' + id });
   return true;
 }
 // Turno reservado desde el catálogo (se verifica que el turno exista y sea de recién).

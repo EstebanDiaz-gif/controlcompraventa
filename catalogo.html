@@ -573,6 +573,16 @@ html[data-tema] .card .im[data-bd]::after{content:attr(data-bd);position:absolut
 /* Las opciones de los desplegables en la compu (Windows) no toman el tema: les damos el fondo y el color de la tarjeta */
 select option{background-color:var(--card);color:var(--ink)}
 .entr{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}.entr label{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line,#e5e5e5);border-radius:14px;font-weight:600;cursor:pointer}.entr input{width:auto;margin:0}
+.mesac{background:var(--al,#fde68a)!important;color:#111!important;border-color:transparent!important}
+.dsc.mesa{background:#fef3c7;color:#78350f;border-radius:14px;padding:12px 14px;margin-top:12px;font-weight:700}
+#pedpill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom));z-index:5;display:flex;align-items:center;gap:10px;border:0;border-radius:99px;padding:9px 18px 9px 10px;background:#111;color:#fff;font:inherit;font-size:14px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.3);max-width:calc(100% - 32px);text-align:left;cursor:pointer;animation:pedin .4s ease}
+#pedpill i{font-style:normal;font-size:22px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;flex:none}#pedpill small{display:block;font-size:11.5px;font-weight:700;opacity:.7}
+@keyframes pedin{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
+.pstc{text-align:center;padding:10px 6px 4px}.pstc .pe{font-size:56px;line-height:1.1;animation:pedb 1.6s ease-in-out infinite}.pstc b{display:block;font-size:22px;margin-top:6px}.pstc p{color:var(--mut);margin:6px 0 0}.pstc.no .pe{animation:none}
+@keyframes pedb{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.psteps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:18px 0 6px}.psteps div{text-align:center;font-size:11.5px;font-weight:700;color:var(--mut)}.psteps i{display:block;height:6px;border-radius:3px;background:var(--line,#e5e5e5);margin-bottom:6px}
+.psteps .on i{background:#1a8f4c}.psteps .on{color:var(--ink,#111)}.psteps .cur i{animation:pedg 1.2s ease-in-out infinite}@keyframes pedg{50%{opacity:.45}}
+.pli{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line,#eee);font-weight:600}.pli small{display:block;color:var(--mut);font-weight:600;font-size:12.5px}
 .edir{width:100%;box-sizing:border-box;margin:8px 0 4px;padding:13px 14px;border-radius:14px;border:1.5px solid var(--line,#e5e5e5);font:inherit;background:transparent;color:inherit}
 
 /* ================= Compu: ancho completo, todo más grande y fotos nítidas =================
@@ -768,7 +778,7 @@ import {grupos as hGrupos,frameHtml,estilo as hEstilo,rubroDe,estilosCss} from '
 import {TEMAS,temaEfectivo,cuentaRegresiva,proxima,adornos,fechaTitulo} from './temas.js';
 import {introTema} from './intro.js';
 import {limpiarCfg as sanCfg,activo as sanActivo,calcular as sanCalc} from './sanguche.js';
-import {limpiarOps,calcOps,tocarOps,selInicial,reglaOps} from './opciones.js';
+import {limpiarOps,calcOps,tocarOps,selInicial,reglaOps,selTxt} from './opciones.js';
 import {tarjetaArmador,abrirArmador,IMG_SW} from './sanguche-cat.js';
 import {normDur,durTxt,hm,ymd,addDays,fechaCorta,fechaLargaT,dias,libres,elegirPro,desdeHoy,lockIds,gcalUrl} from './turnos.js';
 var $=function(i){return document.getElementById(i)};
@@ -964,7 +974,7 @@ $('acats').onclick=$('hcats').onclick=function(ev){var b=ev.target.closest('[dat
 // Dirección: abre Google Maps (en el celu, la app de Maps) con la dirección del negocio.
 function mapsUrl(){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(INFO.addr||'')}
 function mapA(t,cls){return '<a class="'+(cls||'mapa')+'" href="'+esc(mapsUrl())+'" target="_blank" rel="noopener" title="Ver en Google Maps">'+(t||'📍 '+esc(INFO.addr))+'</a>'}
-function almChips(){var c=[];if(INFO.hours)c.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)c.push(mapA('📍 <em class="mpa">'+esc(INFO.addr)+'</em><b class="mpv">· Cómo llegar</b>','mapa'));
+function almChips(){var c=[];if(pedOn()&&MESA)c.push('<span class="mesac">🍽️ Pedís para la Mesa '+esc(MESA)+'</span>');if(INFO.hours)c.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)c.push(mapA('📍 <em class="mpa">'+esc(INFO.addr)+'</em><b class="mpv">· Cómo llegar</b>','mapa'));
 if(envOn())c.push('<span>🛵 Envío a domicilio</span>');c.push('<span>🏪 Retiro en el local</span>');
 return '<div class="achips">'+c.join('')+'</div>'}
 
@@ -1182,7 +1192,7 @@ else{db=getFirestore(initializeApp(firebaseConfig));
 (sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
 if(s.data().susp){fail('Este catálogo no está disponible por el momento.');return}
-INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);almSetup();svSetup();rubroSetup();setTimeout(mpVuelta,300);if(INFO.ag)loadAg();
+INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);almSetup();svSetup();rubroSetup();setTimeout(mpVuelta,300);setTimeout(pedInicio,600);if(INFO.ag)loadAg();
 onSnapshot(doc(db,'platform','tema'),function(sn){var GL2=sn.exists()?sn.data():null;tema(GL2)});
 // mostrar siempre el link lindo en la barra de direcciones
 if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
@@ -1445,7 +1455,7 @@ function cpRow(lbl,v){return v?'<div class="pr2"><span><small>'+lbl+'</small>'+e
 // Detalle del medio elegido: datos para transferir, botón al link de pago, etc.
 function pdet(m,monto,que){if(!m)return '';var d=m.d||{},h='<div class="pdet">';
 if(m.id=='mpa')h+='<button class="lk" data-mpa="1" style="width:100%;border:0;font:inherit;font-weight:800;cursor:pointer">Pagar '+money(monto)+' con Mercado Pago</button><p>Tarjeta de crédito (en cuotas), débito o dinero en cuenta. El monto ya va cargado. Después volvés acá y mandás el pedido por WhatsApp.</p>';
-else if(m.id=='ef')h+='<b>💵 Pagás en efectivo</b><p>'+(que=='sena'?'Llevá la seña al local.':'Pagás '+money(monto)+' al '+(envCosto()?'recibir':'retirar')+' el pedido.')+'</p>';
+else if(m.id=='ef')h+='<b>💵 Pagás en efectivo</b><p>'+(que=='sena'?'Llevá la seña al local.':'Pagás '+money(monto)+' al '+(envCosto()||(pedOn()&&MESA)?'recibir':'retirar')+' el pedido.')+'</p>';
 else if(m.id=='tr')h+='<b>Transferí '+money(monto)+'</b>'+cpRow('Alias',d.alias)+cpRow('CBU / CVU',d.cbu)+(d.tit?'<div class="pr2"><span><small>Titular</small>'+esc(d.tit)+'</span></div>':'')+'<p>Después mandá el comprobante por WhatsApp.</p>';
 else if(d.link)h+='<a class="lk" href="'+esc(d.link)+'" target="_blank" rel="noopener">Pagar '+money(monto)+(m.id=='mp'?' con Mercado Pago':' · '+esc(m.n))+' ↗</a>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>Si el link te pide el monto, poné '+money(monto)+'. Después mandá el comprobante por WhatsApp.</p>';
 else h+='<b>'+esc(m.n)+'</b>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>El negocio te confirma cómo pagar por WhatsApp.</p>';
@@ -1458,16 +1468,16 @@ document.addEventListener('click',function(e){var b=e.target.closest&&e.target.c
 // Antes de ir guardamos el mensaje del pedido; al volver con el pago aprobado, se manda por WhatsApp.
 var LASTP=null;
 function mpKey(){return 'pk_mpord_'+sid}
-function mpPagar(btn){if(!LASTP)return;var r=LASTP.r,total=LASTP.total,ref=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+function mpPagar(btn,pref){if(!LASTP)return;var r=LASTP.r,total=LASTP.total,ref=pref||Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 var items=CART.map(function(l){var o={k:l.k,z:l.z||'',q:l.q,promo:l.promo||'',w:!!l.w};if(l.sw)o.sw=l.sw;if(l.pk){o.pk=l.pk;o.op=l.op}return o});
 var msg=decodeURIComponent((waLink(r,total).split('text=')[1]||''));
-try{localStorage.setItem(mpKey(),JSON.stringify({m:msg,total:total,ref:ref,at:Date.now()}))}catch(e){}
+try{localStorage.setItem(mpKey(),JSON.stringify({m:msg,total:total,ref:ref,at:Date.now(),ped:pref||''}))}catch(e){}
 btn.disabled=true;btn.textContent='Abriendo Mercado Pago…';
 var vuelta=location.origin+location.pathname.replace(/[^\/]*$/,'')+'catalogo.html?t='+sid;
 fetch(PAGOS_URL+'/pagar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,items:items,entrega:ENTREGA,total:Math.round(total),vuelta:vuelta,ref:ref})})
 .then(function(x){return x.json().then(function(d){return {ok:x.ok,d:d}})}).then(function(o){if(o.ok&&o.d.url){location.href=o.d.url;return}
-btn.disabled=false;btn.textContent='Pagar '+money(total)+' con Mercado Pago';alert(o.d.error||'No se pudo abrir Mercado Pago. Probá de nuevo.')})
-.catch(function(){btn.disabled=false;btn.textContent='Pagar '+money(total)+' con Mercado Pago';alert('No se pudo conectar. Revisá tu internet y probá de nuevo.')})}
+btn.disabled=false;btn.textContent='Pagar '+money(total)+' con Mercado Pago';alert((o.d.error||'No se pudo abrir Mercado Pago. Probá de nuevo.')+(pref?'\n\nTu pedido igual le llegó al local: lo podés pagar al recibirlo.':''));if(pref){CART.length=0;bar();pedEstado(pref)}})
+.catch(function(){btn.disabled=false;btn.textContent='Pagar '+money(total)+' con Mercado Pago';alert('No se pudo conectar con Mercado Pago.'+(pref?' Tu pedido igual le llegó al local: lo podés pagar al recibirlo.':' Revisá tu internet y probá de nuevo.'));if(pref){CART.length=0;bar();pedEstado(pref)}})}
 document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-mpa]');if(b){e.preventDefault();mpPagar(b)}});
 // Vuelta de Mercado Pago: catalogo.html?t=…&mp=pago&status=approved&payment_id=…
 function mpVuelta(){if(Q0.get('mp')!='pago')return;var st=Q0.get('status')||Q0.get('collection_status')||'',pid=Q0.get('payment_id')||Q0.get('collection_id')||'',o=null;
@@ -1475,7 +1485,10 @@ try{o=JSON.parse(localStorage.getItem(mpKey())||'null')}catch(e){}
 try{history.replaceState(null,'',location.pathname+'?t='+sid)}catch(e){}
 var ok=st=='approved',pend=st=='pending'||st=='in_process',h='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div style="text-align:center;padding:6px 4px 0">';
 if(ok&&pid&&pid!='null')fetch(PAGOS_URL+'/push/pago',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:pid})}).catch(function(){});
-if(ok){var m=(o&&o.m?o.m+'\n':'')+'✅ Pagado con Mercado Pago'+(pid&&pid!='null'?' (operación N° '+pid+')':'');
+if(o&&o.ped){try{localStorage.removeItem(mpKey())}catch(e){}pedGuardar(o.ped);
+h+=(ok?'<div class="okc">✓</div><b style="font-size:22px">¡Pago aprobado!</b><div class="k" style="color:var(--mut);margin-top:6px">Pagaste '+money(o.total)+'. Tu pedido ya está en el local.</div></div>':pend?'<div class="okc" style="background:#b7791f">…</div><b style="font-size:21px">Tu pago está en proceso</b><div class="k" style="color:var(--mut);margin-top:6px">Mercado Pago te avisa cuando se acredite. Tu pedido ya le llegó al local.</div></div>':'<b style="font-size:21px;display:block;margin-top:8px">El pago no se completó</b><div class="k" style="color:var(--mut);margin-top:6px">No se te cobró nada. Tu pedido igual le llegó al local: lo podés pagar al recibirlo.</div></div>')+
+'<button class="wa" data-pst="'+esc(o.ped)+'" style="margin-top:16px;background:var(--b);color:var(--bi)">Ver cómo va mi pedido</button>'}
+else if(ok){var m=(o&&o.m?o.m+'\n':'')+'✅ Pagado con Mercado Pago'+(pid&&pid!='null'?' (operación N° '+pid+')':'');
 try{localStorage.removeItem(mpKey())}catch(e){}
 h+='<div class="okc">✓</div><b style="font-size:22px">¡Pago aprobado!</b><div class="k" style="color:var(--mut);margin-top:6px">'+(o?'Pagaste '+money(o.total)+'. ':'')+'Ahora mandá el pedido por WhatsApp así el negocio lo prepara.</div></div>'+
 (WAS.length>1?waBtns(function(w){return waUrl(w,m)},'Enviar pedido a '):WAS.length?'<a class="wa" target="_blank" rel="noopener" style="margin-top:16px" href="'+esc(waUrl(WAS[0].w,m))+'">Enviar pedido por WhatsApp</a>':'')}
@@ -1483,6 +1496,65 @@ else if(pend)h+='<div class="okc" style="background:#b7791f">…</div><b style="
 else h+='<b style="font-size:21px;display:block;margin-top:8px">El pago no se completó</b><div class="k" style="color:var(--mut);margin-top:6px">No se te cobró nada. Podés volver a armar el pedido y elegir otro medio de pago.</div></div>';
 h+='<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
 $('shc').innerHTML=h;$('sh').className='sheet';$('sh').hidden=false}
+// ---------- Pedidos que entran a la app del local (public/info.ped.on): mesa con QR, retiro o envío ----------
+// El pedido se guarda en stores/{sid}/pedidos/{id}; el cliente lo sigue en vivo con el id (queda guardado en este celular).
+var MESA=String(Q0.get('mesa')||'').replace(/[^0-9A-Za-z -]/g,'').trim().slice(0,12),PNOTA='',CLI={n:'',t:'',d:''},PEDUN=null,PEDV=null;
+try{var c0=JSON.parse(localStorage.getItem('pk_cli')||'null');if(c0)CLI={n:c0.n||'',t:c0.t||'',d:c0.d||''}}catch(e){}
+function pedOn(){return !!(ALM&&INFO&&INFO.ped&&INFO.ped.on)}
+function pedForm(){if(MESA&&!(INFO.ped&&INFO.ped.mesa))MESA='';if(MESA)ENTREGA='ret';if(!EDIR&&CLI.d)EDIR=CLI.d;
+var h=MESA?'<div class="dsc mesa"><span>🍽️ Pedido para la <b>Mesa '+esc(MESA)+'</b></span><span>Te lo llevamos</span></div>':
+'<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA!='env'?' checked':'')+'> 🏪 Lo retiro en el local</label>'+(envOn()?'<label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label>':'')+'</div>';
+h+='<div class="lbl" style="margin-top:12px">Tus datos</div><input class="edir" data-pf="n" id="pnm" placeholder="Tu nombre" maxlength="60" autocomplete="name" value="'+esc(CLI.n)+'">'+
+(MESA?'':'<input class="edir" data-pf="t" id="ptel" type="tel" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" maxlength="24" autocomplete="tel" value="'+esc(CLI.t)+'">')+
+(!MESA&&ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="160" value="'+esc(EDIR)+'" autocomplete="street-address">':'')+
+'<input class="edir" data-pf="nota" id="pnota" placeholder="Aclaraciones (opcional): sin sal, timbre 2B…" maxlength="200" value="'+esc(PNOTA)+'">'+
+'<div class="k" style="font-size:12.5px;color:var(--mut);margin-top:2px">Tus datos quedan guardados en este celular para la próxima.</div>';return h}
+function pedId(){var a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789',r=new Uint8Array(20),o='';try{crypto.getRandomValues(r)}catch(e){for(var i=0;i<20;i++)r[i]=Math.random()*256}for(var j=0;j<20;j++)o+=a[r[j]%a.length];return o}
+var pedCod=function(id){return String(id||'').slice(-4).toUpperCase()};
+function pedLista(){try{return (JSON.parse(localStorage.getItem('pk_ped_'+sid)||'[]')||[]).filter(function(x){return x&&x.id&&Date.now()-(x.at||0)<12*3600000})}catch(e){return []}}
+function pedGuardar(id){var l=pedLista().filter(function(x){return x.id!=id});l.unshift({id:id,at:Date.now()});try{localStorage.setItem('pk_ped_'+sid,JSON.stringify(l.slice(0,5)))}catch(e){}pedEscuchar(id)}
+function hacerPedido(btn){if(!LASTP)return;var r=LASTP.r,total=LASTP.total,MP=pagoSel(),tipo=MESA?'mesa':(ENTREGA=='env'?'env':'ret');
+var nm=String(CLI.n||'').trim(),tel=String(CLI.t||'').replace(/[^\d+ ()-]/g,'').trim();
+if(!nm){alert('Escribí tu nombre, así el local sabe de quién es el pedido.');var a=$('pnm');if(a)a.focus();return}
+if(!MESA&&tel.replace(/\D/g,'').length<6){alert('Escribí tu WhatsApp, así el local te puede avisar.');var b0=$('ptel');if(b0)b0.focus();return}
+if(tipo=='env'&&String(EDIR).trim().length<4){alert('Escribí tu dirección para el envío.');var c=$('edir');if(c)c.focus();return}
+var it=r.ls.map(function(x){var o={n:String(x.g.n||'').slice(0,80),q:x.l.q,u:Math.round(x.u)};if(x.l.w)o.w=1;
+if(x.opl){o.k=x.l.pk;o.o=selTxt(x.l.op);if(x.g.inc)o.x=String(x.g.inc).slice(0,200)}
+else if(x.promo){o.k='';o.t=x.l.sw?'sw':'promo';if(x.g.inc)o.x=String(x.g.inc).slice(0,200)}
+else{o.k=x.l.k;if(x.l.z)o.x='Talle '+x.l.z}return o});
+var id=pedId(),o={id:id,at:Date.now(),st:'nuevo',tipo:tipo,cl:nm.slice(0,60),it:it,tot:Math.round(total),src:'web'};
+if(tel)o.tel=tel.slice(0,24);if(MESA)o.mesa=MESA;if(tipo=='env'){o.dir=String(EDIR).trim().slice(0,160);if(envCosto())o.env=envCosto()}
+var nota=String(PNOTA||'').trim();if(TEMA&&TEMAS[TEMA].regalo&&GIFT)nota=('🎁 Envolver para regalo. '+nota).trim();if(nota)o.nota=nota.slice(0,200);
+if(MP){o.pago=String(MP.n).slice(0,60);if(MP.id=='mpa')o.mp=true}
+try{localStorage.setItem('pk_cli',JSON.stringify({n:nm,t:tel,d:String(EDIR||'')}))}catch(e){}
+btn.disabled=true;btn.textContent='Enviando tu pedido…';
+var wb=writeBatch(db);wb.set(doc(db,'stores',sid,'pedidos',id),o);wb.commit().then(function(){
+if(PAGOS_URL)fetch(PAGOS_URL+'/push/pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:id})}).catch(function(){});
+pedGuardar(id);PNOTA='';
+if(o.mp){btn.textContent='Abriendo Mercado Pago…';mpPagar(btn,id);return}
+CART.length=0;bar();pedEstado(id)}).catch(function(e){btn.disabled=false;btn.textContent='Hacer pedido · '+money(total);
+alert(e&&e.code=='permission-denied'?'Este local todavía no recibe pedidos online. Mandalo por WhatsApp.':'No se pudo enviar el pedido. Revisá tu internet y probá de nuevo.')})}
+// Seguimiento en vivo (un solo pedido a la vez: el último de este celular)
+function pedEscuchar(id){if(PEDV&&PEDV.id==id&&PEDUN)return;if(PEDUN)PEDUN();PEDV={id:id,d:null};
+PEDUN=onSnapshot(doc(db,'stores',sid,'pedidos',id),function(s){PEDV.d=s.exists()?s.data():null;pedPintar()},function(){})}
+function pedInicio(){var l=pedLista();if(l.length)pedEscuchar(l[0].id)}
+function pedEstado(id){OPEN='';pedEscuchar(id);$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div id="pstx"><div style="text-align:center;padding:30px 0;color:var(--mut)">Cargando tu pedido…</div></div>';$('sh').hidden=false;pedPintar()}
+function pedTxt(p){var hm=function(ms){return new Date(ms).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})},eta=p.min&&p.acc?' Estimado: '+hm(p.acc+p.min*60000)+' (unos '+p.min+' min).':'';
+return {nuevo:['⏳','Esperando que el local lo confirme','Ya le llegó tu pedido. En un ratito te lo confirman.'],ok:['👨‍🍳','Lo están preparando',(p.tipo=='env'?'Después sale para tu casa.':p.tipo=='mesa'?'Te lo llevan a la mesa.':'Te avisamos acá cuando esté listo.')+eta],
+listo:p.tipo=='mesa'?['🍽️','¡Ya sale para tu mesa!','Buen provecho.']:['✅','¡Listo para retirar!','Ya podés pasar a buscarlo.'],camino:['🛵','Va en camino','Tu pedido ya salió para '+(p.dir||'tu dirección')+'.'],
+entregado:['🎉','Entregado','¡Gracias por tu pedido!'],cancelado:['❌','El local no pudo tomar el pedido',p.mot?'Motivo: '+p.mot:'Escribiles por WhatsApp si querés más información.']}[p.st]||['🛎️','Pedido','']}
+function pedPintar(){var p=PEDV&&PEDV.d,pl=$('pedpill');
+var activo=p&&p.st!='entregado'&&p.st!='cancelado';
+if(!pl){pl=document.createElement('button');pl.id='pedpill';pl.type='button';pl.onclick=function(){if(PEDV)pedEstado(PEDV.id)};document.body.appendChild(pl)}
+pl.hidden=!activo;if(activo){var t=pedTxt(p);pl.innerHTML='<i>'+t[0]+'</i><span><small>Tu pedido #'+esc(pedCod(p.id))+'</small>'+esc(t[1])+'</span>'}
+var x=$('pstx');if(!x||$('sh').hidden)return;if(!p){x.innerHTML='<div style="text-align:center;padding:30px 0">No encontramos el pedido.</div>';return}
+var t2=pedTxt(p),pasos=p.tipo=='env'?['Recibido','Preparando','En camino','Entregado']:['Recibido','Preparando',p.tipo=='mesa'?'A la mesa':'Listo','Entregado'],i={nuevo:0,ok:1,listo:2,camino:2,entregado:3}[p.st];
+var h='<div class="pstc'+(p.st=='cancelado'?' no':'')+'"><div class="pe">'+t2[0]+'</div><b>'+esc(t2[1])+'</b><p>'+esc(t2[2])+'</p></div>';
+if(i!=null)h+='<div class="psteps">'+pasos.map(function(n,k){return '<div class="'+(k<=i?'on':'')+(k==i?' cur':'')+'"><i></i><span>'+n+'</span></div>'}).join('')+'</div>';
+h+='<div class="lbl">Pedido #'+esc(pedCod(p.id))+' · '+(p.tipo=='mesa'?'Mesa '+esc(p.mesa||''):p.tipo=='env'?'Envío':'Retiro en el local')+'</div>'+(p.it||[]).map(function(l){return '<div class="pli"><span>'+(l.w?String(l.q).replace('.',',')+' kg':l.q+' ×')+' '+esc(l.n)+(l.x?'<small>'+esc(l.x)+'</small>':'')+'</span><b>'+money(l.u*l.q)+'</b></div>'}).join('')+
+(p.env?'<div class="pli"><span>🛵 Envío</span><b>'+money(p.env)+'</b></div>':'')+'<div class="tot"><span>Total</span><span>'+money(p.tot||0)+'</span></div>'+(p.pago?'<div class="k" style="color:var(--mut);text-align:center">'+esc(p.pago)+(p.pag?' · <b style="color:#1a8f4c">pagado ✓</b>':'')+'</div>':'');
+if(WAS.length)h+='<a class="wa" target="_blank" rel="noopener" style="margin-top:14px" href="'+esc(waUrl(WAS[0].w,'Hola! Te escribo por mi pedido #'+pedCod(p.id)+' ('+(p.cl||'')+').'))+'">Escribirle al local</a>';
+x.innerHTML=h+'<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>'}
 // Envío a domicilio (lo configura el negocio): el cliente elige retiro o envío y se suma el costo.
 var ENTREGA='ret',EDIR='';function envOn(){return !!(INFO.env&&INFO.env.on)}function envCosto(){return envOn()&&ENTREGA=='env'?(+INFO.env.precio||0):0}
 function sheet(){OPEN='';$('sh').className='sheet';var r=lines();
@@ -1492,21 +1564,23 @@ r.ls.forEach(function(x,i){h+='<div class="ln">'+(x.g.img?'<img alt="" src="'+es
 var hn=hint(r);
 if(r.dsc)h+='<div class="dsc"><span>🏷️ '+esc(r.dsc.t)+'</span><span>−'+money(r.dsc.m)+'</span></div>';
 if(!hn&&r.cerca)hn='Sumá '+r.cerca.faltan+' '+(r.cerca.faltan==1?(ALM?'producto':'prenda'):UNI())+(r.cerca.p.cat?' de '+r.cerca.p.cat:'')+' más y tenés '+r.cerca.p.pct+'% OFF.';
-if(envOn())h+='<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA=='ret'?' checked':'')+'> Retiro en el local</label><label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label></div>'+(ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="120" value="'+esc(EDIR)+'" autocomplete="street-address">':'');
+if(pedOn())h+=pedForm();else if(envOn())h+='<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA=='ret'?' checked':'')+'> Retiro en el local</label><label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label></div>'+(ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="120" value="'+esc(EDIR)+'" autocomplete="street-address">':'');
 var MP=pagoSel(),aj=ajuste(MP,total);
-if(MP){h+='<div class="lbl" style="margin-top:12px">¿Cómo pagás?</div>'+paysHtml(medios(),MP.id);
+if(MP){h+='<div class="lbl" style="margin-top:12px">'+(pedOn()&&MESA?'¿Cómo vas a pagar?':'¿Cómo pagás?')+'</div>'+paysHtml(medios(),MP.id);
 if(aj<0)h+='<div class="dsc"><span>🏷️ '+(-MP.p)+'% OFF pagando con '+esc(MP.id=='mp'?MP.n:MP.n.toLowerCase())+'</span><span>−'+money(-aj)+'</span></div>'}
 total+=aj;
 if(envCosto())h+='<div class="dsc"><span>🛵 Envío a domicilio</span><span>+'+money(envCosto())+'</span></div>';
 total+=envCosto();
-LASTP={r:r,total:total};h+='<div class="tot"><span>Total'+(aj>0?' <small style="font-size:13px;font-weight:700;color:var(--mut)">precio de lista</small>':'')+'</span><span>'+money(total)+'</span></div>'+(MP?pdet(MP,total):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
-(TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
-(WAS.length>1?'<div class="lbl" style="text-align:center">'+(MP&&MP.id=='mpa'?'O mandá el pedido sin pagar online:':'¿A quién le mandás el pedido?')+'</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'"'+(MP&&MP.id=='mpa'?' style="background:var(--soft);color:var(--ink)">Mandar el pedido sin pagar online':'>Enviar pedido por WhatsApp')+'</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>')+
+LASTP={r:r,total:total};h+='<div class="tot"><span>Total'+(aj>0?' <small style="font-size:13px;font-weight:700;color:var(--mut)">precio de lista</small>':'')+'</span><span>'+money(total)+'</span></div>'+(MP?(pedOn()&&MP.id=='mpa'?'<div class="pdet"><p>Al tocar <b>Hacer pedido</b> vas a Mercado Pago a pagar '+money(total)+' (tarjeta, débito o dinero en cuenta). El pedido le llega al local en el momento.</p></div>':pdet(MP,total)):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
+(TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+(pedOn()?'<div class="note">El pedido le llega al local al instante y acá vas a ver cuándo está listo.</div><button class="wa" data-pedgo="1" style="background:var(--b);color:var(--bi)">'+(MP&&MP.id=='mpa'?'Hacer pedido y pagar '+money(total):'Hacer pedido · '+money(total))+'</button>'+(!MESA&&WAS.length?'<a class="x" target="_blank" rel="noopener" id="wal" href="'+esc(waLink(r,total))+'" style="display:block;text-align:center;margin:12px auto 0;text-decoration:underline">Prefiero mandarlo por WhatsApp</a>':''):
+'<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
+(WAS.length>1?'<div class="lbl" style="text-align:center">'+(MP&&MP.id=='mpa'?'O mandá el pedido sin pagar online:':'¿A quién le mandás el pedido?')+'</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'"'+(MP&&MP.id=='mpa'?' style="background:var(--soft);color:var(--ink)">Mandar el pedido sin pagar online':'>Enviar pedido por WhatsApp')+'</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>'))+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';
 $('shc').innerHTML=h;$('sh').hidden=false;
 Array.prototype.forEach.call(document.querySelectorAll('input[name=entr]'),function(x){x.onchange=function(){ENTREGA=this.value;sheet()}});
 Array.prototype.forEach.call(document.querySelectorAll('#shc input[name=pago]'),function(x){x.onchange=function(){var sc=$('sh').scrollTop;PAGO=this.value;sheet();$('sh').scrollTop=sc}});
-var ed=$('edir');if(ed)ed.oninput=function(){EDIR=this.value;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})};
+Array.prototype.forEach.call(document.querySelectorAll('#shc [data-pf]'),function(x){x.oninput=function(){var k=this.dataset.pf;if(k=='nota')PNOTA=this.value;else CLI[k]=this.value}});
+var ed=$('edir');if(ed)ed.oninput=function(){EDIR=this.value;CLI.d=this.value;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})};
 var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})}}
 function waUrl(w,m){return 'https://wa.me/'+String(w).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
 /* Varios WhatsApp: el cliente elige a quién escribirle */
@@ -1557,6 +1631,8 @@ if(d.fav){togFav(d.fav);bt.classList.toggle('on',isFav(d.fav));draw();return}
 if(d.share){shareProd();return}
 if(d.wa1){consultWa();return}
 if(d.del!==undefined){CART.splice(+d.del,1);bar();sheet();return}
+if(d.pedgo){hacerPedido(bt);return}
+if(d.pst){pedEstado(d.pst);return}
 if(d.pq){var pid=$('sh').dataset.pr;PSEL[pid]=Math.max(1,(PSEL[pid]||1)+ +d.pq);promoSheet(pid);return}
 if(d.padd){var ex0=CART.filter(function(l){return l.promo==d.padd})[0],pq=PSEL[d.padd]||1;if(ex0)ex0.q+=pq;else CART.push({k:'promo:'+d.padd,promo:d.padd,z:'',q:pq});PSEL[d.padd]=1;$('sh').hidden=true;bar();return}
 if(!OPEN)return;var k=OPEN,g=G.filter(function(x){return x.k==k})[0],s=SEL[k];

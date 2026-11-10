@@ -53,6 +53,33 @@ service cloud.firestore {
         && existsAfter(/databases/$(database)/documents/stores/$(sid)/ocupado/$(t.d + '_' + t.e + '_' + string(t.i)));
     }
 
+    // Pedidos que entran a la app (mesa con QR, retiro o envío): la tienda los activa en public/info.ped.on.
+    function pedidosOn(sid) {
+      return catalogOn(sid)
+        && get(/databases/$(database)/documents/stores/$(sid)/public/info).data.get('ped', {}).get('on', false) == true;
+    }
+    // Pedido hecho por un cliente desde el catálogo (sin cuenta): solo campos conocidos y con tamaño acotado.
+    function pedidoWebOk(id) {
+      let t = request.resource.data;
+      return t.keys().hasOnly(['id', 'at', 'st', 'tipo', 'mesa', 'cl', 'tel', 'dir', 'nota', 'it', 'tot', 'env', 'pago', 'mp', 'src'])
+        && t.keys().hasAll(['id', 'at', 'st', 'tipo', 'cl', 'it', 'tot', 'src'])
+        && t.id == id && id.matches('^[A-Za-z0-9]{16,40}$') && t.src == 'web' && t.st == 'nuevo'
+        && t.at is int && t.at > request.time.toMillis() - 600000 && t.at < request.time.toMillis() + 600000
+        && t.tipo in ['mesa', 'env', 'ret']
+        && t.cl is string && t.cl.size() > 0 && t.cl.size() <= 60
+        && (!('tel' in t) || (t.tel is string && t.tel.size() <= 24))
+        && (!('dir' in t) || (t.dir is string && t.dir.size() <= 160))
+        && (!('mesa' in t) || (t.mesa is string && t.mesa.size() > 0 && t.mesa.size() <= 12))
+        && (!('nota' in t) || (t.nota is string && t.nota.size() <= 200))
+        && (!('pago' in t) || (t.pago is string && t.pago.size() <= 60))
+        && (!('mp' in t) || t.mp is bool)
+        && (!('env' in t) || t.env is number)
+        && t.it is list && t.it.size() > 0 && t.it.size() <= 60
+        && t.tot is number && t.tot >= 0
+        && (t.tipo != 'env' || ('dir' in t && t.dir.size() >= 4))
+        && (t.tipo != 'mesa' || 'mesa' in t);
+    }
+
     // Sucursales: la "familia" de una tienda es su principal (stores/{sid}.main) o ella misma.
     function famOf(s) { return get(/databases/$(database)/documents/stores/$(s)).data.get('main', s); }
     function trPath(sid, tr) { return /databases/$(database)/documents/stores/$(sid)/traspasos/$(tr); }
@@ -365,6 +392,15 @@ service cloud.firestore {
       // una caja ya cerrada solo la puede cambiar un administrador.
       // Tickets que se cobran en un celu y se imprimen en la tiketera de la compu (puesto de impresión).
       // El celu los crea; la compu los lee, los imprime y los borra.
+      // Pedidos del catálogo: el cliente los crea (sin cuenta) y sigue el suyo con el id, que es largo y al azar
+      // (se puede leer uno por id, pero no listarlos). El equipo del local los ve todos y les cambia el estado.
+      match /pedidos/{id} {
+        allow get: if true;
+        allow list: if isMember(sid);
+        allow create: if (pedidosOn(sid) && pedidoWebOk(id)) || (isMember(sid) && accessOk(sid));
+        allow update: if isMember(sid);
+        allow delete: if isAdmin(sid);
+      }
       match /impresion/{id} {
         allow read, delete: if isMember(sid);
         allow create: if isMember(sid) && accessOk(sid) && request.resource.data.by == request.auth.uid;
