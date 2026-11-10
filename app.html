@@ -118,6 +118,18 @@ td small{color:var(--mut)}
 .tgb.on{border-color:var(--btn);background:color-mix(in srgb,var(--btn) 12%,var(--bg));box-shadow:0 0 0 1.5px var(--btn) inset}
 .tgx{display:none;margin-top:12px;padding:12px 14px;border-radius:14px;background:var(--bg);font-size:13.5px;line-height:1.4}.tgx b{display:block;margin-bottom:2px}.tgx span{color:var(--mut)}
 .tga{display:flex;gap:10px;align-items:center;margin-top:10px;font-weight:600;font-size:14px}
+.cfx>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}.cfx>summary::-webkit-details-marker{display:none}
+.cfx>summary .cfv{display:flex;align-items:center;gap:8px;min-width:0;margin-top:4px;font-size:14px;font-weight:700;color:var(--ink)}.cfx>summary .cfv span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cfx>summary .cfb{flex:none;border:1.5px solid var(--line);border-radius:99px;padding:7px 14px;font-size:13.5px;font-weight:800;color:var(--ink);background:var(--bg)}
+.cfx>summary .cfb:after{content:'Cambiar'}.cfx[open]>summary .cfb:after{content:'Cerrar'}.cfx[open]>summary .cfb{background:var(--btn);color:var(--btnink,#fff);border-color:var(--btn)}
+.esg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}@media (min-width:560px){.esg{grid-template-columns:repeat(5,1fr)}}
+.esb{display:flex;flex-direction:column;gap:6px;padding:6px 6px 8px;border:1.5px solid var(--line);border-radius:14px;background:var(--bg);color:var(--ink);font:inherit;text-align:left;cursor:pointer;position:relative}
+.esb.on{border-color:var(--btn);box-shadow:0 0 0 1.5px var(--btn) inset}.esb.on:after{content:'✓';position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:var(--btn);color:var(--btnink,#fff);font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center}
+.esm{height:54px;border-radius:9px;overflow:hidden;display:flex;flex-direction:column;border:1px solid rgba(0,0,0,.06)}
+.esm i{display:flex;align-items:center;gap:4px;height:22px;padding:0 6px}.esm i:before{content:'';width:22px;height:5px;border-radius:3px;background:rgba(255,255,255,.85)}.esm i:after{content:'';margin-left:auto;width:9px;height:9px;border-radius:50%;background:var(--a)}
+.esm u{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:5px 6px}.esm u:before,.esm u:after{content:'';border-radius:4px;background:var(--c)}
+.esb b{font-size:12px;line-height:1.15}.esb small{font-size:10.5px;color:var(--mut);line-height:1.2;font-weight:600}
+.esw{width:22px;height:22px;border-radius:50%;flex:none;border:2px solid var(--bg);box-shadow:0 0 0 1px var(--line)}
 @media (min-width:560px){.tgr{grid-template-columns:repeat(6,1fr)}}
 .lk{text-align:center;padding:30px 22px 22px;margin-top:8px}.lk h2{font-size:22px;margin:16px 0 8px;line-height:1.2}.lk p{color:var(--mut);font-size:15px;line-height:1.5;margin:0 auto;max-width:420px}.lk p b{color:var(--ink)}
 .lki{width:68px;height:68px;border-radius:22px;margin:0 auto;display:grid;place-items:center;background:#fde7e4;color:#a4271d}.lki.p{background:#fff0d6;color:#8a4b00}.lki svg{width:34px;height:34px}
@@ -298,6 +310,27 @@ productos:[['ropa','Indumentaria · negro clásico'],['calzado','Calzado · azul
 function estiloSel(p){var b=biz(),fam=b=='servicios'||b=='ambos'?'servicios':b=='almacen'?'almacen':'productos',sv=fam=='servicios',cur=(sv?p.svs:p.est)||'',t=tipoDe(catTp());
 return '<label>Estilo del catálogo</label><select id="'+(sv?'cat_svs':'cat_est')+'"><option value="">Según el rubro'+(t?' ('+t[1]+')':'')+'</option>'+ESTILOS[fam].map(function(o){return '<option value="'+o[0]+'"'+(cur==o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+
 '<div class="k" style="margin-top:6px">Colores y diseño pensados para cada rubro. Si cambiás el tipo de negocio, el catálogo toma el estilo del rubro nuevo.'+(fam!='servicios'?' Si elegiste un color de tu marca, ese color manda.':'')+'</div>'}
+// Colores de muestra de cada estilo (franja de arriba, acento, fondo): para las tarjetitas de "Estilo del catálogo".
+var ESTC={almacen:['#0E4D45','#C8EE6E','#F3F5F1'],kiosco:['#4A1F8C','#FFD23F','#F6F3FB'],super:['#B81D2E','#FFE15A','#F7F4F1'],carne:['#6B1424','#F2C98A','#F8F3EE'],panaderia:['#6B3E1F','#F6C76B','#FBF5EC'],farmacia:['#0A6B73','#A8EBDD','#F1F7F7'],ferre:['#2B2D31','#FF8A1F','#F3F2EF'],
+deli:['#1D1C1A','#E9CD85','#F5EFE3'],diet:['#5F7D5B','#F1E3B8','#EFE3CB'],noche:['#7C3AED','#5EEAD4','#0B0D17'],retro:['#1F5F8B','#D62828','#FBF5E6'],mayor:['#1E3A8A','#FACC15','#F3F4F6'],verdu:['#2E7D32','#FF9800','#F4E7D0'],
+barber:['#1B1B1B','#D4B483','#F7F6F3'],nude:['#A8673A','#E8D3C0','#FBF6F1'],rosa:['#C9577A','#F6D3DB','#FFF7F8'],lila:['#7E5BC4','#E6DDF7','#FAF7FF'],verde:['#3F7F5E','#D6E9DD','#F6FAF7'],claro:['#A9844F','#EFE8DD','#FAF8F5'],
+ropa:['#111111','#9C9C96','#FFFFFF'],calzado:['#14213D','#8EA0BF','#F5F6F8'],ropaycalz:['#3B2F2A','#C9B49C','#FBF8F4'],celus:['#1546D1','#8FB0FF','#F5F7FC'],acc:['#7A5C2E','#D9BE8C','#FCF9F4'],perf:['#8E3B63','#E7B3CB','#FDF8FA'],otro:['#2F3437','#A9AFB3','#FAFAF9']};
+var ESTOPEN=false,BZOPEN=false;
+function estFam(){var b=biz();return b=='servicios'||b=='ambos'?'servicios':b=='almacen'?'almacen':'productos'}
+// El estilo que se usa con "Según el rubro"
+function estRubro(){var fam=estFam(),t=tipoDe(catTp());if(fam=='servicios')return (t&&t[5])||'claro';if(fam=='almacen')return t&&ESTC[t[0]]?t[0]:'almacen';return (t&&t[4])||rub()||'otro'}
+function estMini(k){var c=ESTC[k]||ESTC.otro,dk=/^#(0|1)/.test(c[2]);return '<span class="esm" style="background:'+c[2]+';--a:'+c[1]+';--c:'+(dk?'rgba(255,255,255,.12)':'rgba(0,0,0,.07)')+'"><i style="background:'+c[0]+'"></i><u></u></span>'}
+function estCard(){if(ROLE!='admin')return '';var p=PUB||{},fam=estFam(),sv=fam=='servicios',cur=(sv?p.svs:p.est)||'',L=ESTILOS[fam],t=tipoDe(catTp()),rk=estRubro();
+var curO=L.filter(function(o){return o[0]==cur})[0],nom=curO?curO[1].split(' · ')[0]:'Según el rubro'+(t?' ('+t[1]+')':'');
+var tile=function(k,n,sub,on){return '<button type="button" class="esb'+(on?' on':'')+'" data-est="'+k+'">'+estMini(k||rk)+'<b>'+esc(n)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+'</button>'};
+return '<details class="card cfx" id="estc"'+(ESTOPEN?' open':'')+'><summary><div style="min-width:0"><b>🎨 Estilo del catálogo</b><div class="cfv"><span class="esw" style="background:'+(ESTC[cur||rk]||ESTC.otro)[0]+'"></span><span>'+esc(nom)+'</span></div></div><span class="cfb"></span></summary>'+
+'<div class="k" style="margin-top:10px">Elegí cómo se ve tu catálogo. No cambia el tipo de negocio ni tus datos: solo los colores y el diseño. Se guarda al tocarlo.</div>'+
+'<div class="esg">'+tile('','Según el rubro',t?t[1]:'',!curO)+L.map(function(o){var x=o[1].split(' · ');return tile(o[0],x[0],x[1]||'',cur==o[0])}).join('')+'</div>'+
+(fam!='servicios'?'<div class="k" style="margin-top:10px">Si cargaste un color de tu marca, ese color manda en los estilos comunes. Fiambrería, Dietética, Nocturno, Retro, Mayorista y Verdulería tienen sus colores propios.</div>':'')+
+'<button class="go alt" data-cat="open" style="margin-top:12px">Ver cómo queda mi catálogo</button></details>'}
+function estGuardar(k){if(!canWrite()||!SID)return;var sv=estFam()=='servicios',o={};o[sv?'svs':'est']=k;
+document.querySelectorAll('#estc .esb').forEach(function(b){b.classList.toggle('on',b.dataset.est==k)});
+setDoc(doc(db,'stores',SID,'public','info'),o,{merge:true}).catch(fail)}
 function drawCajaTab(){if(ventaEnCaja()){if(MAN&&type=='v')drawAdd();else drawSell();return}var e=$('s-caja');if(!e)return;CJ.listen();if(ROLE=='admin')CJ.listenMes(month);e.innerHTML=CJ.vista()}
 var TR=createTraspasos({db:db,$:$,esc:esc,money:money,today:today,fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 role:function(){return ROLE},biz:function(){return biz()},st:function(){return ST},canWrite:function(){return canWrite()},mainSid:function(){return mainSid()},rnd:rnd,skey:skey,pk:pk,
@@ -1570,8 +1603,10 @@ return '<div class="card"><b>Cierre de caja</b><div class="k" style="margin:4px 
 '<label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600"><input type="checkbox" id="cjon" style="width:auto"'+(on?' checked':'')+'> Usar cierre de caja</label>'+
 (on?'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-weight:600"><input type="checkbox" id="cjv" style="width:auto;margin-top:3px"'+(CS&&CS.cjv===false?'':' checked')+'><span>Los empleados ven cuánto debería haber<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Así controlan su caja mientras trabajan y al cerrar. Si lo desactivás, cuentan a ciegas (no ven el monto esperado): la diferencia la ves solo vos. Un cierre ya hecho lo podés corregir solo vos.</small></span></label>':'')+'</div>'}
 function bizCard(){
-return '<div class="card" id="bzc"><b>Tipo de negocio</b><div class="k" style="margin:4px 0 0">Elegí qué tipo de negocio es. Los datos que ya cargaste se conservan.</div>'+tipoGrid(tipoActual(),biz()=='ambos')+
-'<button class="go alt" data-bz="save">Guardar</button></div>'}
+var t=tipoDe(tipoActual());
+return '<details class="card cfx" id="bzc"'+(BZOPEN?' open':'')+'><summary><div style="min-width:0"><b>Tipo de negocio</b><div class="cfv"><span>'+(t?t[2]+' '+esc(t[1]):'Sin elegir')+(biz()=='ambos'?' + productos':'')+'</span></div></div><span class="cfb"></span></summary>'+
+'<div class="k" style="margin:10px 0 0">Cambia las funciones de la app para tu rubro. Los datos que ya cargaste se conservan. Para cambiar solo los colores del catálogo usá <b>Estilo del catálogo</b>.</div>'+tipoGrid(tipoActual(),biz()=='ambos')+
+'<button class="go alt" data-bz="save">Guardar</button></details>'}
 
 /* ---------- Gastos (administrador) ---------- */
 function drawGas(){
@@ -1620,9 +1655,9 @@ limpiarCodigos();var USO={};MEM.forEach(function(m){if(m.code)USO[m.code]=1});va
 if(INVa.length){h+='<div class="card"><b>Códigos activos</b>';
 INVa.forEach(function(v){var c=invCode(v);h+='<div class="it"><div><span class="code">'+esc(c)+'</span><small>'+(v.re?'para que vuelva a entrar '+esc(((MEM.filter(function(m){return m.id==v.re})[0])||{}).name||''):(v.role=='admin'?'administrador':'empleado'))+' · '+esc(SNAME)+(v.exp?' · vence el '+fdate(v.exp):'')+'</small></div><div><button class="x" style="font-size:14px;text-decoration:underline" data-cp="'+esc(c)+'">Copiar</button><button class="x" style="font-size:14px;text-decoration:underline" data-send-code="'+esc(c)+'">Enviar</button><button class="x" style="font-size:14px;text-decoration:underline" data-an="'+esc(v.id)+'">Anular</button></div></div>'});
 h+='<div class="k" style="margin-top:6px">Cada código es para una sola persona. El de <b>empleado</b> no vence: es con lo que entra siempre. El de <b>administrador</b> vence a los '+CODE_DIAS+' días y se borra cuando la persona entra.</div></div>'}
-h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+destCard()+configCard()+PRO.card()+histCard()+swCard()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
+h+=(ROLE=='admin'?pushCard():'')+planCardCollapsible()+catLinkCard()+estCard()+destCard()+configCard()+PRO.card()+histCard()+swCard()+temaCard()+bizCard()+cajaCfgCard()+RP.card(month)+sucCard()+famCard()+catCard()+pagosCard();
 if(biz()!='almacen')h+='<div class="card"><b>Reparar stock</b><div class="k" style="margin:4px 0 0">Si el stock que ven los empleados no coincide con el tuyo, esto lo recalcula con todo el historial.</div><button class="go alt" id="fix">Recalcular stock de empleados</button></div>';
-$('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open},true)}}
+$('s-team').innerHTML=h;if($('bzc'))tipoWire($('bzc'));var STm=$('s-team');if(!STm._pgt){STm._pgt=1;STm.addEventListener('toggle',function(e){if(e.target.id=='pgc')PGOPEN=e.target.open;if(e.target.id=='estc')ESTOPEN=e.target.open;if(e.target.id=='bzc')BZOPEN=e.target.open},true);STm.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-est]');if(b)estGuardar(b.dataset.est)})}}
 function catBase(){return location.origin+location.pathname.replace(/[^\/]*$/,'')}
 function catLink(){var sl=PUB&&PUB.slug;return catBase()+(sl?sl:'catalogo.html?t='+SID)}
 // Link con el nombre de la tienda (pekeronapp.com/minombre). El nombre se reserva en slugs/{nombre}.
@@ -1686,7 +1721,7 @@ var h='<div class="card"><b>Catálogo para tus clientes</b><div class="k" style=
 '<img id="cat_ptv" alt="" style="width:100%;height:170px;object-fit:cover;border-radius:16px;background:var(--line);'+(p.pt?'':'display:none')+'"'+(PTIMG.at&&PTIMG.at==p.pt?' src="'+esc(PTIMG.f)+'"':'')+'>'+
 '<input id="cat_pt" type="file" accept="image/*" style="margin-top:8px"><div class="k" id="cat_pts" style="margin-top:6px"></div>'+(p.pt?'<button class="go alt" data-cat="nopt" style="margin-top:6px">Quitar portada</button>':'')+
 '<label>Frase de bienvenida (aparece en un cartel arriba, opcional)</label><input id="cat_tag" maxlength="90" placeholder="Ej: '+esc(EX('tag'))+'" value="'+esc(p.tag||'')+'" autocomplete="off">'+
-estiloSel(p)+alxRows(p)+
+'<div class="k" style="margin-top:12px">🎨 Los colores y el diseño se eligen arriba, en <b>Estilo del catálogo</b>.</div>'+alxRows(p)+
 '<label>WhatsApp del negocio</label><div class="k" style="margin:0 0 8px">Podés cargar varios números con un nombre: el cliente elige a quién escribirle. El número va con código de área (ej: 381 614 5326).</div><div id="cat_was">'+waRows(p.was&&p.was.length?p.was:[{n:'',w:p.wa||''}])+'</div><button class="x" data-cat="waadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin:2px 0 6px">+ Agregar otro número</button>'+
 '<div'+(biz()=='almacen'?' hidden':'')+'><label>Precio mayorista: ¿cuándo se aplica?</label><select id="cat_mode"><option value="producto"'+(p.mode!='carrito'?' selected':'')+'>Por producto: llevando el mínimo de ese producto</option><option value="carrito"'+(p.mode=='carrito'?' selected':'')+'>Por pedido: llevando cierta cantidad en total (cualquier producto)</option></select>'+
 '<div id="cat_mc"><label>Cantidad total para mayorista (modo por pedido)</label><input id="cat_min" type="number" min="0" inputmode="numeric" placeholder="Ej: 4" value="'+(p.minCart||'')+'"></div>'+
