@@ -573,6 +573,7 @@ html[data-tema] .card .im[data-bd]::after{content:attr(data-bd);position:absolut
 /* Las opciones de los desplegables en la compu (Windows) no toman el tema: les damos el fondo y el color de la tarjeta */
 select option{background-color:var(--card);color:var(--ink)}
 .entr{display:flex;flex-direction:column;gap:8px;margin:6px 0 4px}.entr label{display:flex;gap:10px;align-items:center;padding:12px 14px;border:1.5px solid var(--line,#e5e5e5);border-radius:14px;font-weight:600;cursor:pointer}.entr input{width:auto;margin:0}
+.cerrc{background:#FEE2E2!important;color:#991B1B!important;border-color:transparent!important}
 .mesac{background:var(--al,#fde68a)!important;color:#111!important;border-color:transparent!important}
 .dsc.mesa{background:#fef3c7;color:#78350f;border-radius:14px;padding:12px 14px;margin-top:12px;font-weight:700}
 #pedpill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom));z-index:5;display:flex;align-items:center;gap:10px;border:0;border-radius:99px;padding:9px 18px 9px 10px;background:#111;color:#fff;font:inherit;font-size:14px;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.3);max-width:calc(100% - 32px);text-align:left;cursor:pointer;animation:pedin .4s ease}
@@ -974,7 +975,7 @@ $('acats').onclick=$('hcats').onclick=function(ev){var b=ev.target.closest('[dat
 // Dirección: abre Google Maps (en el celu, la app de Maps) con la dirección del negocio.
 function mapsUrl(){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(INFO.addr||'')}
 function mapA(t,cls){return '<a class="'+(cls||'mapa')+'" href="'+esc(mapsUrl())+'" target="_blank" rel="noopener" title="Ver en Google Maps">'+(t||'📍 '+esc(INFO.addr))+'</a>'}
-function almChips(){var c=[];if(pedOn()&&MESA)c.push('<span class="mesac">🍽️ Pedís para la Mesa '+esc(MESA)+'</span>');if(INFO.hours)c.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)c.push(mapA('📍 <em class="mpa">'+esc(INFO.addr)+'</em><b class="mpv">· Cómo llegar</b>','mapa'));
+function almChips(){var c=[];if(pedOn()&&INFO.cerr)c.push('<span class="cerrc">🔴 Cerrado ahora · no toma pedidos</span>');if(pedOn()&&MESA)c.push('<span class="mesac">🍽️ Pedís para la Mesa '+esc(MESA)+'</span>');if(INFO.hours)c.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)c.push(mapA('📍 <em class="mpa">'+esc(INFO.addr)+'</em><b class="mpv">· Cómo llegar</b>','mapa'));
 if(envOn())c.push('<span>🛵 Envío a domicilio</span>');c.push('<span>🏪 Retiro en el local</span>');
 return '<div class="achips">'+c.join('')+'</div>'}
 
@@ -1501,13 +1502,13 @@ $('shc').innerHTML=h;$('sh').className='sheet';$('sh').hidden=false}
 var MESA=String(Q0.get('mesa')||'').replace(/[^0-9A-Za-z -]/g,'').trim().slice(0,12),PNOTA='',CLI={n:'',t:'',d:''},PEDUN=null,PEDV=null;
 try{var c0=JSON.parse(localStorage.getItem('pk_cli')||'null');if(c0)CLI={n:c0.n||'',t:c0.t||'',d:c0.d||''}}catch(e){}
 function pedOn(){return !!(ALM&&INFO&&INFO.ped&&INFO.ped.on)}
-function pedForm(){if(MESA&&!(INFO.ped&&INFO.ped.mesa))MESA='';if(MESA)ENTREGA='ret';if(!EDIR&&CLI.d)EDIR=CLI.d;
+function pedForm(){pagoSel();if(MESA&&!(INFO.ped&&INFO.ped.mesa))MESA='';if(MESA)ENTREGA='ret';if(!EDIR&&CLI.d)EDIR=CLI.d;
 var h=MESA?'<div class="dsc mesa"><span>🍽️ Pedido para la <b>Mesa '+esc(MESA)+'</b></span><span>Te lo llevamos</span></div>':
 '<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA!='env'?' checked':'')+'> 🏪 Lo retiro en el local</label>'+(envOn()?'<label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label>':'')+'</div>';
 h+='<div class="lbl" style="margin-top:12px">Tus datos</div><input class="edir" data-pf="n" id="pnm" placeholder="Tu nombre" maxlength="60" autocomplete="name" value="'+esc(CLI.n)+'">'+
 (MESA?'':'<input class="edir" data-pf="t" id="ptel" type="tel" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" maxlength="24" autocomplete="tel" value="'+esc(CLI.t)+'">')+
 (!MESA&&ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="160" value="'+esc(EDIR)+'" autocomplete="street-address">':'')+
-'<input class="edir" data-pf="nota" id="pnota" placeholder="Aclaraciones (opcional): sin sal, timbre 2B…" maxlength="200" value="'+esc(PNOTA)+'">'+
+(!MESA&&PAGO=='ef'?'<input class="edir" data-pf="paga" id="ppaga" type="number" inputmode="numeric" min="0" placeholder="¿Con cuánto pagás? (para el vuelto, opcional)" value="'+esc(CLI.paga||'')+'">':'')+'<input class="edir" data-pf="nota" id="pnota" placeholder="Aclaraciones (opcional): sin sal, timbre 2B…" maxlength="200" value="'+esc(PNOTA)+'">'+
 '<div class="k" style="font-size:12.5px;color:var(--mut);margin-top:2px">Tus datos quedan guardados en este celular para la próxima.</div>';return h}
 function pedId(){var a='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789',r=new Uint8Array(20),o='';try{crypto.getRandomValues(r)}catch(e){for(var i=0;i<20;i++)r[i]=Math.random()*256}for(var j=0;j<20;j++)o+=a[r[j]%a.length];return o}
 var pedCod=function(id){return String(id||'').slice(-4).toUpperCase()};
@@ -1525,12 +1526,12 @@ else{o.k=x.l.k;if(x.l.z)o.x='Talle '+x.l.z}return o});
 var id=pedId(),o={id:id,at:Date.now(),st:'nuevo',tipo:tipo,cl:nm.slice(0,60),it:it,tot:Math.round(total),src:'web'};
 if(tel)o.tel=tel.slice(0,24);if(MESA)o.mesa=MESA;if(tipo=='env'){o.dir=String(EDIR).trim().slice(0,160);if(envCosto())o.env=envCosto()}
 var nota=String(PNOTA||'').trim();if(TEMA&&TEMAS[TEMA].regalo&&GIFT)nota=('🎁 Envolver para regalo. '+nota).trim();if(nota)o.nota=nota.slice(0,200);
-if(MP){o.pago=String(MP.n).slice(0,60);if(MP.id=='mpa')o.mp=true}
+if(MP){o.pago=String(MP.n).slice(0,60);if(MP.id=='mpa')o.mp=true;if(MP.id=='ef'&&!MESA&&+CLI.paga>=Math.round(total))o.paga=Math.round(+CLI.paga)}
 try{localStorage.setItem('pk_cli',JSON.stringify({n:nm,t:tel,d:String(EDIR||'')}))}catch(e){}
 btn.disabled=true;btn.textContent='Enviando tu pedido…';
 var wb=writeBatch(db);wb.set(doc(db,'stores',sid,'pedidos',id),o);wb.commit().then(function(){
 if(PAGOS_URL)fetch(PAGOS_URL+'/push/pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:id})}).catch(function(){});
-pedGuardar(id);PNOTA='';
+pedGuardar(id);PNOTA='';CLI.paga='';
 if(o.mp){btn.textContent='Abriendo Mercado Pago…';mpPagar(btn,id);return}
 CART.length=0;bar();pedEstado(id)}).catch(function(e){btn.disabled=false;btn.textContent='Hacer pedido · '+money(total);
 alert(e&&e.code=='permission-denied'?'Este local todavía no recibe pedidos online. Mandalo por WhatsApp.':'No se pudo enviar el pedido. Revisá tu internet y probá de nuevo.')})}
@@ -1541,14 +1542,14 @@ function pedInicio(){var l=pedLista();if(l.length)pedEscuchar(l[0].id)}
 function pedEstado(id){OPEN='';pedEscuchar(id);$('sh').className='sheet';$('shc').innerHTML='<button class="cl" data-cl="1" aria-label="Cerrar">×</button><div id="pstx"><div style="text-align:center;padding:30px 0;color:var(--mut)">Cargando tu pedido…</div></div>';$('sh').hidden=false;pedPintar()}
 function pedTxt(p){var hm=function(ms){return new Date(ms).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})},eta=p.min&&p.acc?' Estimado: '+hm(p.acc+p.min*60000)+' (unos '+p.min+' min).':'';
 return {nuevo:['⏳','Esperando que el local lo confirme','Ya le llegó tu pedido. En un ratito te lo confirman.'],ok:['👨‍🍳','Lo están preparando',(p.tipo=='env'?'Después sale para tu casa.':p.tipo=='mesa'?'Te lo llevan a la mesa.':'Te avisamos acá cuando esté listo.')+eta],
-listo:p.tipo=='mesa'?['🍽️','¡Ya sale para tu mesa!','Buen provecho.']:['✅','¡Listo para retirar!','Ya podés pasar a buscarlo.'],camino:['🛵','Va en camino','Tu pedido ya salió para '+(p.dir||'tu dirección')+'.'],
+listo:p.tipo=='mesa'?['🍽️','¡Ya sale para tu mesa!','Buen provecho.']:p.tipo=='env'?['📦','¡Listo! Ya sale','En un ratito sale para '+(p.dir||'tu dirección')+'.']:['✅','¡Listo para retirar!','Ya podés pasar a buscarlo.'],camino:['🛵','Va en camino','Tu pedido ya salió para '+(p.dir||'tu dirección')+'.'],
 entregado:['🎉','Entregado','¡Gracias por tu pedido!'],cancelado:['❌','El local no pudo tomar el pedido',p.mot?'Motivo: '+p.mot:'Escribiles por WhatsApp si querés más información.']}[p.st]||['🛎️','Pedido','']}
 function pedPintar(){var p=PEDV&&PEDV.d,pl=$('pedpill');
 var activo=p&&p.st!='entregado'&&p.st!='cancelado';
 if(!pl){pl=document.createElement('button');pl.id='pedpill';pl.type='button';pl.onclick=function(){if(PEDV)pedEstado(PEDV.id)};document.body.appendChild(pl)}
 pl.hidden=!activo;if(activo){var t=pedTxt(p);pl.innerHTML='<i>'+t[0]+'</i><span><small>Tu pedido #'+esc(pedCod(p.id))+'</small>'+esc(t[1])+'</span>'}
 var x=$('pstx');if(!x||$('sh').hidden)return;if(!p){x.innerHTML='<div style="text-align:center;padding:30px 0">No encontramos el pedido.</div>';return}
-var t2=pedTxt(p),pasos=p.tipo=='env'?['Recibido','Preparando','En camino','Entregado']:['Recibido','Preparando',p.tipo=='mesa'?'A la mesa':'Listo','Entregado'],i={nuevo:0,ok:1,listo:2,camino:2,entregado:3}[p.st];
+var t2=pedTxt(p),pasos=p.tipo=='env'?['Recibido','Preparando','En camino','Entregado']:['Recibido','Preparando',p.tipo=='mesa'?'A la mesa':'Listo','Entregado'],i={nuevo:0,ok:1,listo:p.tipo=='env'?1:2,camino:2,entregado:3}[p.st];
 var h='<div class="pstc'+(p.st=='cancelado'?' no':'')+'"><div class="pe">'+t2[0]+'</div><b>'+esc(t2[1])+'</b><p>'+esc(t2[2])+'</p></div>';
 if(i!=null)h+='<div class="psteps">'+pasos.map(function(n,k){return '<div class="'+(k<=i?'on':'')+(k==i?' cur':'')+'"><i></i><span>'+n+'</span></div>'}).join('')+'</div>';
 h+='<div class="lbl">Pedido #'+esc(pedCod(p.id))+' · '+(p.tipo=='mesa'?'Mesa '+esc(p.mesa||''):p.tipo=='env'?'Envío':'Retiro en el local')+'</div>'+(p.it||[]).map(function(l){return '<div class="pli"><span>'+(l.w?String(l.q).replace('.',',')+' kg':l.q+' ×')+' '+esc(l.n)+(l.x?'<small>'+esc(l.x)+'</small>':'')+'</span><b>'+money(l.u*l.q)+'</b></div>'}).join('')+
@@ -1572,7 +1573,7 @@ total+=aj;
 if(envCosto())h+='<div class="dsc"><span>🛵 Envío a domicilio</span><span>+'+money(envCosto())+'</span></div>';
 total+=envCosto();
 LASTP={r:r,total:total};h+='<div class="tot"><span>Total'+(aj>0?' <small style="font-size:13px;font-weight:700;color:var(--mut)">precio de lista</small>':'')+'</span><span>'+money(total)+'</span></div>'+(MP?(pedOn()&&MP.id=='mpa'?'<div class="pdet"><p>Al tocar <b>Hacer pedido</b> vas a Mercado Pago a pagar '+money(total)+' (tarjeta, débito o dinero en cuenta). El pedido le llega al local en el momento.</p></div>':pdet(MP,total)):'')+(hn?'<div class="note hint">'+esc(hn)+'</div>':'')+
-(TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+(pedOn()?'<div class="note">El pedido le llega al local al instante y acá vas a ver cuándo está listo.</div><button class="wa" data-pedgo="1" style="background:var(--b);color:var(--bi)">'+(MP&&MP.id=='mpa'?'Hacer pedido y pagar '+money(total):'Hacer pedido · '+money(total))+'</button>'+(!MESA&&WAS.length?'<a class="x" target="_blank" rel="noopener" id="wal" href="'+esc(waLink(r,total))+'" style="display:block;text-align:center;margin:12px auto 0;text-decoration:underline">Prefiero mandarlo por WhatsApp</a>':''):
+(TEMA&&TEMAS[TEMA].regalo?'<label class="gift"><input type="checkbox" id="gift"'+(GIFT?' checked':'')+'> 🎁 Quiero que lo envuelvan para regalo</label>':'')+(pedOn()&&INFO.cerr?'<div class="note">🔴 El local está cerrado ahora y no está tomando pedidos. Podés mirar la carta y volver más tarde.</div><button class="wa" disabled style="background:var(--soft);color:var(--mut)">Cerrado por ahora</button>':pedOn()?'<div class="note">El pedido le llega al local al instante y acá vas a ver cuándo está listo.</div><button class="wa" data-pedgo="1" style="background:var(--b);color:var(--bi)">'+(MP&&MP.id=='mpa'?'Hacer pedido y pagar '+money(total):'Hacer pedido · '+money(total))+'</button>'+(!MESA&&WAS.length?'<a class="x" target="_blank" rel="noopener" id="wal" href="'+esc(waLink(r,total))+'" style="display:block;text-align:center;margin:12px auto 0;text-decoration:underline">Prefiero mandarlo por WhatsApp</a>':''):
 '<div class="note">El stock no se reserva. El negocio te confirma disponibilidad, pago y envío por WhatsApp.</div>'+
 (WAS.length>1?'<div class="lbl" style="text-align:center">'+(MP&&MP.id=='mpa'?'O mandá el pedido sin pagar online:':'¿A quién le mandás el pedido?')+'</div>'+waBtns(function(w){return waLink(r,total,w)},'Enviar pedido a '):WAS.length?'<a class="wa" id="wal" target="_blank" rel="noopener" href="'+esc(waLink(r,total))+'"'+(MP&&MP.id=='mpa'?' style="background:var(--soft);color:var(--ink)">Mandar el pedido sin pagar online':'>Enviar pedido por WhatsApp')+'</a>':'<div class="note">Este negocio todavía no cargó su WhatsApp.</div>'))+
 '<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';

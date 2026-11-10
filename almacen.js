@@ -595,7 +595,8 @@ export function createAlmacen(X) {
         '<div class="k" id="cjmr" style="margin-top:8px;font-size:15px">' + mixTxt(tot) + '</div>';
     }
     if (S.pay === 'fi') h += cliPicker();
-    h += '<button class="go" data-al="cobrar">' + (S.pay === 'fi' ? 'Anotar en el fiado ' : 'Cobrar ') + money(tot) + '</button></div>';
+    h += '<button class="go" data-al="cobrar">' + (S.pay === 'fi' ? 'Anotar en el fiado ' : 'Cobrar ') + money(tot) + '</button>' +
+      (X.pedOn && X.pedOn() && !S.ped ? '<button class="go alt" data-al="aped" style="margin-top:8px">🛎️ Guardar como pedido (se cobra después)</button>' : '') + '</div>';
     e.innerHTML = h;
     const pg = $('cjpg');
     if (pg) {
@@ -720,6 +721,37 @@ export function createAlmacen(X) {
     S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; S.env = null; renderCats();
     renderCart(); clearSearch();
   }
+  // Venta en curso → pedido para preparar (mesa, retira o envío). Se cobra después desde Pedidos → Cobrar en la caja.
+  function pedidoDlg() {
+    if (!S.cart.length) return;
+    let tipo = 'ret';
+    const o = modal('<b style="font-size:19px">🛎️ Guardar como pedido</b><div class="k" style="margin:4px 0 10px">Le llega a la cocina (y sale la comanda si está activada). Lo cobrás cuando lo entregás.</div>' +
+      '<label>Nombre del cliente</label><input id="pd_n" maxlength="60" placeholder="Ej: Juan (si lo dejás vacío: Mostrador)" autocomplete="off">' +
+      '<label>¿Para?</label><div class="seg" id="pd_t" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"><button type="button" class="pay on" data-t="ret">🏪 Retira</button><button type="button" class="pay" data-t="mesa">🍽️ Mesa</button><button type="button" class="pay" data-t="env">🛵 Envío</button></div>' +
+      '<div id="pd_m" hidden><label>Número de mesa</label><input id="pd_mn" maxlength="12" inputmode="numeric" placeholder="Ej: 4"></div>' +
+      '<div id="pd_e" hidden><label>Dirección</label><input id="pd_d" maxlength="160" placeholder="Calle, número, barrio"><label>Teléfono</label><input id="pd_tel" type="tel" maxlength="24" placeholder="381 555 1234"></div>' +
+      '<label>Aclaraciones (opcional)</label><input id="pd_nt" maxlength="200" placeholder="Ej: sin sal, para las 21:30">' +
+      '<button class="go" id="pd_ok">Guardar pedido</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const q = (id) => o.querySelector('#' + id);
+    o.querySelectorAll('[data-t]').forEach((b) => { b.onclick = () => { tipo = b.dataset.t; o.querySelectorAll('[data-t]').forEach((x) => x.classList.toggle('on', x === b)); q('pd_m').hidden = tipo !== 'mesa'; q('pd_e').hidden = tipo !== 'env'; }; });
+    q('pd_ok').onclick = () => {
+      const mesa = q('pd_mn').value.trim(), dir = q('pd_d').value.trim();
+      if (tipo === 'mesa' && !mesa) { alert('Escribí el número de mesa.'); return; }
+      if (tipo === 'env' && dir.length < 4) { alert('Escribí la dirección del envío.'); return; }
+      const EF = efectivo(), it = S.cart.map((l) => {
+        const m = l.op ? /^(.*?) \((.+)\)$/.exec(l.n) : null, x = { k: l.promo || /^lib_/.test(l.id || '') ? '' : (l.id || ''), n: String(m ? m[1] : l.n).slice(0, 80), q: l.w ? r3(l.q) : l.q, u: Math.round(l.u) };
+        if (m) x.x = m[2].slice(0, 200); if (l.w) x.w = 1; if (l.promo) x.t = 'promo'; return x;
+      });
+      const d = { tipo, cl: q('pd_n').value.trim().slice(0, 60) || 'Mostrador', it, tot: Math.round(cartTotals(EF.lines).tot), by: X.user().uid };
+      if (tipo === 'mesa') d.mesa = mesa.slice(0, 12); if (tipo === 'env') { d.dir = dir.slice(0, 160); const t = q('pd_tel').value.trim(); if (t) d.tel = t.slice(0, 24); }
+      const nt = q('pd_nt').value.trim(); if (nt) d.nota = nt.slice(0, 200);
+      if (S.pay && PAY[S.pay] && S.pay !== 'fi') d.pago = PAY[S.pay];
+      q('pd_ok').disabled = true;
+      X.guardarPedido(d).then((r) => { o.remove(); S.cart = []; S.paga = ''; S.env = null; S.last = '🛎️ Pedido #' + String(r.id).slice(-4).toUpperCase() + ' enviado a preparar'; renderCart(); clearSearch(); })
+        .catch((e) => { q('pd_ok').disabled = false; X.fail(e); });
+    };
+    setTimeout(() => q('pd_n').focus(), 50);
+  }
   // Pedido del catálogo → venta en curso de la caja. Los precios salen del Stock de ahora (no del celular del cliente).
   function cargarPedido(p) {
     if (S.cart.length && !confirm('Hay una venta en curso en la caja. ¿La reemplazo por este pedido?')) return false;
@@ -730,6 +762,7 @@ export function createAlmacen(X) {
         if (pr.w) { S.cart.push({ id: pr.id, n: pr.n, q: r3(q), u: pr.pn, c: pr.c || 0, w: true }); return; }
         const G = limpiarOps(pr.op), x = G.length ? calcOps(G, selDe(l.o)) : { ok: true, extra: 0, txt: '' };
         if (x.ok) { const o = { id: pr.id, n: pr.n + (x.txt ? ' (' + x.txt + ')' : ''), q, u: pr.pn + x.extra, c: pr.c || 0, w: false }; if (G.length) o.op = 1; S.cart.push(o); return; }
+        if (l.x && +l.u > 0) { S.cart.push({ id: pr.id, n: pr.n + ' (' + l.x + ')', q, u: Math.round(+l.u), c: pr.c || 0, w: false, op: 1 }); return; }   // pedido del mostrador: ya trae lo elegido
       }
       S.cart.push({ id: 'lib_' + uid(), n: (l.n || 'Producto') + (l.x ? ' (' + l.x + ')' : ''), q, u: Math.round(+l.u || 0), c: 0, w: false });
     });
@@ -1955,6 +1988,7 @@ export function createAlmacen(X) {
     else if (a === 'clear') { if (confirm('¿Vaciar la venta en curso?')) { S.cart = []; S.paga = ''; S.env = null; S.ped = null; renderCart(); } }
     else if (a === 'envadd') { if (RPm()) RPm().dlg((v) => { S.env = v; renderCart(); }); }
     else if (a === 'envx') { S.env = null; renderCart(); }
+    else if (a === 'aped') pedidoDlg();
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
     else if (a === 'paga') { S.paga = el.dataset.v; renderCart(); }
     else if (a === 'tkpr') { if (S.lastTk) imprimir(S.lastTk); }

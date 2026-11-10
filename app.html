@@ -347,12 +347,13 @@ VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var PED0=(function(){try{return new URLSearchParams(location.search).get('ped')=='1'}catch(e){return false}})();
-var PD=window.PD=createPedidos({db:db,esc:esc,money:money,fail:function(e){fail(e)},tienda:function(){return SNAME},
+var PD=window.PD=createPedidos({db:db,esc:esc,money:money,fail:function(e){fail(e)},tienda:function(){return SNAME},isAdm:function(){return ROLE=='admin'},pub:function(){return PUB},catLink:function(){return catLink()},
+nuevoPedido:function(){show('caja');setTimeout(function(){alert('Cargá los productos del pedido en la caja y tocá "🛎️ Guardar como pedido".')},150)},
 abrirAlInicio:function(){var r=PED0;PED0=false;return r},
 tiketera:function(){abrirTiketera({tienda:SNAME,dir:(PUB||{}).addr||'',lineas:[{n:'Producto de prueba',q:1,u:1000}],tot:1000,pago:'Efectivo'})},
 aCaja:function(p){if(biz()!='almacen'||!ALM.cargarPedido)return false;show('caja');return ALM.cargarPedido(p)}});
 function pedSync(){var p=PUB||{};if(SID&&ROLE&&biz()=='almacen'&&p.enabled&&p.ped&&p.ped.on)PD.start(SID);else PD.stop()}
-var ALM=createAlmacen({db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
+var ALM=createAlmacen({pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
