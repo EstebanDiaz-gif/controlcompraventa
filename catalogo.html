@@ -669,6 +669,54 @@ body.ent .aht .lg,body.ent .svtop .lg,body.ent .hero .logo{animation:lg3d .8s cu
 .pimg.art{aspect-ratio:16/10;max-height:260px;cursor:default}.pimg.art .art1 .et{font-size:24px}.pimg.art .art0 b{font-size:16px}
 .stimg .art1 .et{font-size:22px}
 .ac .art1 .et,.rc .art1 .et{font-size:13.5px;padding:3px 6px;max-width:88%}.ac .art1 .tp{width:78%;height:56%}
+/* ---------- Estilos extra de almacén (se eligen en la app: Estilo del catálogo) ---------- */
+/* Fiambrería gourmet: pizarra negra, crema y dorado, precio en etiqueta */
+body.est-deli .ahb{background:#1d1c1a radial-gradient(rgba(255,255,255,.06) 1px,transparent 1.6px) 0 0/6px 6px;box-shadow:inset 0 -3px 0 #6b5a3a}
+body.est-deli .ahb .aht .nm b,body.est-deli .ahban h2{color:#e9cd85}
+body.est-deli .ac,body.est-deli .ac.v2{background:#fffaf0;box-shadow:0 0 0 1px #e2d6bd,0 3px 12px rgba(60,40,10,.06)}
+body.est-deli .ac .apr{display:inline-block;align-self:flex-start;background:#f3e3b8;border:1px solid #c9b07a;border-radius:3px;padding:1px 9px 1px 15px;position:relative;transform:rotate(-1.5deg);color:#7a1f1f;font-family:var(--hf),serif}
+body.est-deli .ac .apr:before{content:"";position:absolute;left:6px;top:50%;width:4px;height:4px;border-radius:50%;background:#7a6a4a;transform:translateY(-50%)}
+body.est-deli .acat i{box-shadow:0 0 0 2px #c9a24a}
+/* Dietética / natural: papel madera, salvia, tarjetas tipo frasco */
+body.est-diet{background:#efe3cb repeating-linear-gradient(90deg,rgba(120,90,50,.05) 0 2px,transparent 2px 7px)}
+body.est-diet .ac,body.est-diet .ac.v2{background:#fbf6ea;border-radius:24px;box-shadow:0 0 0 1px #d9c8a5}
+body.est-diet .ac.v2 .aim{border-radius:46% 46% 16px 16px/30% 30% 16px 16px;background:#fff}
+body.est-diet .acat i{background:#fbf6ea!important;box-shadow:0 0 0 2px #b9a57c;outline:2px dashed #b9a57c;outline-offset:3px}
+body.est-diet .ahd h3:before{content:"🌿 "}
+/* Nocturno / 24 hs: modo oscuro con neón */
+body.est-noche{color:#e8e9f3}
+body.est-noche .ahb{background:linear-gradient(130deg,#13173a,#3b0764 60%,#0e7490);box-shadow:0 0 30px rgba(168,85,247,.35)}
+body.est-noche .ac,body.est-noche .ac.v2{background:#141a2e;box-shadow:0 0 0 1px #2a2f55,0 6px 18px rgba(0,0,0,.4)}
+body.est-noche .ac.v2 .aim{background:#fff}
+body.est-noche .ac .anm,body.est-noche .ac .asub,body.est-noche .acat span,body.est-noche .ahd h3,body.est-noche .ahd,body.est-noche .acol{color:#e8e9f3}
+body.est-noche .ac .apr{color:#5eead4;text-shadow:0 0 10px rgba(94,234,212,.45)}
+body.est-noche .ac .aadd,body.est-noche .ac.v2 .aadd{box-shadow:0 0 14px rgba(168,85,247,.85)}
+body.est-noche .acat i{box-shadow:0 0 0 2px #a855f7,0 0 12px rgba(168,85,247,.5)}
+body.est-noche .ahd a,body.est-noche .ahd button{color:#c4b5fd}
+body.est-noche .aofb{background:linear-gradient(160deg,#1b1340,#0f1a33);box-shadow:0 0 0 1px #5b3fa8,0 0 24px rgba(168,85,247,.3)}
+body.est-noche .aofh h3,body.est-noche .aofh small,body.est-noche .aofm{color:#e8e9f3}
+/* Almacén de barrio retro: toldo a rayas, cartel pintado, precio en círculo de oferta */
+body.est-retro .ahb{background:#fbf5e6;color:#1f3b5c;border-radius:0;padding-bottom:40px}
+body.est-retro .ahb:after{content:"";position:absolute;left:0;right:0;bottom:0;height:26px;background:repeating-linear-gradient(90deg,#6fb3dc 0 28px,#fff 28px 56px);border-radius:0 0 50% 50%/0 0 100% 100%;box-shadow:0 4px 6px rgba(0,0,0,.08)}
+body.est-retro .ahb .aht .nm b,body.est-retro .ahban h2{color:#d6312b}
+body.est-retro .ahb .achips span{background:#fff;border-color:#9cc7e4;color:#1f3b5c}
+body.est-retro .ahb .ahs{box-shadow:0 0 0 2px #9cc7e4}
+body.est-retro .ac,body.est-retro .ac.v2{border-radius:8px;box-shadow:0 0 0 2px #9cc7e4}
+body.est-retro .ac .apr{display:inline-flex;align-self:flex-start;background:#ffd84d;color:#d6312b;border-radius:40%;padding:4px 10px;transform:rotate(-6deg);margin-top:8px}
+body.est-retro .ahd h3{color:#d6312b}
+body.est-retro .aht .ai{background:#e3f1fb;color:#1f3b5c}
+/* Mayorista: lista compacta (lay-list) azul y amarillo */
+body.est-mayor .ahb{background:#1e3a8a}
+body.est-mayor .ac,body.est-mayor .ac.v2{border-radius:12px;box-shadow:0 0 0 1px #e5e7eb}
+body.est-mayor .ac .apr{color:#1e3a8a}
+/* Verdulería fresca: tablas de madera y cajones */
+body.est-verdu{background:#f4e7d0 repeating-linear-gradient(0deg,rgba(120,80,40,.08) 0 2px,transparent 2px 46px)}
+body.est-verdu .ac,body.est-verdu .ac.v2{background:#fffaf2;border-radius:10px;box-shadow:0 0 0 3px #c79a62,inset 0 -7px 0 #e3c79b}
+body.est-verdu .acat i{box-shadow:0 0 0 3px #2e7d32}
+.achips a.mapa{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.22);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:5px 11px;font-size:12.5px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:inherit;text-decoration:none}
+.achips a.mapa .mpa{font-style:normal;min-width:0;overflow:hidden;text-overflow:ellipsis}.achips a.mapa .mpv{font-weight:900;text-decoration:underline;flex-shrink:0}
+a.mapl{color:inherit;text-decoration:none}a.mapl u{font-weight:700}
+body.est-retro .ahb .achips a.mapa{background:#fff;border-color:#9cc7e4;color:#1f3b5c}
 </style></head><body>
 <header class="hdr" id="hdr"><div class="in"><div class="brand"><div id="lg2" class="logo ph">·</div><b id="ttl2">Catálogo</b></div>
 <button class="ib fav" data-nav="fav" aria-label="Favoritos"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.8 1.3-1.7 2.9-2.8 4.9-2.8 3.5 0 5.7 3.4 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2Z"/></svg></button><button class="ib" data-nav="sr" aria-label="Buscar"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button></div><div class="hcats" id="hcats"></div></header>
@@ -758,7 +806,14 @@ super:{ap:'#B81D2E',al:'#FFE15A',ad:'#3A0D12',abg:'#F7F4F1',c:['#FFF0B3','#E3F1D
 panaderia:{ap:'#6B3E1F',al:'#F6C76B',ad:'#3A2010',abg:'#FBF5EC',c:['#FCE6C4','#F7DCC9','#FFF1CF','#EADBC8'],q:'Buscá pan, facturas, tortas, gaseosas…',h:'Pan calentito y facturas recién hechas'},
 carne:{ap:'#6B1424',al:'#F2C98A',ad:'#3B0B14',abg:'#F8F3EE',c:['#F7DCC7','#E3EED3','#FBE1D5','#EEE4D6'],q:'Buscá asado, vacío, pollo, verduras…',h:'Carne y verdura fresca, lista para vos'},
 farmacia:{ap:'#0A6B73',al:'#A8EBDD',ad:'#073C41',abg:'#F1F7F7',c:['#D6F1EA','#DCEBFA','#EFE3F7','#E6F3D9'],q:'Buscá perfumería, pañales, cuidado personal…',h:'Tu farmacia, cerca y online'},
-ferre:{ap:'#2B2D31',al:'#FF8A1F',ad:'#1A1B1E',abg:'#F3F2EF',c:['#FFE2C4','#E5E7EB','#FFF0B8','#DCE6F0'],q:'Buscá tornillos, pinturas, herramientas…',h:'Todo para tu obra y tu casa'}};
+ferre:{ap:'#2B2D31',al:'#FF8A1F',ad:'#1A1B1E',abg:'#F3F2EF',c:['#FFE2C4','#E5E7EB','#FFF0B8','#DCE6F0'],q:'Buscá tornillos, pinturas, herramientas…',h:'Todo para tu obra y tu casa'},
+// Estilos con diseño propio (fx: no los pisa el color de la marca)
+deli:{ap:'#1D1C1A',al:'#E9CD85',ad:'#2A1F14',abg:'#F5EFE3',c:['#EFE2C4','#F3E3D3','#E9DCC2','#F1E8D6'],q:'Buscá salame, queso, jamón crudo…',h:'Fiambres al corte y picadas',fx:1},
+diet:{ap:'#5F7D5B',al:'#F1E3B8',ad:'#34452F',abg:'#EFE3CB',c:['#F5ECD7','#E3ECD9','#F1E2C9','#E9EFDF'],q:'Buscá almendras, chía, granola…',h:'Natural, suelto y por peso',fx:1},
+noche:{ap:'#7C3AED',al:'#5EEAD4',ad:'#E8E9F3',abg:'#0B0D17',c:['#1D2442','#24193F','#152B3A','#2A1B33'],q:'Buscá bebidas, snacks, hielo…',h:'Bebidas frías y todo para la previa',fx:1},
+retro:{ap:'#1F5F8B',al:'#FFD84D',ad:'#163A55',abg:'#FBF5E6',c:['#DBEEFA','#FDE2E1','#FFF3C4','#E3F1E0'],q:'Buscá yerba, fideos, galletitas…',h:'¡Lo de siempre, al precio de siempre!',fx:1},
+mayor:{ap:'#1E3A8A',al:'#FACC15',ad:'#14275E',abg:'#F3F4F6',c:['#FEF3C7','#DBEAFE','#E0E7FF','#FCE7F3'],q:'Buscá por producto o marca…',h:'Precios para comercios y compras grandes',fx:1},
+verdu:{ap:'#2E7D32',al:'#FF9800',ad:'#1B4D1E',abg:'#F4E7D0',c:['#E3F2D5','#FFE7C7','#FDDCD5','#F2EBC8'],q:'Buscá tomate, papa, banana…',h:'Frutas y verduras frescas del día',fx:1}};
 function estilo(P){var e=INFO.est;if(P[e])return e;if(P[INFO.tp])return INFO.tp;return ''}
 function esDefault(c){return !goodColor(c)||/^#(1{6}|0{6})$/i.test(c)}
 // ---------- Diseño por rubro ----------
@@ -772,6 +827,12 @@ panaderia:{f:'Fraunces',w:800,pat:'🥖🥐🍞🧁🥧🍩🎂🥨'},
 carne:{f:'Roboto Slab',w:800,pat:'🥩🍗🥕🍅🌭🔥🧅🥔'},
 farmacia:{f:'Quicksand',w:700,pat:'💊🩹🧴🪥🍼🌡️💧✚'},
 ferre:{f:'Oswald',w:700,u:1,pat:'🔧🔨🪛🔩🪚🧰📏💡',lay:'list'},
+deli:{f:'Playfair Display',w:800,pat:'🧀🥖🍷🫒🥓🍖🧀🥪'},
+diet:{f:'Comfortaa',w:700,pat:'🌿🥜🌾🌰🍯🥣🌱🫘'},
+noche:{f:'Outfit',w:800,pat:'🌙🥤🍺⚡🍫🧊🍟🎧'},
+retro:{f:'Lobster',w:400,pat:'🧉🥫🍞🥛🍝🍬🧀🥖'},
+mayor:{f:'Barlow Condensed',w:800,u:1,pat:'📦🛒🥫🧃📦🏷️🚚🥤',lay:'list'},
+verdu:{f:'Baloo 2',w:800,pat:'🍅🥕🥬🍎🍌🥔🧅🍋'},
 ropa:{f:'Archivo',w:900,u:1,pat:'👕👖🧥👗🧢👟',lay:'tz',h:'Nueva temporada, nuevos looks',q:'Buscá remeras, jeans, buzos o talle…'},
 calzado:{f:'Anton',w:400,u:1,pat:'👟🥾👞👠🩴👟',lay:'tz',h:'Pisá con estilo',q:'Buscá por modelo o talle…'},
 ropaycalz:{f:'DM Serif Display',w:400,pat:'👕👟👖🧥👞🧢',lay:'tz',h:'Tu look completo, de pies a cabeza',q:'Buscá ropa, zapatillas o talle…'},
@@ -809,7 +870,7 @@ var CATK=[[/desayun|merienda|infusi|caf[eé]\b|yerba|t[eé] /,'☕'],[/factura|m
 [/zapatill/,'👟'],[/bota|borce/,'🥾'],[/sandal|ojota/,'🩴'],[/zapato|mocas|calzado/,'👞'],[/remera|camis|top\b|musculosa/,'👕'],[/jean|pantal|jogg|bermuda|short/,'👖'],[/buzo|campera|abrig|sweater|cardig/,'🧥'],[/vestido|pollera|falda/,'👗'],[/interior|lencer|boxer|ropa de ba/,'🩲'],[/media/,'🧦'],[/gorra|gorro|sombrer/,'🧢'],
 [/mochila|bolso|cartera|billeter/,'👜'],[/anteojo|lente/,'🕶️'],[/reloj/,'⌚'],[/aro|collar|anillo|pulser|bijou|joya/,'💍'],[/celular|smartphone|tel[eé]fono/,'📱'],[/funda|templad|protector/,'📱'],[/cargador|cable/,'🔌'],[/auricular|parlante|audio/,'🎧'],[/notebook|compu|pc\b|tablet/,'💻'],[/gamer|consola|joystick/,'🎮'],
 [/oferta|promo|liquid/,'🏷️'],[/novedad|nuevo|ingreso/,'✨'],[/niñ|infantil|kids|beb/,'🧸'],[/hombre/,'👔'],[/mujer/,'👚'],[/regal/,'🎁'],[/bazar|cocina/,'🍽️']];
-var RDEF={panaderia:'🥐',almacen:'🛒',kiosco:'🍬',super:'🛒',carne:'🥩',farmacia:'💊',ferre:'🔧'};
+var RDEF={panaderia:'🥐',almacen:'🛒',kiosco:'🍬',super:'🛒',carne:'🥩',farmacia:'💊',ferre:'🔧',deli:'🧀',diet:'🌿',noche:'🌙',retro:'🧉',mayor:'📦',verdu:'🍅'};
 function catIcon(x){if(CATI[x])return CATI[x];var t=String(x||'').toLowerCase();for(var i=0;i<CATK.length;i++)if(CATK[i][0].test(t))return CATK[i][1];return RDEF[rubKey()]||'🛒'}
 function catIconT(x){var t=String(x||'').toLowerCase();for(var i=0;i<CATK.length;i++)if(CATK[i][0].test(t))return CATK[i][1];return ''}
 function tzHtml(g){if(!document.body.classList.contains('lay-tz')||!g.sz||!g.sz.length)return '';var l=g.sz.filter(function(z){return z.q>0&&z.z&&!/^(u|único|unico|-)$/i.test(z.z)});if(!l.length)return '';
@@ -867,7 +928,7 @@ function svPRow(g){var o=oldP(g);return '<div class="svrow" data-k="'+esc(g.k)+'
 // ---------- Catálogo de almacén ----------
 var CATI={'Frutos secos':'🥜','Cereales':'🥣','Semillas':'🌱','Repostería':'🧁','Golosinas sueltas':'🍬','Snacks sueltos':'🍿','Legumbres y granos':'🫘','Especias':'🌶️','Almacén':'🥫','Bebidas':'🥤','Galletitas y golosinas':'🍪','Desayuno y merienda':'☕','Lácteos':'🥛','Fiambrería':'🧀','Panadería':'🥖','Verdulería':'🥕','Congelados':'🧊','Limpieza':'🧴','Perfumería':'🧼','Cigarrillos':'🚬','Otros':'🛒','Kiosco':'🍫','Carnicería':'🥩','Bazar':'🍽️','Mascotas':'🐾','Bebés':'🍼','Farmacia':'💊','Carne vacuna':'🥩','Cerdo':'🐖','Pollo':'🍗','Embutidos':'🌭','Para el asado':'🔥','Elaborados':'🍽️','Golosinas':'🍬','Snacks':'🍟','Varios':'🔋'};
 function almSetup(){document.body.classList.toggle('alm',!!ALM);if(!ALM)return;
-var r=document.body,AP=ALPAL[estilo(ALPAL)||'almacen'];['ap','al','ad','abg'].forEach(function(x){r.style.setProperty('--'+x,AP[x])});AP.c.forEach(function(x,i){r.style.setProperty('--c'+(i+1),x)});if(!TEMA&&goodColor(INFO.color)&&!/^#1{6}$|^#0{6}$/i.test(INFO.color)&&lum(INFO.color)<170)r.style.setProperty('--ap',INFO.color);if(TEMA)r.style.setProperty('--ap',TEMAS[TEMA].cat.b);
+var r=document.body,AP=ALPAL[estilo(ALPAL)||'almacen'];['ap','al','ad','abg'].forEach(function(x){r.style.setProperty('--'+x,AP[x])});AP.c.forEach(function(x,i){r.style.setProperty('--c'+(i+1),x)});if(!TEMA&&!AP.fx&&goodColor(INFO.color)&&!/^#1{6}$|^#0{6}$/i.test(INFO.color)&&lum(INFO.color)<170)r.style.setProperty('--ap',INFO.color);if(ALPAL[estilo(ALPAL)]&&AP.fx)r.classList.add('est-'+estilo(ALPAL));if(TEMA)r.style.setProperty('--ap',TEMAS[TEMA].cat.b);
 var n=INFO.name||'Catálogo',lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':esc((n[0]||'C').toUpperCase());
 var e=$('ah');e.hidden=false;
 e.innerHTML='<div class="ahb"><div class="aht"><span class="lg">'+lg+'</span><div class="nm"><b>'+esc(n)+'</b></div>'+
@@ -880,9 +941,12 @@ $('acart').onclick=function(){$('cb').click()};
 $('ago').onclick=function(){$('sec').scrollIntoView({behavior:'smooth'})};
 var t=null;$('asq').oninput=function(){var v=this.value;clearTimeout(t);t=setTimeout(function(){Q=v;$('sq').value=v;CAT='';draw();if(v)$('sec').scrollIntoView({behavior:'smooth'})},180)};
 $('acats').onclick=$('hcats').onclick=function(ev){var b=ev.target.closest('[data-ac]');if(!b)return;CAT=b.dataset.ac;FAVM=false;draw();$('sec').scrollIntoView({behavior:'smooth'})}}
-function almChips(){var c=[];if(INFO.hours)c.push('🕒 '+esc(INFO.hours));if(INFO.addr)c.push('📍 '+esc(INFO.addr));
-if(envOn())c.push('🛵 Envío a domicilio');c.push('🏪 Retiro en el local');
-return '<div class="achips">'+c.map(function(x){return '<span>'+x+'</span>'}).join('')+'</div>'}
+// Dirección: abre Google Maps (en el celu, la app de Maps) con la dirección del negocio.
+function mapsUrl(){return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(INFO.addr||'')}
+function mapA(t,cls){return '<a class="'+(cls||'mapa')+'" href="'+esc(mapsUrl())+'" target="_blank" rel="noopener" title="Ver en Google Maps">'+(t||'📍 '+esc(INFO.addr))+'</a>'}
+function almChips(){var c=[];if(INFO.hours)c.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)c.push(mapA('📍 <em class="mpa">'+esc(INFO.addr)+'</em><b class="mpv">· Cómo llegar</b>','mapa'));
+if(envOn())c.push('<span>🛵 Envío a domicilio</span>');c.push('<span>🏪 Retiro en el local</span>');
+return '<div class="achips">'+c.join('')+'</div>'}
 
 // ---------- Almacén: banner, historias y ofertas. Se arman solos con productos, ofertas y promos. ----------
 // INFO.alx = { h: historias, b: banner, o: bloque de ofertas, g: góndolas } (false = apagado; si falta, prendido)
@@ -990,7 +1054,7 @@ if(f.k=='c'){var c=f.p,im=pImgs(c);return '<div class="stimg'+(im.length>1?' two
 '<div class="stinf"><h3>'+esc(c.titulo)+'</h3>'+(c.desc?'<div class="sd">'+esc(c.desc)+'</div>':'')+'<div class="stpr">'+money(c.precio)+(c.antes>c.precio?'<s>'+money(c.antes)+'</s>':'')+'</div><button class="stbtn" data-stp="'+esc(c.id)+'">Ver la promo</button></div>'}
 if(f.k=='q'){var q=f.p;return '<div class="stbig"><div class="e">🛒</div><div class="pc2">'+q.pct+'% OFF</div><h3>Llevando '+q.min+' o más'+(q.cat?' de '+esc(q.cat):' productos')+'</h3><div class="sd">El descuento se aplica solo en tu pedido.</div></div><button class="stbtn" '+(q.cat?'data-stc="'+esc(q.cat)+'"':'data-sto="1"')+'>Ver productos</button>'}
 var pr=envOn()?(+INFO.env.precio||0):0;return '<div class="stbig"><div class="e">'+(envOn()?'🛵':SVC?'📅':'🏪')+'</div><h3>'+(envOn()?'Te lo llevamos a tu casa':'Te esperamos')+'</h3><ul>'+
-(envOn()?'<li>🛵 Envío a domicilio'+(pr?': '+money(pr):'')+'</li>':'')+(SVC?'':'<li>🏪 Retiro en el local</li>')+(INFO.hours?'<li>🕒 '+esc(INFO.hours)+'</li>':'')+(INFO.addr?'<li>📍 '+esc(INFO.addr)+'</li>':'')+'</ul></div><button class="stbtn" data-sto="1">'+(SVC&&AGD&&AGD.on?'Reservar turno':'Hacer mi pedido')+'</button>'}
+(envOn()?'<li>🛵 Envío a domicilio'+(pr?': '+money(pr):'')+'</li>':'')+(SVC?'':'<li>🏪 Retiro en el local</li>')+(INFO.hours?'<li>🕒 '+esc(INFO.hours)+'</li>':'')+(INFO.addr?'<li>'+mapA('📍 '+esc(INFO.addr)+' · <u>Ver en el mapa</u>','mapl')+'</li>':'')+'</ul></div><button class="stbtn" data-sto="1">'+(SVC&&AGD&&AGD.on?'Reservar turno':'Hacer mi pedido')+'</button>'}
 // Sin foto de portada: un collage con fotos de productos (primero los destacados).
 function almCollage(){var e=$('acol'),ap=$('api');if(!e||!ap)return;if(!ap.hidden){e.hidden=true;return}
 var l=G.filter(function(g){return g.img}).sort(function(a,b){return (+a.dt||(a.dt?999:1e4))-(+b.dt||(b.dt?999:1e4))}).slice(0,3);
@@ -1022,7 +1086,7 @@ function drawFoot(){if(!INFO)return;var n=INFO.name||'Catálogo',ft=$('ft'),c=ca
 var lg=INFO.logo&&/^data:image\//.test(INFO.logo)?'<img alt="" src="'+esc(INFO.logo)+'">':'<span class="logo">'+esc((n[0]||'C').toUpperCase())+'</span>';
 var ct=[];WAS.forEach(function(x){ct.push('<a target="_blank" rel="noopener" href="'+esc(waUrl(x.w,'Hola! Vi tu catálogo y quería consultar.'))+'">💬 '+(x.n?esc(x.n):'WhatsApp')+'</a>')});
 if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)ct.push('<a target="_blank" rel="noopener" href="https://instagram.com/'+esc(u)+'">📷 @'+esc(u)+'</a>')}
-if(INFO.addr)ct.push('<span>📍 '+esc(INFO.addr)+'</span>');if(INFO.hours)ct.push('<span>🕒 '+esc(INFO.hours)+'</span>');
+if(INFO.addr)ct.push(mapA('📍 '+esc(INFO.addr)+' · <u>Cómo llegar</u>','mapl'));if(INFO.hours)ct.push('<span>🕒 '+esc(INFO.hours)+'</span>');
 ft.innerHTML=SEAS+'<div class="fin"><div class="fbr">'+lg+'<div><b>'+esc(n)+'</b>'+(INFO.tag?'<small>'+esc(INFO.tag)+'</small>':'')+'</div></div>'+
 (ct.length?'<div class="fcol"><h4>Contacto</h4>'+ct.join('')+'</div>':'')+
 '<div class="fcol"><h4>Comprar</h4><button data-fn="ini">Inicio</button><button data-fn="fav">Mis favoritos</button><button data-fn="sr">Buscar</button><button data-fn="cart">Ver mi pedido</button></div>'+
@@ -1083,7 +1147,7 @@ $('hsub').textContent=INFO.addr||'';
 if(INFO.tag){$('htag').hidden=false;$('htag').textContent=INFO.tag}
 if(INFO.pt){var hr=$('hero');hr.className='hero ph';
 getDoc(doc(db,'stores',sid,'public','portada')).then(function(d){var f=d.exists()&&d.data().f;if(!f){hr.className='hero pl'+(hr.classList.contains('dst')?' dst':'');return}var im=$('hbg');im.src=f;im.hidden=false;var ap=$('api');if(ALM&&ap){ap.innerHTML='<img alt="" src="'+esc(f)+'">';ap.hidden=false;var ac=$('acol');if(ac)ac.hidden=true}}).catch(function(){})}
-var i=[];if(INFO.hours)i.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)i.push('<span>📍 '+esc(INFO.addr)+'</span>');
+var i=[];if(INFO.hours)i.push('<span>🕒 '+esc(INFO.hours)+'</span>');if(INFO.addr)i.push(mapA('📍 '+esc(INFO.addr)+' · <u>Cómo llegar</u>','mapl'));
 if(INFO.ig){var u=String(INFO.ig).replace(/^@/,'').replace(/[^\w.]/g,'');if(u)i.push('<a target="_blank" rel="noopener" href="https://instagram.com/'+esc(u)+'">📷 @'+esc(u)+'</a>')}
 if(!ALM&&INFO.mode=='carrito'&&INFO.minCart>0)i.push('<span>🏷️ Llevando '+INFO.minCart+' o más prendas: precio mayorista</span>');
 if(i.length){$('inf').hidden=false;$('inf').innerHTML=i.join('')}
