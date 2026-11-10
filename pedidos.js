@@ -234,8 +234,26 @@ export function createPedidos(X) {
   function avanzar(p, desde) {
     const nx = proxima(p); if (!nx) return;
     if (nx[0] === 'ok') { aceptar(p); return; }
-    set(p.id, { st: nx[0] });
+    if (nx[0] === 'entregado' && !p.cob && X.cobrar) { cobrarDlg(p, 'entregado'); return; }   // al entregar: ¿lo cobraste?
+    set(p.id, { st: nx[0] }); online(p);
     if (desde === 'det') cerrarDet();
+  }
+  // ---------- cobro: el pedido pagado se registra como venta (Resumen, stock y caja), sin pasar por la caja ----------
+  const PAYS = [['ef', '💵', 'Efectivo'], ['tr', '🏦', 'Transferencia'], ['tj', '💳', 'Tarjeta'], ['qr', '📱', 'QR / Mercado Pago']];
+  const payDe = (t) => { t = String(t || '').toLowerCase(); return /efect/.test(t) ? 'ef' : /transf/.test(t) ? 'tr' : /tarj|d[eé]bito|cr[eé]dito/.test(t) ? 'tj' : /mercado|qr|online/.test(t) ? 'qr' : ''; };
+  function registrar(p, pay, extra) {
+    const r = X.cobrar && X.cobrar(p, pay);
+    if (!r) { set(p.id, Object.assign({ pg: true }, extra || {})); return Promise.resolve(); }
+    return r.then(() => { if (extra) return set(p.id, extra); }).catch((e) => X.fail(e));
+  }
+  // Pagado online con Mercado Pago: la venta se registra sola la primera vez que el local lo mueve.
+  function online(p) { if (p.pag && !p.cob && X.cobrar) registrar(p, 'qr'); }
+  function cobrarDlg(p, luego) {
+    det = p; const sug = payDe(p.pago) || 'ef', ent = luego === 'entregado';
+    hoja('<div class="pgr"></div><h3>' + (ent ? '¿Ya lo cobraste?' : '¿Cómo pagó?') + '</h3><div class="pds">#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + ' · <b>' + money(p.tot || 0) + '</b>' + (p.paga > 0 ? ' · abona con ' + money(p.paga) + ' (vuelto ' + money(Math.max(0, p.paga - (p.tot || 0))) + ')' : '') + '</div>' +
+      '<div class="pds" style="margin-top:6px">La venta queda registrada en el Resumen y se descuenta del stock.</div>' +
+      '<div class="pes">' + PAYS.map((x) => '<button type="button" data-pd="cob" data-pay="' + x[0] + '"' + (ent ? ' data-luego="entregado"' : '') + ' class="' + (x[0] === sug ? 'on' : '') + '">' + x[1] + ' ' + x[2] + (x[0] === sug && p.pago ? ' · eligió el cliente' : '') + '</button>').join('') + '</div>' +
+      '<div class="pft">' + (ent ? '<button type="button" class="sec" data-pd="sinco" style="flex:1">Todavía no lo pagó</button>' : '<button type="button" class="sec" data-pd="volver" style="flex:1">Cancelar</button>') + '</div>');
   }
   function aceptar(p) {
     det = p; hoja('<div class="pgr"></div><h3>Aceptar #' + esc(codPedido(p.id)) + '</h3><div class="pds">¿En cuánto está listo? El cliente lo ve en su celular.</div>' +
@@ -243,8 +261,10 @@ export function createPedidos(X) {
       '<div class="pft"><button type="button" class="sec" data-pd="volver">Volver</button><button type="button" class="pri ac" data-pd="min" data-m="0">Aceptar sin tiempo</button></div>');
   }
   function togPago(p) {
-    if (p.pag || p.cob) { alert(p.pag ? 'Este pedido se pagó online con Mercado Pago.' : 'Este pedido ya se cobró en la caja.'); return; }
-    set(p.id, { pg: !p.pg });
+    if (p.cob) { alert('Este pedido ya está cobrado y registrado como venta' + (p.cpay ? ' (' + p.cpay + ')' : '') + '. Si hubo un error, anulá la venta desde el Resumen.'); return; }
+    if (p.pag) { if (confirm('Este pedido se pagó online con Mercado Pago. ¿Lo registro ahora como venta?')) registrar(p, 'qr'); return; }
+    if (!X.cobrar) { set(p.id, { pg: !p.pg }); return; }
+    cobrarDlg(p);
   }
   function cancelar(p) {
     const m = prompt((p.st === 'nuevo' ? '¿Rechazar' : '¿Cancelar') + ' el pedido #' + codPedido(p.id) + '? El cliente lo ve en su celular.\n\nMotivo (opcional, por ejemplo "nos quedamos sin pan"):', '');
@@ -287,7 +307,7 @@ export function createPedidos(X) {
     const p = L.find((x) => x.id === id) || (HIST || []).find((x) => x.id === id) || (det && det.id === id ? det : null);
     if (!p) { cerrarDet(); return; }
     if (refresco && document.querySelector('#pedd .pmn')) return;   // está eligiendo los minutos: no se pisa
-    if (refresco && document.querySelector('#pedd .pes')) return;
+    if (refresco && document.querySelector('#pedd .pes')) return;   // está eligiendo estado o medio de pago
     det = p;
     const e = EST[p.st] || ['', 'e'], nx = proxima(p), w = waTel(p.tel), sub = (p.it || []).reduce((a, x) => a + Math.round((+x.u || 0) * (+x.q || 0)), 0);
     let h = '<div class="pgr"></div><h3>Pedido #' + esc(codPedido(p.id)) + '</h3><div class="pds">' + hora(p.at) + ' · hace ' + reloj(p.at) + (p.min && p.acc ? ' · listo ~' + hora(p.acc + p.min * 60000) : '') + (p.imp ? ' · 🖨️ comanda impresa' : '') + '</div>' +
@@ -300,7 +320,7 @@ export function createPedidos(X) {
     h += '<div class="pbx"><div class="prw"><span>Subtotal</span><span>' + money(sub) + '</span></div>' + (p.env ? '<div class="prw"><span>Envío</span><span>' + money(p.env) + '</span></div>' : '') +
       (Math.abs(sub + (p.env || 0) - (p.tot || 0)) > 1 ? '<div class="prw"><span>Descuentos y ajustes</span><span>' + money((p.tot || 0) - sub - (p.env || 0)) + '</span></div>' : '') +
       '<div class="prw t"><span>Total</span><span>' + money(p.tot || 0) + '</span></div>' +
-      '<div class="pli" style="align-items:center"><span>' + esc(p.pago || 'Pago a definir') + '</span><button type="button" class="ppg' + (pago(p) ? ' si' : '') + '" data-pd="pg" style="padding:0"><i>' + (pago(p) ? '✓' : '') + '</i>' + (p.pag ? 'Pagado online' : p.cob ? 'Cobrado en la caja' : pago(p) ? 'Está pago' : 'Sin pagar') + '</button></div>' +
+      '<div class="pli" style="align-items:center"><span>' + esc(p.pago || 'Pago a definir') + '</span><button type="button" class="ppg' + (pago(p) ? ' si' : '') + '" data-pd="pg" style="padding:0"><i>' + (pago(p) ? '✓' : '') + '</i>' + (p.cob ? 'Cobrado' + (p.cpay ? ' · ' + esc(p.cpay) : '') : p.pag ? 'Pagado online' : pago(p) ? 'Está pago' : 'Sin pagar') + '</button></div>' +
       (p.paga > 0 ? '<div class="prw" style="margin-top:8px"><span>Abona con</span><span>' + money(p.paga) + '</span></div><div class="prw v"><span>Vuelto</span><span>' + money(Math.max(0, p.paga - (p.tot || 0))) + '</span></div>' : '') + '</div>';
     h += '<div class="plk">' + (p.cob ? '' : '<button type="button" data-pd="caja">💵 Cobrar en la caja</button>') + '<button type="button" data-pd="com">🖨️ Comanda</button>' +
       (p.st !== 'entregado' && p.st !== 'cancelado' ? '<button type="button" class="rj" data-pd="cancel">' + (p.st === 'nuevo' ? 'Rechazar' : 'Cancelar pedido') + '</button>' : '') + '</div>';
@@ -319,7 +339,9 @@ export function createPedidos(X) {
     if (a === 'volver') { cerrarDet(); return; }
     if (a === 'det') { detalle(p.id); return; }
     if (a === 'next') { avanzar(p, 'det'); return; }
-    if (a === 'min') { const m = +b.dataset.m, o = { st: 'ok', acc: Date.now() }; if (m) o.min = m; set(p.id, o); cerrarDet(); return; }
+    if (a === 'min') { const m = +b.dataset.m, o = { st: 'ok', acc: Date.now() }; if (m) o.min = m; set(p.id, o); online(p); cerrarDet(); return; }
+    if (a === 'cob') { const ex = b.dataset.luego ? { st: b.dataset.luego } : null; b.disabled = true; b.textContent = 'Registrando la venta…'; registrar(p, b.dataset.pay, ex).then(() => cerrarDet()); return; }
+    if (a === 'sinco') { set(p.id, { st: 'entregado' }); cerrarDet(); return; }
     if (a === 'pg') { togPago(p); return; }
     if (a === 'estado') { estados(p); return; }
     if (a === 'setst') { const s = b.dataset.st, o = { st: s }; if (s === 'ok' && !p.acc) o.acc = Date.now(); set(p.id, o); cerrarDet(); return; }

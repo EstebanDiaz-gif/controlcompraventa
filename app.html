@@ -351,6 +351,7 @@ var PD=window.PD=createPedidos({db:db,esc:esc,money:money,fail:function(e){fail(
 nuevoPedido:function(){show('caja');setTimeout(function(){alert('Cargá los productos del pedido en la caja y tocá "🛎️ Guardar como pedido".')},150)},
 abrirAlInicio:function(){var r=PED0;PED0=false;return r},
 tiketera:function(){abrirTiketera({tienda:SNAME,dir:(PUB||{}).addr||'',lineas:[{n:'Producto de prueba',q:1,u:1000}],tot:1000,pago:'Efectivo'})},
+cobrar:function(p,pay){if(biz()!='almacen'||!ALM.ventaPedido)return null;return ALM.ventaPedido(p,pay)},
 aCaja:function(p){if(biz()!='almacen'||!ALM.cargarPedido)return false;show('caja');return ALM.cargarPedido(p)}});
 function pedSync(){var p=PUB||{};if(SID&&ROLE&&biz()=='almacen'&&p.enabled&&p.ped&&p.ped.on)PD.start(SID);else PD.stop()}
 var ALM=createAlmacen({pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},

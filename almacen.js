@@ -752,6 +752,34 @@ export function createAlmacen(X) {
     };
     setTimeout(() => q('pd_n').focus(), 50);
   }
+  // Pedido pagado → venta registrada (sin pasar por la caja). Los precios son los del pedido; el costo y el stock, los del Stock de ahora.
+  // Si el pedido tuvo descuentos, se reparten entre los productos para que el total sea el del pedido.
+  function ventaPedido(p, pay) {
+    if (!X.canWrite()) return Promise.reject(new Error('El acceso de la tienda venció.'));
+    if (p.cob) return Promise.resolve(null);
+    const sid = X.sid(), d = X.today(), m = d.slice(0, 7), dd = d.slice(8, 10), u = X.user();
+    const it = (p.it || []).map((l) => { const pr = l.t ? null : prod(l.k), q = +l.q || 1; return { id: pr ? pr.id : '', n: String((l.n || 'Producto') + (l.x ? ' (' + l.x + ')' : '')).slice(0, 140), q: l.w ? r3(q) : q, u: +l.u || 0, c: pr ? (pr.c || 0) : 0, w: l.w ? 1 : 0 }; });
+    const subt = it.reduce((a, x) => a + x.q * x.u, 0), env = Math.max(0, +p.env || 0), obj = Math.max(0, Math.round((+p.tot || 0) - env));
+    if (subt > 0 && Math.abs(subt - obj) > 1) { const f = obj / subt; it.forEach((x) => { x.u = x.u * f; }); }
+    if (env > 0) it.push({ id: '', n: 'Envío a domicilio', q: 1, u: env, c: 0, w: 0, env: 1 });
+    const { tot, cost } = cartTotals(it), id = uid();
+    const v = { id, d, m, h: now(), it, tot, cost, pay, by: u.uid, bn: X.nm(), ped: p.id, pcl: String(p.cl || '').slice(0, 60) };
+    if (S.caja) v.cj = S.caja.id;
+    if (subt - obj > 1) v.dsc = { t: 'Descuento del pedido', m: Math.round(subt - obj) };
+    const pp = partes(v), payInc = {}; Object.keys(pp).forEach((k) => { payInc[k] = increment(pp[k]); });
+    const prInc = {}; it.forEach((x) => { if (!x.id || !prod(x.id)) return; const o = prInc[x.id] || (prInc[x.id] = { q: 0, v: 0, n: x.n }); o.q = r3(o.q + x.q); o.v += Math.round(x.q * x.u); });
+    Object.keys(prInc).forEach((k) => { prInc[k] = { q: increment(prInc[k].q), v: increment(prInc[k].v), n: (prod(k) || {}).n || prInc[k].n }; });
+    const b = writeBatch(db);
+    b.set(doc(db, 'stores', sid, 'ventas', id), v);
+    b.set(doc(db, 'stores', sid, 'totales', m), { v: increment(tot), c: increment(cost), n: increment(1), pay: payInc, pr: prInc, dias: { [dd]: { v: increment(tot), c: increment(cost), n: increment(1) } } }, { merge: true });
+    b.update(doc(db, 'stores', sid, 'pedidos', p.id), { cob: true, pg: true, vid: id, cpay: payLabel(v), upd: Date.now() });
+    return b.commit().then(() => {
+      const desc = {}; it.forEach((x) => { if (ctl(x.id)) desc[x.id] = r3((desc[x.id] || 0) + x.q); });
+      Object.keys(desc).forEach((pid) => { if (desc[pid] > 0) updateDoc(doc(db, 'stores', sid, 'stock', pid), { q: increment(-desc[pid]) }).catch(() => {}); });
+      if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
+      return v;
+    });
+  }
   // Pedido del catálogo → venta en curso de la caja. Los precios salen del Stock de ahora (no del celular del cliente).
   function cargarPedido(p) {
     if (S.cart.length && !confirm('Hay una venta en curso en la caja. ¿La reemplazo por este pedido?')) return false;
@@ -2092,7 +2120,7 @@ export function createAlmacen(X) {
   });
 
   return {
-    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido,
+    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido, ventaPedido,
     resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }
