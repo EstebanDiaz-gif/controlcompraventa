@@ -251,7 +251,7 @@ async function pushRuta(req, env, path) {
       if (!st) {
         // La ficha principal se borró: se rearma con lo que quedó guardado.
         const [pi, mem, acc] = await Promise.all([aGet(env, 'stores/' + b.sid + '/public/info').catch(() => null), aQuery(env, 'stores/' + b.sid, 'members', []).catch(() => []), aGet(env, 'stores/' + b.sid + '/billing/access').catch(() => null)]);
-        const adm = mem.filter((x) => x.x.role === 'admin'), own = (adm.find((x) => x.id === uid) || adm[0] || mem[0] || { id: uid }).id;
+        const adm = mem.filter((x) => x.x.role === 'admin' && !x.x.sop), own = (adm.find((x) => x.id === uid) || adm[0] || mem[0] || { id: uid }).id;
         st = { name: String((pi && pi.name) || b.slug || 'Tienda').slice(0, 60), owner: own, created: (acc && acc.trialStartMs) || Date.now(), pais: 'AR', mon: 'ARS', restaurada: Date.now() };
         await aSet(env, 'stores/' + b.sid, st);
         for (const x of mem) await aSet(env, 'users/' + x.id + '/stores/' + b.sid, { name: st.name });
@@ -259,7 +259,9 @@ async function pushRuta(req, env, path) {
       }
       diag.main = st.main || ''; diag.sid = b.sid;
       const m = await aGet(env, 'stores/' + b.sid + '/members/' + uid);
-      if (!m || m.role !== 'admin') await aSet(env, 'stores/' + b.sid + '/members/' + uid, { ...(m || {}), role: 'admin', email: String(b.email || '').slice(0, 120), name: String(b.name || 'Soporte Pekeron').slice(0, 60) });
+      // Entra en modo soporte (sop): no ocupa lugar del plan, no figura en el equipo y la app no le muestra ventas ni ganancias.
+      if (!m) await aSet(env, 'stores/' + b.sid + '/members/' + uid, { role: 'admin', sop: true, email: String(b.email || '').slice(0, 120), name: 'Soporte Pekeron', at: Date.now() });
+      else if (m.role !== 'admin') await aSet(env, 'stores/' + b.sid + '/members/' + uid, { ...m, role: 'admin' });
       const o = { name: st.name || 'Tienda' }; if (st.main) o.main = st.main;
       await aSet(env, 'users/' + uid + '/stores/' + b.sid, o);
       return json(req, env, { ok: true, name: o.name, ...diag });
@@ -279,7 +281,7 @@ async function pushRuta(req, env, path) {
       if (await aGet(env, 'stores/' + b.sid)) return err(req, env, 'Esa tienda ya existe.', 409);
       const [pi, mem, acc, cfg] = await Promise.all([aGet(env, 'stores/' + b.sid + '/public/info').catch(() => null), aQuery(env, 'stores/' + b.sid, 'members', []), aGet(env, 'stores/' + b.sid + '/billing/access').catch(() => null), aGet(env, 'stores/' + b.sid + '/cfg/servicios').catch(() => null)]);
       if (!mem.length) return err(req, env, 'No encontré el equipo de esa tienda.', 404);
-      const adm = mem.filter((m) => m.x.role === 'admin'), owner = (adm.find((m) => m.id === uid) || adm[0] || mem[0]).id;
+      const adm = mem.filter((m) => m.x.role === 'admin' && !m.x.sop), owner = (adm.find((m) => m.id === uid) || adm[0] || mem[0]).id;
       const name = String(b.name || (pi && pi.name) || 'Tienda').slice(0, 60);
       const st = { name, owner, created: (acc && acc.trialStartMs) || Date.now(), pais: 'AR', mon: 'ARS', restaurada: Date.now() };
       await aSet(env, 'stores/' + b.sid, st);
