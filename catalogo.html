@@ -522,7 +522,8 @@ main,.sec,.tools,.cats,.info,.promos,#carta{position:relative;z-index:1}
 .ln img,.ln .t{width:52px;height:52px;border-radius:12px;object-fit:cover;background:var(--soft);flex:none}
 .ln .d{flex:1;min-width:0}.ln small{display:block;color:var(--mut)}
 .tot{display:flex;justify-content:space-between;font-weight:800;font-size:20px;margin:14px 0}
-.note{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}.hint{color:var(--ink);font-weight:700}
+.note{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}.note.avon{background:#E8F7EE;color:#14532D;font-weight:700;text-align:center;margin-top:14px}
+.avb{display:block;width:100%;margin:14px auto 0;padding:14px;border-radius:99px;border:2px solid var(--ink);background:#fff;color:var(--ink);font:inherit;font-weight:800;font-size:16px;cursor:pointer}.hint{color:var(--ink);font-weight:700}
 /* carta de servicios y reserva de turnos */
 .svl{max-width:var(--mw);margin:0 auto;padding:6px 16px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0 24px}
 .svc{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
@@ -1642,9 +1643,21 @@ var h='<div class="pstc'+(p.st=='cancelado'?' no':'')+'"><div class="pe">'+t2[0]
 if(i!=null)h+='<div class="psteps">'+pasos.map(function(n,k){return '<div class="'+(k<=i?'on':'')+(k==i?' cur':'')+'"><i></i><span>'+n+'</span></div>'}).join('')+'</div>';
 h+='<div class="lbl">Pedido #'+esc(pedCod(p.id))+' · '+(p.tipo=='mesa'?'Mesa '+esc(p.mesa||''):p.tipo=='env'?'Envío':'Retiro en el local')+'</div>'+(p.it||[]).map(function(l){return '<div class="pli"><span>'+(l.w?String(l.q).replace('.',',')+' kg':l.q+' ×')+' '+esc(l.n)+(l.x?'<small>'+esc(l.x)+'</small>':'')+'</span><b>'+money(l.u*l.q)+'</b></div>'}).join('')+
 (p.env?'<div class="pli"><span>🛵 Envío</span><b>'+money(p.env)+'</b></div>':'')+'<div class="tot"><span>Total</span><span>'+money(p.tot||0)+'</span></div>'+(p.pago?'<div class="k" style="color:var(--mut);text-align:center">'+esc(p.pago)+(p.pag?' · <b style="color:#1a8f4c">pagado ✓</b>':'')+'</div>':'');
+if(activo&&p.tipo!='mesa'&&avisoSop()){var avOk=false;try{avOk=localStorage.getItem('pk_av_'+PEDV.id)=='1'}catch(e){}var avT=p.tipo=='env'?'cuando salga':'cuando esté listo';
+h+=avOk&&Notification.permission=='granted'?'<div class="note avon">🔔 Te vamos a avisar con una notificación '+avT+'.</div>':Notification.permission=='denied'?'':'<button type="button" class="avb" data-avisame="1">🔔 Avisame '+avT+'</button><div class="k" style="color:var(--mut);text-align:center;font-size:13px;margin-top:6px">Te llega un aviso al celular aunque cierres esta página.</div>'}
 if(WAS.length){var wm=p.st=='nuevo'&&p.tipo!='mesa';h+=(wm?'<div class="note" style="margin-top:14px">✅ Tu pedido ya está en el sistema del local. Si querés, avisales también por WhatsApp (no hace falta).</div>':'')+
 '<a class="wa" target="_blank" rel="noopener" style="margin-top:'+(wm?8:14)+'px'+(wm?'':';background:var(--soft);color:var(--ink)')+'" href="'+esc(waUrl(WAS[0].w,wm?pedMsg(p):'Hola! Te escribo por mi pedido #'+pedCod(p.id)+' ('+(p.cl||'')+').'))+'">'+(wm?'Mandar también por WhatsApp':'Escribirle al local')+'</a>'}
-x.innerHTML=h+'<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>'}
+x.innerHTML=h+'<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';var ab=x.querySelector('[data-avisame]');if(ab)ab.onclick=function(){avisame(PEDV.id,ab)}}
+// Avisos al cliente (sin cuenta): notificación del navegador cuando el pedido sale o está listo. Lo manda el servidor de pagos.
+function avisoSop(){try{return !!PAGOS_URL&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}catch(e){return false}}
+function u8(b){b=String(b).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';return Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)})}
+function swListo(reg){if(reg.active)return Promise.resolve(reg);var w=reg.installing||reg.waiting;return new Promise(function(ok){if(!w)return ok(reg);w.addEventListener('statechange',function(){if(w.state=='activated')ok(reg)});setTimeout(function(){ok(reg)},4000)})}
+function avisame(id,b){var t0=b.textContent;b.disabled=true;b.textContent='Activando…';
+Notification.requestPermission().then(function(per){if(per!='granted')throw new Error(per=='denied'?'Bloqueaste los avisos para esta página. Podés habilitarlos desde el candado de la barra de direcciones.':'No se activaron los avisos.');
+return navigator.serviceWorker.register('./sw-cli.js',{scope:'./avisos-cliente/'})}).then(swListo)
+.then(function(reg){return fetch(PAGOS_URL+'/push/clave',{method:'POST'}).then(function(r){return r.json()}).then(function(c){return reg.pushManager.getSubscription().then(function(s){return s||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(c.clave)})})})})
+.then(function(s){return fetch(PAGOS_URL+'/push/cliente',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:id,sub:s.toJSON()})}).then(function(r){return r.json().then(function(d){if(!r.ok||d.error)throw new Error(d.error||'No se pudo activar el aviso.')})})})
+.then(function(){try{localStorage.setItem('pk_av_'+id,'1')}catch(e){}pedPintar()}).catch(function(e){b.disabled=false;b.textContent=t0;alert(e&&e.message||'No se pudo activar el aviso.')})}
 // Envío a domicilio (lo configura el negocio): el cliente elige retiro o envío y se suma el costo.
 var ENTREGA='ret',EDIR='';function envOn(){return !!(INFO.env&&INFO.env.on)}function envCosto(){return envOn()&&ENTREGA=='env'?(+INFO.env.precio||0):0}
 function sheet(){OPEN='';$('sh').className='sheet';var r=lines();

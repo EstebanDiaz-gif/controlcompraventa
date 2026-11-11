@@ -252,3 +252,31 @@ test('fotos publicitarias: necesita sesión y clave, guarda la búsqueda y limit
   assert.equal(r.status, 400);
   globalThis.fetch = base;
 });
+
+test('cliente del catálogo: pide que le avisen y le llega cuando el pedido sale (una vez por estado)', async () => {
+  const now = Date.now(), id = 'webPedidoAbcdEFGH1234';
+  const docs = { 'stores/s1': { name: 'Burger', owner: 'u1' }, 'stores/s1/public/info': { name: 'Burger Norte' },
+    ['stores/s1/pedidos/' + id]: { src: 'web', st: 'nuevo', tipo: 'env', at: now - 60000, upd: now - 60000, cl: 'Martina', dir: 'Las Heras 450' },
+    'stores/s1/pedidos/localPedido1234567890': { src: 'local', st: 'nuevo', tipo: 'env', at: now, upd: now } };
+  const cc = await celular();
+  const { env, kv, enviados } = entorno(docs, { 'https://fcm.googleapis.com/fcm/send/C': { ...cc, uid: 'cliente' } });
+  const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/C', keys: { p256dh: cc.p256dh, auth: cc.auth } };
+  let r = await W.fetch(post('/push/cliente', { sid: 's1', id: 'noExiste12345678901', sub }), env); assert.equal(r.status, 400);
+  r = await W.fetch(post('/push/cliente', { sid: 's1', id: 'localPedido1234567890', sub }), env); assert.equal(r.status, 400, 'solo pedidos del catálogo');
+  r = await W.fetch(post('/push/cliente', { sid: 's1', id, sub: { ...sub, endpoint: 'https://malo.com/x' } }), env); assert.equal(r.status, 400);
+  r = await W.fetch(post('/push/cliente', { sid: 's1', id, sub }), env); assert.equal(r.status, 200);
+  assert.equal(enviados.pop().m.t, '🔔 Listo, te avisamos');
+  // sin cambio reciente no avisa; al pasar a "camino" sí, una sola vez, con el link de seguimiento
+  await W.fetch(post('/push/estado', { sid: 's1', id }), env); assert.equal(enviados.length, 0);
+  Object.assign(docs['stores/s1/pedidos/' + id], { st: 'ok', upd: Date.now(), acc: Date.now(), min: 30 });
+  await W.fetch(post('/push/estado', { sid: 's1', id }), env);
+  assert.equal(enviados.pop().m.t, '👨‍🍳 Confirmaron tu pedido');
+  Object.assign(docs['stores/s1/pedidos/' + id], { st: 'camino', upd: Date.now() });
+  await W.fetch(post('/push/estado', { sid: 's1', id }), env); await W.fetch(post('/push/estado', { sid: 's1', id }), env);
+  assert.equal(enviados.length, 1); const m = enviados.pop().m;
+  assert.equal(m.t, '🛵 ¡Tu pedido va en camino!'); assert.match(m.b, /#1234 de Burger Norte ya salió para Las Heras 450/); assert.match(m.u, /catalogo\.html\?t=s1&ped=webPedidoAbcdEFGH1234$/);
+  // entregado no avisa; cancelado sí y borra el celular
+  Object.assign(docs['stores/s1/pedidos/' + id], { st: 'cancelado', mot: 'Sin stock', upd: Date.now() });
+  await W.fetch(post('/push/estado', { sid: 's1', id }), env);
+  assert.match(enviados.pop().m.b, /Motivo: Sin stock/); assert.equal(kv.has('cli:s1:' + id), false);
+});

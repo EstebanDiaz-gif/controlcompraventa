@@ -1,6 +1,6 @@
 // Qué avisos se mandan al celular y a quién. Cada aviso se manda una sola vez (marca en KV av:{clave}).
 import { aGet, aMerge, aQuery } from './admin.js';
-import { enviar } from './push.js';
+import { enviar, subOk, aUno } from './push.js';
 import { deriveState } from '../../access.js';
 
 const DAY = 864e5;
@@ -183,4 +183,43 @@ export async function revisar(env, now = Date.now()) {
     } catch (e) { console.error('revisar', sid, e && e.message); }
   }
   return res;
+}
+
+// ---------- Avisos al cliente del catálogo (no tiene cuenta ni app) ----------
+// Al hacer el pedido puede tocar "Avisame cuando salga": su navegador da un permiso de notificaciones y lo guardamos
+// en KV cli:{sid}:{id} por 2 días, solo para ese pedido. Cuando el local cambia el estado, la app llama a /push/estado
+// y le llega el aviso aunque tenga la página cerrada (Android y compu; en iPhone, solo si tiene la página en el inicio).
+const idOk = (id) => /^[A-Za-z0-9]{12,40}$/.test(String(id));
+const FIN = ['entregado', 'rendir', 'servido', 'cancelado'];
+const linkPedido = (env, sid, id) => (env.APP_URL || 'https://pekeronapp.com') + '/catalogo.html?t=' + encodeURIComponent(sid) + '&ped=' + id;
+async function nombreTienda(env, sid) { try { const t = (await aGet(env, 'stores/' + sid + '/public/info')) || {}; return t.n || t.name || ''; } catch (e) { return ''; } }
+export async function clienteAlta(env, sid, id, sub) {
+  if (!idOk(id) || !subOk(sub)) return { error: 'Datos inválidos.' };
+  const d = await aGet(env, 'stores/' + sid + '/pedidos/' + id);
+  if (!d || d.src !== 'web' || FIN.includes(d.st) || !(Date.now() - (d.at || 0) < 12 * 3600000)) return { error: 'Ese pedido ya no está activo.' };
+  await env.MP.put('cli:' + sid + ':' + id, JSON.stringify({ e: sub.endpoint, k: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } }), { expirationTtl: 2 * 86400 });
+  const tn = await nombreTienda(env, sid), cod = String(id).slice(-4).toUpperCase();
+  await aUno(env, JSON.parse(await env.MP.get('cli:' + sid + ':' + id)), { t: '🔔 Listo, te avisamos', b: 'Te va a llegar un aviso cuando tu pedido #' + cod + (tn ? ' de ' + tn : '') + (d.tipo === 'env' ? ' salga para tu casa.' : ' esté listo.'), u: linkPedido(env, sid, id), tag: 'ped-' + id });
+  return { ok: true };
+}
+export function msgCliente(d, tn) {
+  const cod = '#' + String(d.id || '').slice(-4).toUpperCase(), de = tn ? ' de ' + tn : '';
+  const hm = (ms) => new Date(ms - 3 * 3600000).toISOString().slice(11, 16);
+  if (d.st === 'ok') return { t: '👨‍🍳 Confirmaron tu pedido', b: 'Tu pedido ' + cod + de + ' ya se está preparando.' + (d.min && d.acc ? ' Estimado: ' + hm(d.acc + d.min * 60000) + '.' : '') };
+  if (d.st === 'camino') return { t: '🛵 ¡Tu pedido va en camino!', b: 'Tu pedido ' + cod + de + ' ya salió' + (d.dir ? ' para ' + d.dir : '') + '.', urg: 'high' };
+  if (d.st === 'listo' && d.tipo === 'ret') return { t: '✅ ¡Tu pedido está listo!', b: 'Ya podés pasar a retirar tu pedido ' + cod + de + '.', urg: 'high' };
+  if (d.st === 'listo' && d.tipo === 'mesa') return { t: '🍽️ ¡Ya sale para tu mesa!', b: 'Tu pedido ' + cod + ' está listo. Buen provecho.' };
+  if (d.st === 'cancelado') return { t: '❌ No pudieron tomar tu pedido', b: 'El pedido ' + cod + de + ' fue cancelado.' + (d.mot ? ' Motivo: ' + d.mot : '') };
+  return null;
+}
+export async function clienteEstado(env, sid, id) {
+  if (!idOk(id)) return false;
+  const sub = await env.MP.get('cli:' + sid + ':' + id, 'json'); if (!sub) return false;
+  const d = await aGet(env, 'stores/' + sid + '/pedidos/' + id);
+  if (!d || !(Math.abs(Date.now() - (d.upd || 0)) < 10 * 60000)) return false;
+  const m = msgCliente(Object.assign({ id }, d), await nombreTienda(env, sid)); if (!m) return false;
+  if (!await una(env, 'cli:' + sid + ':' + id + ':' + d.st)) return false;
+  const vivo = await aUno(env, sub, Object.assign(m, { u: linkPedido(env, sid, id), tag: 'ped-' + id }));
+  if (!vivo || FIN.includes(d.st)) await env.MP.delete('cli:' + sid + ':' + id);
+  return true;
 }

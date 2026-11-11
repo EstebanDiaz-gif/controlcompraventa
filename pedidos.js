@@ -192,7 +192,9 @@ export function createPedidos(X) {
     const f = document.getElementById('pedfab'); if (f) f.remove(); cerrar();
   }
   const ref = (id) => doc(db, 'stores', sidOn, 'pedidos', id);
-  const set = (id, o) => updateDoc(ref(id), Object.assign({ upd: Date.now() }, o)).catch((e) => X.fail(e));
+  // Si cambia el estado, el servidor le avisa al cliente del catálogo (si pidió que le avisen).
+  const avisarCli = (id) => { if (PAGOS_URL) setTimeout(() => fetch(PAGOS_URL + '/push/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid: sidOn, id }) }).catch(() => {}), 1200); };
+  const set = (id, o) => updateDoc(ref(id), Object.assign({ upd: Date.now() }, o)).then(() => { if (o && o.st) avisarCli(id); }).catch((e) => X.fail(e));
 
   // Comanda automática: solo en el equipo que lo activó (Tiketera), para los pedidos aceptados que todavía no salieron.
   function comandas() {
@@ -310,6 +312,15 @@ export function createPedidos(X) {
   }
   // Pagado online con Mercado Pago: la venta se registra sola la primera vez que el local lo mueve.
   function online(p) { if (p.pag && !p.cob && X.cobrar) registrar(p, 'qr'); }
+  // Mensaje de WhatsApp al cliente según cómo va el pedido, con el link para seguirlo.
+  function waCli(p) {
+    const t = X.tienda() || 'el local', c = '#' + codPedido(p.id), h = 'Hola ' + nombre(p) + '! ';
+    const lk = X.catLink ? '\nSeguilo acá: ' + X.catLink() + (X.catLink().indexOf('?') >= 0 ? '&' : '?') + 'ped=' + p.id : '';
+    if (p.st === 'camino') return h + 'Tu pedido ' + c + ' de ' + t + ' ya salió y va en camino 🛵' + lk;
+    if (p.st === 'listo' && p.tipo === 'ret') return h + 'Tu pedido ' + c + ' de ' + t + ' ya está listo para retirar ✅' + lk;
+    if (p.st === 'ok') return h + 'Confirmamos tu pedido ' + c + ' en ' + t + '. Ya lo estamos preparando 👨‍🍳' + lk;
+    return h + 'Te escribimos por tu pedido ' + c + ' en ' + t + '.';
+  }
   function avisarListo(p) { if (p.tipo === 'mesa' && PAGOS_URL) setTimeout(() => fetch(PAGOS_URL + '/push/listo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid: sidOn, id: p.id }) }).catch(() => {}), 1500); }
   // ---------- cadete: link sin app con una clave (en el pedido solo queda su huella) ----------
   let cadK = null, cadsLoc = null;
@@ -411,7 +422,7 @@ export function createPedidos(X) {
       (p.nota ? '<div class="pnt">📝 ' + esc(p.nota) + '</div>' : '') + '</div>';
     h += '<div class="pbx"><small>' + tipoTxt(p) + '</small><b style="font-size:16px">' + esc(nombre(p)) + '</b>' + (p.tel ? '<div class="pds">' + esc(p.tel) + '</div>' : '') +
       (p.dir || p.geo ? '<div style="margin-top:2px"><a href="' + mapaDe(p) + '" target="_blank" rel="noopener" style="color:inherit">📍 ' + esc(p.dir || 'Ubicación marcada') + '</a>' + (p.geo ? ' <span class="pbg l">ubicación exacta</span>' : '') + '</div>' : '') +
-      (w ? '<div class="pbt"><a href="https://wa.me/' + w + '?text=' + encodeURIComponent('Hola ' + nombre(p) + '! Te escribimos por tu pedido #' + codPedido(p.id) + ' en ' + (X.tienda() || 'el local') + '.') + '" target="_blank" rel="noopener">💬 WhatsApp</a><a href="tel:' + esc(String(p.tel).replace(/[^\d+]/g, '')) + '">📞 Llamar</a></div>' : '') + '</div>';
+      (w ? '<div class="pbt"><a href="https://wa.me/' + w + '?text=' + encodeURIComponent(waCli(p)) + '" target="_blank" rel="noopener">💬 WhatsApp</a><a href="tel:' + esc(String(p.tel).replace(/[^\d+]/g, '')) + '">📞 Llamar</a></div>' : '') + '</div>';
     h += '<div class="pbx"><div class="prw"><span>Subtotal</span><span>' + money(sub) + '</span></div>' + (p.env ? '<div class="prw"><span>Envío</span><span>' + money(p.env) + '</span></div>' : '') +
       (Math.abs(sub + (p.env || 0) - (p.tot || 0)) > 1 ? '<div class="prw"><span>Descuentos y ajustes</span><span>' + money((p.tot || 0) - sub - (p.env || 0)) + '</span></div>' : '') +
       '<div class="prw t"><span>Total</span><span>' + money(p.tot || 0) + '</span></div>' +

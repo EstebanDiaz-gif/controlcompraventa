@@ -61,6 +61,9 @@ async function enviarUno(env, sus, msg) {
 }
 
 const endpointOk = (e) => { try { const u = new URL(e); return u.protocol === 'https:' && /(^|\.)(googleapis\.com|mozilla\.com|mozaws\.net|push\.apple\.com|notify\.windows\.com|windows\.com)$/.test(u.hostname); } catch (x) { return false; } };
+// Celular de un cliente del catálogo (sin cuenta): se guarda solo para avisarle de un pedido.
+export function subOk(s) { return !!(s && endpointOk(s.endpoint) && s.keys && s.keys.p256dh && s.keys.auth && String(s.endpoint).length < 1000); }
+export async function aUno(env, s, msg) { try { return await enviarUno(env, s, msg); } catch (e) { console.error('push', e && e.message); return true; } }
 export async function alta(env, uid, s) {
   if (!s || !endpointOk(s.endpoint) || !s.keys || !s.keys.p256dh || !s.keys.auth) throw Object.assign(new Error('Datos del celular inválidos.'), { http: 400 });
   const l = ((await env.MP.get('push:' + uid, 'json')) || []).filter((x) => x.e !== s.endpoint);
