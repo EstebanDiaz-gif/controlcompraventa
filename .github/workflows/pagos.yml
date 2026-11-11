@@ -10,7 +10,7 @@ name: Servidor de pagos
 on:
   push:
     branches: [main]
-    paths: ['worker/**', 'pedido.js', 'promos.js', 'sanguche.js', 'opciones.js', '.github/workflows/pagos.yml']
+    paths: ['worker/**', 'pedido.js', 'promos.js', 'sanguche.js', 'opciones.js', 'plans.js', '.github/workflows/pagos.yml']
   workflow_dispatch:
 jobs:
   publicar:

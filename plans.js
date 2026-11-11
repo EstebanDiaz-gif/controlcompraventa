@@ -5,6 +5,7 @@ export const DEFAULT_CONFIG = {
   trialDays: 10,
   graceDays: 3, // días de cortesía después de que vence el acceso
   trialPlan: 'inicial', // plan cuyos límites rigen durante la prueba (decisión pendiente de confirmar)
+  gasExtraARS: 5000, // gastronomía (pedidos por QR, comanda, cocina, mozos, cadetes): se suma a cada plan, en pesos
   plans: {
     inicial: {
       name: 'Inicial', payUrl: 'https://mpago.la/11tidko', priceARS: 14999, priceUSD: 20, admins: 2, empleados: 4, sucursales: 1,
@@ -25,6 +26,15 @@ export const DEFAULT_CONFIG = {
 };
 export const PLAN_IDS = ['inicial', 'profesional', 'empresarial'];
 
+// Rubros gastronómicos (los mismos de "Gastronomía" al elegir el tipo de negocio): pagan gasExtraARS más por mes.
+export const GAS_TIPOS = ['sang', 'burger', 'pizza', 'roti', 'bar', 'cafe'];
+export const esGas = (tipo) => GAS_TIPOS.includes(tipo);
+// Precio en pesos del plan para un negocio de ese tipo.
+export function precioARS(cfg, id, tipo) {
+  const p = cfg && cfg.plans && cfg.plans[id]; if (!p) return 0;
+  return (p.priceARS || 0) + (esGas(tipo) ? (cfg.gasExtraARS || 0) : 0);
+}
+
 // Topes técnicos (protección frente a abuso accidental; no son límites comerciales)
 export const TECH = { maxStoresPerCustomer: 10, maxStoresPerOwner: 5000, maxActiveInvites: 500, nameMax: 60, reasonMax: 300 };
 
@@ -33,6 +43,7 @@ export function mergeConfig(stored) {
   if (!stored || typeof stored !== 'object') return c;
   if (Number.isInteger(stored.trialDays) && stored.trialDays >= 0) c.trialDays = stored.trialDays;
   if (PLAN_IDS.includes(stored.trialPlan)) c.trialPlan = stored.trialPlan;
+  if (Number.isInteger(stored.gasExtraARS) && stored.gasExtraARS >= 0) c.gasExtraARS = stored.gasExtraARS;
   if (Number.isInteger(stored.graceDays) && stored.graceDays >= 0 && stored.graceDays <= 30) c.graceDays = stored.graceDays;
   for (const id of PLAN_IDS) {
     const s = stored.plans && stored.plans[id];

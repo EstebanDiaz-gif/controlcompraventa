@@ -182,6 +182,7 @@ html,body{overflow-x:clip}
 
 <section id="planes"><div class="wrap"><h2>Planes simples</h2><p class="sub">Empezás a usarla hoy mismo, sin tarjeta. Elegís el plan al registrarte y lo cambiás cuando quieras.</p>
 <div class="mons" id="mons"><button data-m="ARS">🇦🇷 Argentina</button><button data-m="USD">🌎 Otros países</button></div>
+<div class="mons" id="rubs"><button data-r="com">🛍️ Comercios</button><button data-r="gas">🍔 Gastronomía</button></div>
 <div class="plans" id="plans"></div>
 <p class="note" id="pnote" style="text-align:center">Pagás con Mercado Pago. Podés cambiar de plan cuando quieras.</p></div></section>
 
@@ -213,11 +214,16 @@ var FE={
 inicial:['Productos, compras y ventas','Stock con talles, por unidad o por kilo','Caja y fiado para almacenes','Catálogo online con pedidos por WhatsApp','Gastos y ganancia mensual'],
 profesional:['Todo lo del plan Inicial','Más personas en tu equipo','Informes avanzados y filtros','Análisis de gastos y PDF'],
 empresarial:['Todo lo del plan Profesional','Equipo grande y varias sucursales','Informes consolidados','Soporte prioritario']};
-function drawPlans(){$('plans').innerHTML=PLAN_IDS.map(function(id){var p=DEFAULT_CONFIG.plans[id],hot=id=='profesional';
-return '<div class="pl'+(hot?' hot':'')+'">'+(hot?'<span class="tg">Más elegido</span>':'')+'<h3>'+p.name+'</h3><div class="pr">'+(MON=='USD'?'US$ '+p.priceUSD:money(p.priceARS))+' <small>/ mes</small></div><div style="color:var(--mut);font-size:14px">'+p.admins+' administradores · '+p.empleados+' empleados</div><ul>'+FE[id].map(function(t){return '<li>'+t+'</li>'}).join('')+'</ul><a class="btn '+(hot?'p':'o')+'" href="./app.html?app=1">Empezar ahora</a></div>'}).join('');}
+var GAS=false;try{GAS=localStorage.getItem('pk_rub')=='gas'||/gastro|resto|burger|pizza/i.test(location.hash)}catch(e){}
+// Gastronomía: cada plan suma gasExtraARS (pedidos por QR, comanda, cocina, mozos y cadetes).
+var FEG=['Pedidos por QR en las mesas, delivery y retiro','Pantalla de cocina, mozos y cadetes sin app'];
+function drawPlans(){$('plans').innerHTML=PLAN_IDS.map(function(id){var p=DEFAULT_CONFIG.plans[id],hot=id=='profesional',ars=p.priceARS+(GAS?DEFAULT_CONFIG.gasExtraARS:0),fe=GAS&&id=='inicial'?FEG.concat(FE[id]):FE[id];
+return '<div class="pl'+(hot?' hot':'')+'">'+(hot?'<span class="tg">Más elegido</span>':'')+'<h3>'+p.name+'</h3><div class="pr">'+(MON=='USD'?'US$ '+p.priceUSD:money(ars))+' <small>/ mes</small></div><div style="color:var(--mut);font-size:14px">'+p.admins+' administradores · '+p.empleados+' empleados</div><ul>'+fe.map(function(t){return '<li>'+t+'</li>'}).join('')+'</ul><a class="btn '+(hot?'p':'o')+'" href="./app.html?app=1">Empezar ahora</a></div>'}).join('');}
 var MON='ARS';try{var tz=Intl.DateTimeFormat().resolvedOptions().timeZone||'';MON=localStorage.getItem('pk_mon')||(/^America\/(Argentina|Buenos_Aires|Cordoba)/.test(tz)?'ARS':'USD')}catch(e){}
 function setMon(m){MON=m;try{localStorage.setItem('pk_mon',m)}catch(e){}document.querySelectorAll('#mons button').forEach(function(b){b.classList.toggle('on',b.dataset.m==m)});drawPlans();var pn=$('pnote');if(pn)pn.textContent=m=='USD'?'Precios en dólares estadounidenses. Pagás con tarjeta internacional o PayPal. Podés cambiar de plan cuando quieras.':'Pagás con Mercado Pago. Podés cambiar de plan cuando quieras.'}
-document.querySelectorAll('#mons button').forEach(function(b){b.onclick=function(){setMon(b.dataset.m)}});setMon(MON);
+document.querySelectorAll('#mons button').forEach(function(b){b.onclick=function(){setMon(b.dataset.m)}});
+function setRub(g){GAS=g;try{localStorage.setItem('pk_rub',g?'gas':'com')}catch(e){}document.querySelectorAll('#rubs button').forEach(function(b){b.classList.toggle('on',(b.dataset.r=='gas')==g)});drawPlans()}
+document.querySelectorAll('#rubs button').forEach(function(b){b.onclick=function(){setRub(b.dataset.r=='gas')}});GAS=!!GAS;document.querySelectorAll('#rubs button').forEach(function(b){b.classList.toggle('on',(b.dataset.r=='gas')==GAS)});setMon(MON);
 var DP=null;
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();DP=e});
 window.addEventListener('appinstalled',function(){DP=null;location.href='./app.html?app=1'});

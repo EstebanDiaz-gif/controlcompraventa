@@ -158,3 +158,13 @@ test('un aviso falso no activa nada (los datos se piden a Mercado Pago)', async 
   await W.fetch(new Request('https://pagos.test/mp/webhook', { method: 'POST', body: JSON.stringify({ type: 'subscription_authorized_payment', data: { id: 'X' } }) }), env);
   assert.equal(docs['stores/s1/billing/access'].paidUntilMs, 5);
 });
+
+test('Gastronomía: el débito automático suma el recargo del rubro a cada plan', async () => {
+  const docs = { 'platform/config': CFG, 'stores/s1': { owner: 'u1' }, 'stores/s1/members/u1': { role: 'admin' }, 'stores/s1/cfg/servicios': { tipo: 'burger', biz: 'almacen' } };
+  const M = { creadas: [], cambios: [], pre: {}, cobros: {}, cobroPre: {} };
+  const { env } = entorno(docs, M);
+  await W.fetch(req('/sus/crear', { sid: 's1', plan: 'profesional', email: 'a@b.com', vuelta: 'https://pekeronapp.com/app.html' }, jwt('u1')), env);
+  assert.equal(M.creadas[0].auto_recurring.transaction_amount, 30000);
+  assert.match(M.creadas[0].reason, /Gastronomía/);
+  assert.equal(docs['stores/s1/billing/sus'].monto, 30000); assert.equal(docs['stores/s1/billing/sus'].gas, true);
+});

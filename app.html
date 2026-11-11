@@ -215,7 +215,7 @@ import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,co
 import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 import {firebaseConfig} from './firebase-config.js';
 import {deriveState,computeAccess,addPeriod} from './access.js';
-import {mergeConfig,PLAN_IDS} from './plans.js';
+import {mergeConfig,PLAN_IDS,esGas} from './plans.js';
 import {createAlmacen} from './almacen.js';
 import {abrirInsta} from './insta.js';
 import {abrirHistorias,rubroDe} from './historias.js';
@@ -485,7 +485,10 @@ var m={'America/Argentina':'AR','America/Buenos_Aires':'AR','America/Cordoba':'A
 for(var k in m)if(z.indexOf(k)==0)return m[k];return 'OT'}
 function monDe(pais){return pais=='AR'?'ARS':'USD'}
 function precioMon(n,mon){return mon=='USD'?'US$ '+n:money(n)}
-function precioPlan(p,mon){return mon=='USD'?'US$ '+(p.priceUSD!=null?p.priceUSD:'—'):money(p.priceARS)}
+// Gastronomía (pedidos por QR, cocina, mozos y cadetes) suma CFG.gasExtraARS a cada plan. tipo: el del negocio (si no se pasa, el de la tienda abierta).
+function gasNow(tipo){return esGas(tipo===undefined?(CS&&CS.tipo):tipo)}
+function pesosPlan(p,tipo){return (p.priceARS||0)+(gasNow(tipo)?(CFG.gasExtraARS||0):0)}
+function precioPlan(p,mon,tipo){return mon=='USD'?'US$ '+(p.priceUSD!=null?p.priceUSD:'—'):money(pesosPlan(p,tipo))}
 function payNote(mon){return mon=='USD'?'Los planes en dólares se pagan con un link internacional (tarjeta o PayPal). Escribinos y te lo pasamos; cuando se acredite el pago, activamos tu plan.':'Pagás con Mercado Pago. Cuando se acredite el pago, activamos tu plan'+(SOPORTE?'. Mandanos el comprobante a '+esc(SOPORTE):' (avisanos con el comprobante)')+'.'}
 // ---------- Débito automático del abono (servidor de pagos: /sus/*) ----------
 // billing/sus = { id, plan, monto, st: pending|authorized|paused|cancelled, next, email }. Lo escribe solo el servidor.
@@ -531,7 +534,7 @@ var st='flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-alig
 if(cur)return '<div style="flex-basis:100%;margin-top:8px;padding:10px;border-radius:14px;text-align:center;font-weight:800;background:#E6F4EA;color:#17713c">✓ Tu plan con débito automático</div>';
 return '<button data-sus="alta" data-plan="'+id+'" style="'+st+'">'+(S&&S.st=='authorized'?'Cambiar a '+esc(p.name):'Débito automático · '+esc(p.name))+'</button>'}
 function susAlta(plan){var p=CFG.plans[plan];if(!p)return;
-var em=prompt('Débito automático del plan '+p.name+' ('+money(p.priceARS)+' por mes).\n\nEscribí el email con el que entrás a Mercado Pago (tiene que ser ese mismo):',(SUS&&SUS.email)||U.email||'');if(em===null)return;em=em.trim();
+var em=prompt('Débito automático del plan '+p.name+(gasNow()?' Gastronomía':'')+' ('+money(pesosPlan(p))+' por mes).\n\nEscribí el email con el que entrás a Mercado Pago (tiene que ser ese mismo):',(SUS&&SUS.email)||U.email||'');if(em===null)return;em=em.trim();
 if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('Revisá el email.');return}
 var b=document.querySelector('[data-sus="alta"][data-plan="'+plan+'"]');if(b){b.disabled=true;b.textContent='Abriendo Mercado Pago…'}
 susFetch('/sus/crear',{plan:plan,email:em,vuelta:location.origin+location.pathname+'?sussid='+encodeURIComponent(SID)}).then(function(d){location.href=d.url})
@@ -550,6 +553,7 @@ susFetch('/sus/sync').then(function(d){alert(d.st=='authorized'?'¡Listo! Quedó
 try{if(STORES.some(function(x){return x.id==sid})&&SID!=sid)openStore(sid)}catch(e){}setTimeout(go,800)}
 function payBtn(p,mon){var st='flex-basis:100%;margin-top:8px;padding:12px;border-radius:14px;text-align:center;text-decoration:none;font-weight:800;background:var(--btn);color:var(--btnink)';
 if(mon=='USD')return '<a href="https://wa.me/'+SOPORTE_WA+'?text='+encodeURIComponent('Hola, quiero contratar el plan '+p.name+' (US$ '+p.priceUSD+' por mes) de Pekeron App para "'+SNAME+'".')+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>';
+if(gasNow())return '<a href="https://wa.me/'+SOPORTE_WA+'?text='+encodeURIComponent('Hola, quiero contratar el plan '+p.name+' Gastronomía ('+money(pesosPlan(p))+' por mes) de Pekeron App para "'+SNAME+'".')+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>';
 return p.payUrl?'<a href="'+esc(p.payUrl)+'" target="_blank" rel="noopener" style="'+st+'">Contratar '+esc(p.name)+'</a>':''}
 
 /* ---------- tiendas ---------- */
@@ -562,12 +566,12 @@ o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:2
 '<label>¿Qué tipo de negocio es?</label><div class="k" style="margin:2px 0 4px">Así preparamos la app con las funciones de tu rubro.</div>'+tipoGrid('',false)+
 '<label style="margin-top:14px">Código de vendedor (opcional)</label><input id="sn_v" maxlength="10" autocomplete="off" placeholder="Si te lo instaló un vendedor, poné su código" style="text-transform:uppercase" value="'+esc(VD.desdeLink())+'">'+
 '<label style="margin-top:14px">¿En qué país está tu negocio?</label><select id="sn_pais">'+PAISES.map(function(x){return '<option value="'+x[0]+'">'+x[2]+' '+x[1]+'</option>'}).join('')+'</select><div class="k" id="sn_mon" style="margin-top:4px"></div>'+
-'<label style="margin-top:14px">Elegí tu plan</label>'+pc+
+'<label style="margin-top:14px">Elegí tu plan</label>'+pc+'<div class="k" id="sn_gas" hidden style="margin-top:8px">🍔 Gastronomía: el precio incluye pedidos por QR en las mesas, delivery y retiro, pantalla de cocina, mozos y cadetes (+'+money(CFG.gasExtraARS||0)+' por mes en cada plan).</div>'+
 '<button class="go" id="sn_ok">Crear mi tienda</button><button class="x" id="sn_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
 document.body.appendChild(o);
-tipoWire(o);
+tipoWire(o,function(){monUpd()});
 var pz=$('sn_pais');try{pz.value=localStorage.getItem('pk_pais')||paisDetect()}catch(e){pz.value=paisDetect()}
-function monUpd(){var mon=monDe(pz.value);o.querySelectorAll('.spp').forEach(function(e){e.textContent=precioPlan(CFG.plans[e.dataset.id],mon)});$('sn_mon').textContent=mon=='USD'?'Los precios para tu país están en dólares estadounidenses (US$).':'Los precios están en pesos argentinos.'}
+function monUpd(){if(!pz)return;var mon=monDe(pz.value);o.querySelectorAll('.spp').forEach(function(e){e.textContent=precioPlan(CFG.plans[e.dataset.id],mon,o._tipo||'')});var sg=$('sn_gas');if(sg)sg.hidden=!(mon=='ARS'&&gasNow(o._tipo||''));$('sn_mon').textContent=mon=='USD'?'Los precios para tu país están en dólares estadounidenses (US$).':'Los precios están en pesos argentinos.'}
 pz.onchange=monUpd;monUpd();
 $('sn_x').onclick=function(){o.remove()};$('sn_v').oninput=function(){o._vok=undefined};
 $('sn_ok').onclick=function(){
@@ -1902,7 +1906,7 @@ var h='<div class="card"><b style="display:flex;justify-content:space-between;al
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
 if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+=susHtml()+'<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+planBtn(id,p,STMON)+'</div>'});
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes'+(STMON!='USD'&&gasNow()?' · gastronomía':'')+'</small></div>'+planBtn(id,p,STMON)+'</div>'});
 h+='<div class="k" style="margin-top:8px">'+(susOn()?'Con débito automático no tenés que mandar comprobantes: cada cobro aprobado renueva tu plan solo.':payNote(STMON))+'</div>'}
 h+='</div></div>';
 return h}
@@ -1995,7 +1999,7 @@ var h='<div class="card"><b>Plan y límites</b><div class="rows" style="margin:6
 '<div class="r2"><span>Sucursales permitidas</span><b>'+lim(L.sucursales)+'</b></div></div>'+
 warn(nA,L.admins,'administradores')+warn(nE,L.empleados,'empleados');
 if(!ACCX.unlimited&&!(ACCX.life&&d.state=='paid')){h+=susHtml()+'<div style="margin-top:14px"><b>Planes disponibles</b></div>';
-PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes</small></div>'+planBtn(id,p,STMON)+'</div>'});
+PLAN_IDS.forEach(function(id){var p=CFG.plans[id];h+='<div class="it" style="flex-wrap:wrap"><div><b>'+esc(p.name)+'</b>'+(ACC&&ACC.chosenPlan==id?' <span class="tag">Tu elección</span>':'')+'<small>'+p.admins+' administradores · '+p.empleados+' empleados · '+p.sucursales+' sucursal'+(p.sucursales==1?'':'es')+'</small></div><div class="amt"><b>'+precioPlan(p,STMON)+'</b><small>por mes'+(STMON!='USD'&&gasNow()?' · gastronomía':'')+'</small></div>'+planBtn(id,p,STMON)+'</div>'});
 h+='<div class="k" style="margin-top:8px">'+(susOn()?'Con débito automático no tenés que mandar comprobantes: cada cobro aprobado renueva tu plan solo.':payNote(STMON))+'</div>'}
 return h+'</div>'}
 function shareCode(c,role){if(!role){var iv=INV.filter(function(v){return v.code==c})[0];role=iv?iv.role:'empleado'}
@@ -2220,7 +2224,7 @@ if(!(d.audit||[]).length)h+='<div class="empty">Sin movimientos.</div>';
 (d.audit||[]).forEach(function(x){h+='<div class="it"><div><b>'+(AC[x.action]||x.action)+(x.grantType?' · '+GT[x.grantType]:'')+'</b><small>'+fdate(x.atMs)+(x.reason?' · '+esc(x.reason):'')+'</small></div></div>'});
 return h+'</div>'}
 function cfgHtml(){
-var h='<div class="card"><b>Planes y precios</b><div class="k" style="margin:4px 0 0">Los cambios valen para las altas y controles nuevos. No borran nada.</div>';
+var h='<div class="card"><b>Planes y precios</b><div class="k" style="margin:4px 0 0">Los cambios valen para las altas y controles nuevos. No borran nada. Los negocios de gastronomía pagan '+money(CFG.gasExtraARS||0)+' más por mes en cada plan.</div>';
 PLAN_IDS.forEach(function(id){var p=CFG.plans[id];
 h+='<div style="margin-top:14px"><b>'+esc(p.name)+'</b></div><div class="row"><div><label>Precio (ARS/mes)</label><input id="c_'+id+'_p" type="number" min="0" value="'+p.priceARS+'"></div><div><label>Precio (US$/mes)</label><input id="c_'+id+'_u" type="number" min="0" value="'+(p.priceUSD!=null?p.priceUSD:'')+'"></div></div>'+
 '<div class="row"><div><label>Admins</label><input id="c_'+id+'_a" type="number" min="0" value="'+p.admins+'"></div><div><label>Empleados</label><input id="c_'+id+'_e" type="number" min="0" value="'+p.empleados+'"></div><div><label>Sucursales</label><input id="c_'+id+'_s" type="number" min="0" value="'+p.sucursales+'"></div></div>'});

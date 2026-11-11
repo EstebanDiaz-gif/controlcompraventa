@@ -4,7 +4,7 @@
 // - Cada cobro aprobado extiende el abono un mes (billing/access de la tienda y de sus sucursales).
 // - stores/{sid}/billing/sus = { id, plan, monto, st, email, at, next, prev, prevPlan, pagos: { idCobro: ms } }
 import { computeAccess, addPeriod } from '../../access.js';
-import { mergeConfig } from '../../plans.js';
+import { mergeConfig, precioARS, esGas } from '../../plans.js';
 import { aGet, aSet, aWhere, TS } from './admin.js';
 import * as AV from './avisos.js';
 
@@ -81,17 +81,19 @@ export async function crear(env, { sid, plan, email, vuelta }) {
   if (st.mon === 'USD') throw Object.assign(new Error('El débito automático con Mercado Pago es solo para pagos en pesos.'), { http: 400 });
   const cfg = mergeConfig(await aGet(env, 'platform/config'));
   const P = cfg.plans[plan]; if (!P || !(P.priceARS > 0)) throw Object.assign(new Error('Plan inválido.'), { http: 400 });
+  // Gastronomía paga un poco más (pedidos por QR, cocina, mozos y cadetes).
+  const sv = (await aGet(env, 'stores/' + sid + '/cfg/servicios')) || {}, gas = esGas(sv.tipo), monto = precioARS(cfg, plan, sv.tipo);
   const acc = (await aGet(env, 'stores/' + sid + '/billing/access')) || {};
   if (acc.life) throw Object.assign(new Error('Esta tienda tiene licencia de por vida: no necesita abono.'), { http: 400 });
   // Primer cobro: cuando termina lo que ya tiene (prueba, mes de Llave en mano o meses pagados). Si ya venció, ahora.
   const hasta = Math.max(acc.activeUntilMs || 0, acc.paidUntilMs || 0, acc.trialEndMs || 0);
-  const ar = { frequency: 1, frequency_type: 'months', transaction_amount: P.priceARS, currency_id: 'ARS' };
+  const ar = { frequency: 1, frequency_type: 'months', transaction_amount: monto, currency_id: 'ARS' };
   if (hasta > Date.now() + 3600000) ar.start_date = new Date(hasta).toISOString();
-  const pre = await mp(env, '/preapproval', { method: 'POST', body: JSON.stringify({ reason: 'Pekeron App · Plan ' + P.name + (st.name ? ' · ' + String(st.name).slice(0, 60) : ''), external_reference: sid, payer_email: email, auto_recurring: ar, back_url: vuelta, status: 'pending' }) });
+  const pre = await mp(env, '/preapproval', { method: 'POST', body: JSON.stringify({ reason: 'Pekeron App · Plan ' + P.name + (gas ? ' Gastronomía' : '') + (st.name ? ' · ' + String(st.name).slice(0, 60) : ''), external_reference: sid, payer_email: email, auto_recurring: ar, back_url: vuelta, status: 'pending' }) });
   if (!pre.init_point || !pre.id) throw Object.assign(new Error('Mercado Pago no devolvió el link de la suscripción.'), { http: 502 });
   const old = await aGet(env, 'stores/' + sid + '/billing/sus');
   const activa = old && old.id && old.st === 'authorized';
-  await aSet(env, 'stores/' + sid + '/billing/sus', { id: pre.id, plan, monto: P.priceARS, st: 'pending', email, at: Date.now(), next: ar.start_date ? hasta : null,
+  await aSet(env, 'stores/' + sid + '/billing/sus', { id: pre.id, plan, monto, gas, st: 'pending', email, at: Date.now(), next: ar.start_date ? hasta : null,
     prev: activa ? old.id : (old && old.prev) || null, prevPlan: activa ? old.plan : (old && old.prevPlan) || null, pagos: (old && old.pagos) || {} });
   await env.MP.put('susid:' + pre.id, sid);
   return { url: pre.init_point, desde: ar.start_date ? hasta : null };
