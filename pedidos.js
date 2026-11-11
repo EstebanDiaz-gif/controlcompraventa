@@ -10,9 +10,9 @@ import { tkConfig, imprimirComanda, codPedido } from './ticket.js';
 import { qrCanvas } from './qr.js';
 import { PAGOS_URL } from './pagos-config.js';
 
-const ACTIVOS = ['nuevo', 'ok', 'listo', 'camino'];
+const ACTIVOS = ['nuevo', 'ok', 'listo', 'camino', 'rendir'];
 const TIPO = { mesa: ['🍽️', 'Mesa'], env: ['🛵', 'Delivery'], ret: ['🏪', 'Retiro'] };
-const EST = { nuevo: ['Nuevo', 'n'], ok: ['Preparando', 'p'], listo: ['Listo', 'l'], camino: ['En camino', 'c'], entregado: ['Entregado', 'e'], cancelado: ['Cancelado', 'x'] };
+const EST = { nuevo: ['Nuevo', 'n'], ok: ['Preparando', 'p'], listo: ['Listo', 'l'], camino: ['En camino', 'c'], rendir: ['Por rendir', 'n'], entregado: ['Entregado', 'e'], cancelado: ['Cancelado', 'x'] };
 const SOLAPAS = [['nuevo', 'Nuevos'], ['ok', 'En curso'], ['listo', 'Listos'], ['camino', 'En camino']];
 
 // Próxima acción de cada pedido: [estado nuevo, ícono, texto del botón]
@@ -21,6 +21,7 @@ function proxima(p) {
   if (p.st === 'ok') return ['listo', '🛎️', 'Marcar listo'];
   if (p.st === 'listo') return p.tipo === 'env' ? ['camino', '🛵', 'Enviar pedido'] : p.tipo === 'mesa' ? ['entregado', '🍽️', 'Llevado a la mesa'] : ['entregado', '🤝', 'Entregar'];
   if (p.st === 'camino') return ['entregado', '🏁', 'Confirmar entrega'];
+  if (p.st === 'rendir') return ['cobrar', '💵', 'Recibí la plata'];
   return null;
 }
 const pago = (p) => !!(p.pag || p.pg || p.cob);
@@ -92,6 +93,7 @@ export function createPedidos(X) {
       '#pedd .pft button{border:0;border-radius:14px;padding:15px 16px;font:inherit;font-weight:800;font-size:15px;cursor:pointer}#pedd .pft .sec{background:#F3F4F8;color:#111827}#pedd .pft .pri{flex:1;background:var(--btn,#1D3FAF);color:#fff}#pedd .pft .pri.ac{background:#16A34A}',
       '#pedd .pmn{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}#pedd .pmn button{border:0;border-radius:14px;padding:16px 0;font:inherit;font-weight:900;font-size:16px;background:#16A34A;color:#fff;cursor:pointer}',
       '#pedd .pes button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#F3F4F8;border-radius:12px;padding:13px 14px;margin-top:6px;font:inherit;font-weight:700;cursor:pointer;color:#111827}#pedd .pes button.on{background:#EEF2FF;color:var(--btn,#1D3FAF)}',
+      '#pedd .ppcad{display:block;width:100%;border:0;border-radius:14px;background:#111827;color:#fff;font:inherit;font-weight:800;font-size:15.5px;padding:15px;margin-top:12px;cursor:pointer}',
       '#pedd .plk{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}#pedd .plk button{flex:1 1 auto;border:0;border-radius:12px;background:#F3F4F8;color:#111827;font:inherit;font-weight:700;font-size:14px;padding:11px 12px;cursor:pointer}#pedd .plk .rj{background:none;color:#B91C1C;text-decoration:underline;flex:0 0 auto}',
     ].join('');
     document.head.appendChild(st);
@@ -218,7 +220,8 @@ export function createPedidos(X) {
   }
   function cabecera() {
     const pub = (X.pub && X.pub()) || {}, cerr = !!pub.cerr, adm = X.isAdm && X.isAdm(), lg = pub.logo || '';
-    const cnt = (k) => L.filter((p) => p.st === k && (!misOn() || mia(p))).length;
+    const enTab = (p, k) => p.st === k || (k === 'camino' && p.st === 'rendir');
+    const cnt = (k) => L.filter((p) => enTab(p, k) && (!misOn() || mia(p))).length;
     return '<div class="ppt"><span class="plg">' + (/^(data:image|https:)/.test(lg) ? '<img alt="" src="' + esc(lg) + '">' : esc((X.tienda() || 'P').charAt(0).toUpperCase())) + '</span>' +
       '<a class="pch" href="' + esc(X.catLink ? X.catLink() : '#') + '" target="_blank" rel="noopener">👁️ Ver menú</a>' +
       (adm ? '<button type="button" class="pch ' + (cerr ? 'ce' : 'ab') + '" data-pa="abierto" title="Tocá para ' + (cerr ? 'abrir' : 'cerrar') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</button>' : '<span class="pch ' + (cerr ? 'ce' : 'ab') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</span>') +
@@ -238,7 +241,7 @@ export function createPedidos(X) {
       const l = filtra(HIST);
       return l.length ? l.map((p) => tarjeta(p, true)).join('') : vacio('📭', 'Sin pedidos terminados', 'Acá ves los entregados y cancelados de hoy y ayer.');
     }
-    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab)).filter((p) => !misOn() || mia(p));
+    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab || (tab === 'camino' && p.st === 'rendir'))).filter((p) => !misOn() || mia(p));
     if (l.length) return l.map((p) => tarjeta(p, modo === 'todos')).join('');
     return modo === 'todos' ? vacio('📭', 'No hay pedidos activos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
       : tab === 'nuevo' ? vacio('📥', 'No hay pedidos nuevos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
@@ -270,6 +273,7 @@ export function createPedidos(X) {
   function avanzar(p, desde) {
     const nx = proxima(p); if (!nx) return;
     if (nx[0] === 'ok') { aceptar(p); return; }
+    if (nx[0] === 'cobrar') { cobrarDlg(p, 'entregado'); return; }
     if (nx[0] === 'entregado' && !p.cob && X.cobrar) { cobrarDlg(p, 'entregado'); return; }   // al entregar: ¿lo cobraste?
     set(p.id, { st: nx[0] }); online(p); if (nx[0] === 'listo') avisarListo(p);
     if (desde === 'det') cerrarDet();
@@ -285,6 +289,33 @@ export function createPedidos(X) {
   // Pagado online con Mercado Pago: la venta se registra sola la primera vez que el local lo mueve.
   function online(p) { if (p.pag && !p.cob && X.cobrar) registrar(p, 'qr'); }
   function avisarListo(p) { if (p.tipo === 'mesa' && PAGOS_URL) setTimeout(() => fetch(PAGOS_URL + '/push/listo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid: sidOn, id: p.id }) }).catch(() => {}), 1500); }
+  // ---------- cadete: link sin app con una clave (en el pedido solo queda su huella) ----------
+  let cadK = null, cadsLoc = null;
+  const cadsGuardar = (l, p) => X.guardarCads(l).then(() => { cadsLoc = { l, t: Date.now() }; cadDlg(p); });
+  const claveNueva = () => { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', r = new Uint8Array(28); crypto.getRandomValues(r); let o = ''; for (let i = 0; i < 28; i++) o += a[r[i] % a.length]; return o; };
+  const huella = (k) => crypto.subtle.digest('SHA-256', new TextEncoder().encode(k)).then((h) => Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, '0')).join(''));
+  const mapaDe = (p) => p.geo && isFinite(p.geo.la) ? 'https://www.google.com/maps/dir/?api=1&destination=' + p.geo.la + ',' + p.geo.lo : 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(p.dir || '');
+  function cadDlg(p) {
+    det = p; const k = claveNueva(); cadK = { id: p.id, k, kh: null }; huella(k).then((h) => { if (cadK && cadK.k === k) cadK.kh = h; });
+    const L2 = cadsLoc && Date.now() - cadsLoc.t < 8000 ? cadsLoc.l : ((X.cads && X.cads()) || []), adm = X.isAdm && X.isAdm();
+    hoja('<div class="pgr"></div><h3>🛵 Mandar al cadete</h3><div class="pds">Le llega por WhatsApp la dirección con el mapa, cuánto cobrar y un link para avisar cuando lo entrega. No necesita la app.</div>' +
+      '<div class="pes">' + L2.map((c, i) => '<div style="display:flex;gap:6px;align-items:center"><button type="button" data-pd="cadsel" data-n="' + esc(c.n) + '" data-t="' + esc(c.t) + '" style="flex:1">🛵 ' + esc(c.n) + ' <span style="color:#6B7280;font-weight:600">· ' + esc(c.t) + '</span></button>' + (adm ? '<button type="button" data-pd="caddel" data-i="' + i + '" data-n="' + esc(c.n) + '" style="width:auto;background:none;color:#B91C1C;margin-top:6px">✕</button>' : '') + '</div>').join('') +
+      '<button type="button" data-pd="cadsel" data-n="" data-t="">💬 Elegir el contacto en WhatsApp</button></div>' +
+      (adm ? '<details style="margin-top:12px"><summary style="font-weight:800;cursor:pointer">＋ Guardar un cadete</summary><input id="cad_n" placeholder="Nombre (ej: Juan)" maxlength="40" style="margin-top:8px"><input id="cad_t" type="tel" placeholder="WhatsApp (ej: 381 555 1234)" maxlength="24"><button type="button" class="go" data-pd="cadadd">Guardar cadete</button></details>' : '') +
+      '<div class="pft"><button type="button" class="sec" data-pd="det" style="flex:1">Volver</button></div>');
+  }
+  function mandarCad(p, nombreC, telC) {
+    if (!cadK || cadK.id !== p.id) return;
+    const k = cadK.k, url = new URL('cadete.html', location.href).href.split('?')[0] + '?s=' + encodeURIComponent(sidOn) + '&p=' + encodeURIComponent(p.id) + '&k=' + k;
+    const cobrar = pago(p) ? '✅ Ya está pago: no cobres nada.' : '💵 Cobrar: ' + money(p.tot || 0) + (p.pago ? ' (' + p.pago + ')' : '') + (p.paga > (p.tot || 0) ? '\n   Paga con ' + money(p.paga) + ' → llevá ' + money(p.paga - p.tot) + ' de vuelto' : '');
+    const msg = '🛵 Envío #' + codPedido(p.id) + ' — ' + (X.tienda() || '') + '\n\n👤 ' + nombre(p) + (p.tel ? ' · ' + p.tel : '') + '\n📍 ' + (p.dir || '') + '\n🗺️ Cómo llegar: ' + mapaDe(p) + '\n\n' + cobrar + (p.nota ? '\n📝 ' + p.nota : '') +
+      '\n\n📦 Lleva ' + cuantos(p) + ' producto' + (cuantos(p) === 1 ? '' : 's') + '\n\n✅ Cuando lo entregues tocá acá:\n' + url;
+    const n = waTel(telC);
+    window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(msg), '_blank');
+    const guardar = (kh) => { const o = { kh, cad: nombreC || '' }; if (p.st === 'ok' || p.st === 'listo') o.st = 'camino'; set(p.id, o); };
+    if (cadK.kh) guardar(cadK.kh); else huella(k).then(guardar);
+    cerrarDet();
+  }
   function cobrarDlg(p, luego) {
     det = p; const sug = payDe(p.pago) || 'ef', ent = luego === 'entregado';
     hoja('<div class="pgr"></div><h3>' + (ent ? '¿Ya lo cobraste?' : '¿Cómo pagó?') + '</h3><div class="pds">#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + ' · <b>' + money(p.tot || 0) + '</b>' + (p.paga > 0 ? ' · abona con ' + money(p.paga) + ' (vuelto ' + money(Math.max(0, p.paga - (p.tot || 0))) + ')' : '') + '</div>' +
@@ -354,13 +385,15 @@ export function createPedidos(X) {
     h += '<div class="pbx"><small>Productos (' + cuantos(p) + ')</small>' + (p.it || []).map((x) => '<div class="pli"><span><em>' + (x.w ? esc(String(x.q).replace('.', ',')) + ' kg' : esc(x.q) + '×') + '</em> ' + esc(x.n) + (x.x ? '<small>+ ' + esc(x.x) + '</small>' : '') + '</span><span>' + money(Math.round((+x.u || 0) * (+x.q || 0))) + '</span></div>').join('') +
       (p.nota ? '<div class="pnt">📝 ' + esc(p.nota) + '</div>' : '') + '</div>';
     h += '<div class="pbx"><small>' + tipoTxt(p) + '</small><b style="font-size:16px">' + esc(nombre(p)) + '</b>' + (p.tel ? '<div class="pds">' + esc(p.tel) + '</div>' : '') +
-      (p.dir ? '<div style="margin-top:2px"><a href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.dir) + '" target="_blank" rel="noopener" style="color:inherit">📍 ' + esc(p.dir) + '</a></div>' : '') +
+      (p.dir || p.geo ? '<div style="margin-top:2px"><a href="' + mapaDe(p) + '" target="_blank" rel="noopener" style="color:inherit">📍 ' + esc(p.dir || 'Ubicación marcada') + '</a>' + (p.geo ? ' <span class="pbg l">ubicación exacta</span>' : '') + '</div>' : '') +
       (w ? '<div class="pbt"><a href="https://wa.me/' + w + '?text=' + encodeURIComponent('Hola ' + nombre(p) + '! Te escribimos por tu pedido #' + codPedido(p.id) + ' en ' + (X.tienda() || 'el local') + '.') + '" target="_blank" rel="noopener">💬 WhatsApp</a><a href="tel:' + esc(String(p.tel).replace(/[^\d+]/g, '')) + '">📞 Llamar</a></div>' : '') + '</div>';
     h += '<div class="pbx"><div class="prw"><span>Subtotal</span><span>' + money(sub) + '</span></div>' + (p.env ? '<div class="prw"><span>Envío</span><span>' + money(p.env) + '</span></div>' : '') +
       (Math.abs(sub + (p.env || 0) - (p.tot || 0)) > 1 ? '<div class="prw"><span>Descuentos y ajustes</span><span>' + money((p.tot || 0) - sub - (p.env || 0)) + '</span></div>' : '') +
       '<div class="prw t"><span>Total</span><span>' + money(p.tot || 0) + '</span></div>' +
       '<div class="pli" style="align-items:center"><span>' + esc(p.pago || 'Pago a definir') + '</span><button type="button" class="ppg' + (pago(p) ? ' si' : '') + '" data-pd="pg" style="padding:0"><i>' + (pago(p) ? '✓' : '') + '</i>' + (p.cob ? 'Cobrado' + (p.cpay ? ' · ' + esc(p.cpay) : '') : p.pag ? 'Pagado online' : pago(p) ? 'Está pago' : 'Sin pagar') + '</button></div>' +
       (p.paga > 0 ? '<div class="prw" style="margin-top:8px"><span>Abona con</span><span>' + money(p.paga) + '</span></div><div class="prw v"><span>Vuelto</span><span>' + money(Math.max(0, p.paga - (p.tot || 0))) + '</span></div>' : '') + '</div>';
+    if (p.tipo === 'env' && /^(ok|listo|camino)$/.test(p.st)) h += '<button type="button" class="ppcad" data-pd="cad">🛵 ' + (p.kh ? 'Mandar de nuevo al cadete' + (p.cad ? ' (' + esc(p.cad) + ')' : '') : 'Mandar al cadete por WhatsApp') + '</button>';
+    if (p.st === 'rendir') h += '<div class="pnt" style="background:#FEF3C7">🛵 Lo entregó ' + esc(p.cad || 'el cadete') + ' y cobró ' + money(p.tot || 0) + '. Cuando te rinda la plata, tocá "Recibí la plata" y la venta queda registrada.</div>';
     h += '<div class="plk">' + (p.cob ? '' : '<button type="button" data-pd="caja">💵 Cobrar en la caja</button>') + '<button type="button" data-pd="com">🖨️ Comanda</button>' +
       (p.st !== 'entregado' && p.st !== 'cancelado' ? '<button type="button" class="rj" data-pd="cancel">' + (p.st === 'nuevo' ? 'Rechazar' : 'Cancelar pedido') + '</button>' : '') + '</div>';
     if (p.st === 'cancelado' && p.mot) h += '<div class="pnt" style="background:#FEE2E2;color:#991B1B">Motivo: ' + esc(p.mot) + '</div>';
@@ -386,7 +419,11 @@ export function createPedidos(X) {
     if (a === 'setst') { const s = b.dataset.st, o = { st: s }; if (s === 'ok' && !p.acc) o.acc = Date.now(); set(p.id, o); if (s === 'listo') avisarListo(p); cerrarDet(); return; }
     if (a === 'com') { imprimirComanda(p); updateDoc(ref(p.id), { imp: true }).catch(() => {}); return; }
     if (a === 'caja') { if (X.aCaja(p)) cerrar(); return; }
-    if (a === 'cancel') cancelar(p);
+    if (a === 'cancel') { cancelar(p); return; }
+    if (a === 'cad') { cadDlg(p); return; }
+    if (a === 'cadsel') { mandarCad(p, b.dataset.n || '', b.dataset.t || ''); return; }
+    if (a === 'cadadd') { const n = (document.getElementById('cad_n').value || '').trim().slice(0, 40), t = (document.getElementById('cad_t').value || '').trim().slice(0, 24); if (!n || t.replace(/\D/g, '').length < 6) { alert('Escribí el nombre y el WhatsApp del cadete.'); return; } const base = cadsLoc && Date.now() - cadsLoc.t < 8000 ? cadsLoc.l : (X.cads() || []); cadsGuardar(base.concat([{ n, t }]).slice(-12), p); return; }
+    if (a === 'caddel') { if (!confirm('¿Borrar a ' + b.dataset.n + ' de la lista?')) return; const base = cadsLoc && Date.now() - cadsLoc.t < 8000 ? cadsLoc.l : (X.cads() || []); cadsGuardar(base.filter((c, i) => i !== +b.dataset.i), p); return; }
   }
 
   // ---------- pedido del mostrador (lo arma la caja con los productos de la venta en curso) ----------

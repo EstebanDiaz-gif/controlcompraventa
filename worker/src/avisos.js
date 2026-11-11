@@ -55,6 +55,26 @@ export async function pedidoNuevo(env, sid, id) {
   await enviar(env, quien, { t: '🛎️ Pedido nuevo · ' + (TIPO_PED[d.tipo] || '') + (d.tipo === 'mesa' ? (d.mesa || '') : '') + ' · ' + money(d.tot || 0), b: (d.cl || 'Un cliente') + ' pidió ' + n + ' producto' + (n === 1 ? '' : 's') + '. Tocá para verlo y aceptarlo.', u: APP(env) + '?ped=1', tag: 'ped-' + id });
   return true;
 }
+// ---------- Cadete sin app: el local le manda por WhatsApp un link con una clave; la clave no se guarda, solo su huella (kh) ----------
+async function huella(k) { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(k))); return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, '0')).join(''); }
+const pagado = (d) => !!(d.pag || d.pg || d.cob);
+export async function cadete(env, sid, id, k, accion) {
+  if (!/^[A-Za-z0-9]{12,40}$/.test(String(id)) || !/^[A-Za-z0-9]{16,64}$/.test(String(k))) return { error: 'Link inválido.' };
+  const ruta = 'stores/' + sid + '/pedidos/' + id, d = await aGet(env, ruta);
+  if (!d || !d.kh || d.kh !== await huella(k)) return { error: 'Este link ya no es válido. Pedile al local que te lo mande de nuevo.' };
+  if (accion === 'entregado' && (d.st === 'camino' || d.st === 'listo' || d.st === 'ok')) {
+    const st = pagado(d) ? 'entregado' : 'rendir';   // rendir: lo entregó y tiene la plata del cliente
+    await aMerge(env, ruta, { st, upd: Date.now(), ent: Date.now() });
+    d.st = st;
+    if (await una(env, 'cad:' + sid + ':' + id)) {
+      const quien = (await aQuery(env, 'stores/' + sid, 'members', [])).filter((m) => !m.x.sop).map((m) => m.id);
+      await enviar(env, quien, { t: '🛵 Entregado #' + String(id).slice(-4).toUpperCase() + (d.cad ? ' · ' + d.cad : ''), b: (d.cl || 'El cliente') + (st === 'rendir' ? ' ya lo recibió. El cadete cobró ' + money(d.tot || 0) + ': falta rendir la plata.' : ' ya lo recibió.'), u: APP(env) + '?ped=1', tag: 'cad-' + id });
+    }
+  }
+  const info = (await aGet(env, 'stores/' + sid + '/public/info')) || {};
+  return { ok: true, p: { id, st: d.st, cl: d.cl || '', tel: d.tel || '', dir: d.dir || '', geo: d.geo || null, nota: d.nota || '', tot: d.tot || 0, pago: d.pago || '', paga: d.paga || 0, pagado: pagado(d), cad: d.cad || '',
+    n: (d.it || []).reduce((a, x) => a + (x.w ? 1 : (+x.q || 0)), 0), it: (d.it || []).slice(0, 40).map((x) => ({ n: x.n, q: x.q, w: x.w ? 1 : 0, x: x.x || '' })) }, tienda: { n: info.name || '', tel: (Array.isArray(info.was) && info.was[0] && info.was[0].w) || info.wa || '', addr: info.addr || '' } };
+}
 // Mesas que atiende cada mozo (cfg/servicios.mozos = { uid: '4, 5, 6' | '1-8' }), igual que en pedidos.js
 export function mesasDe(t) {
   const s = new Set();

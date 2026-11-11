@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#111827">
+<title>Envío · Pekeron</title>
+<style>
+:root{--ink:#111827;--mut:#6B7280;--bg:#F3F4F8;--card:#fff;--ok:#16A34A;--az:#1D3FAF}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+.top{background:var(--ink);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 18px 22px}
+.top small{opacity:.7;font-weight:600}.top h1{margin:4px 0 0;font-size:24px}
+.w{max-width:520px;margin:0 auto;padding:14px}
+.card{background:var(--card);border-radius:18px;padding:16px;margin-top:12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.lb{font-size:12.5px;font-weight:800;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.big{font-size:21px;font-weight:900;margin-top:4px}.dir{font-size:17px;font-weight:700;margin-top:6px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:16px;padding:17px;font:inherit;font-size:17px;font-weight:800;text-decoration:none;cursor:pointer;margin-top:10px}
+.az{background:var(--az);color:#fff}.gr{background:#E5E7EB;color:var(--ink)}.ok{background:var(--ok);color:#fff;font-size:19px;padding:20px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row .btn{margin-top:10px}
+.cob{background:#FEF3C7;color:#78350F;border-radius:14px;padding:14px;margin-top:10px}.cob b{font-size:24px;display:block}
+.pg{background:#DCFCE7;color:#14532D;border-radius:14px;padding:14px;margin-top:10px;font-weight:800;font-size:17px}
+.nt{background:#FEF3C7;color:#78350F;border-radius:12px;padding:10px 12px;margin-top:10px;font-weight:800}
+ul{list-style:none;margin:8px 0 0;padding:0}li{padding:7px 0;border-top:1px dashed #E5E7EB;font-weight:700}li small{display:block;color:var(--mut);font-weight:600}
+.fin{text-align:center;padding:30px 10px}.fin i{font-style:normal;font-size:64px;display:block}.fin b{font-size:24px;display:block;margin-top:8px}.fin p{color:var(--mut)}
+.err{text-align:center;padding:40px 16px;color:var(--mut)}.err b{display:block;color:var(--ink);font-size:20px;margin-bottom:8px}
+.mut{color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="top"><small id="tn">Pekeron</small><h1 id="tt">🛵 Envío</h1></div>
+<div class="w" id="app"><div class="err">Cargando el pedido…</div></div>
+<script type="module">
+import { PAGOS_URL } from './pagos-config.js';
+const Q = new URLSearchParams(location.search), sid = Q.get('s') || '', id = Q.get('p') || '', k = Q.get('k') || '';
+const $ = (i) => document.getElementById(i), app = $('app');
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (n) => '$' + Math.round(+n || 0).toLocaleString('es-AR');
+const tel = (t) => String(t || '').replace(/[^\d+]/g, '');
+const wa = (t) => { let n = String(t || '').replace(/\D/g, ''); if (!n) return ''; if (n.length <= 11 && n.indexOf('54') !== 0) n = '549' + n.replace(/^0/, ''); return n; };
+function llamar(a) {
+  return fetch(PAGOS_URL + '/push/cadete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sid, id, k, a }) })
+    .then((r) => r.json().then((d) => { if (!r.ok || d.error) throw new Error(d.error || 'No se pudo cargar el pedido.'); return d; }));
+}
+function mapa(p) {
+  if (p.geo && isFinite(p.geo.la) && isFinite(p.geo.lo)) return 'https://www.google.com/maps/dir/?api=1&destination=' + p.geo.la + ',' + p.geo.lo + '&travelmode=driving';
+  return 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(p.dir || '') + '&travelmode=driving';
+}
+function pintar(d) {
+  const p = d.p, t = d.tienda || {};
+  $('tn').textContent = t.n || 'Pekeron'; $('tt').textContent = '🛵 Envío #' + String(p.id).slice(-4).toUpperCase(); document.title = 'Envío #' + String(p.id).slice(-4).toUpperCase() + ' · ' + (t.n || 'Pekeron');
+  if (p.st === 'entregado' || p.st === 'rendir') {
+    app.innerHTML = '<div class="card fin"><i>✅</i><b>¡Entregado!</b><p>' + (p.st === 'rendir' ? 'Acordate de rendirle al local los ' + money(p.tot) + ' que cobraste.' : 'El local ya sabe que llegó. ¡Gracias!') + '</p></div>' +
+      (t.tel ? '<a class="btn gr" href="https://wa.me/' + wa(t.tel) + '" target="_blank" rel="noopener">💬 Escribirle al local</a>' : '');
+    return;
+  }
+  if (p.st === 'cancelado') { app.innerHTML = '<div class="card err"><b>Pedido cancelado</b>El local canceló este pedido. Consultales antes de salir.</div>'; return; }
+  let h = '<div class="card"><div class="lb">Cliente</div><div class="big">' + esc(p.cl) + '</div>' + (p.tel ? '<div class="mut" style="margin-top:2px">' + esc(p.tel) + '</div>' : '') +
+    '<div class="lb" style="margin-top:14px">Dirección</div><div class="dir">📍 ' + esc(p.dir || 'Sin dirección escrita') + '</div>' + (p.geo ? '<div class="mut" style="margin-top:4px;font-size:14px">✓ El cliente marcó su ubicación exacta</div>' : '') +
+    '<a class="btn az" href="' + mapa(p) + '" target="_blank" rel="noopener">🗺️ Cómo llegar</a>' +
+    (p.tel ? '<div class="row"><a class="btn gr" href="tel:' + esc(tel(p.tel)) + '">📞 Llamar</a><a class="btn gr" href="https://wa.me/' + wa(p.tel) + '?text=' + encodeURIComponent('Hola ' + p.cl + '! Soy el cadete de ' + (t.n || 'el local') + ', estoy llevando tu pedido.') + '" target="_blank" rel="noopener">💬 WhatsApp</a></div>' : '') +
+    (p.nota ? '<div class="nt">📝 ' + esc(p.nota) + '</div>' : '') + '</div>';
+  h += '<div class="card">' + (p.pagado ? '<div class="pg" style="margin-top:0">✅ Ya está pago. No cobres nada.</div>' :
+    '<div class="cob" style="margin-top:0">Cobrar al entregar' + (p.pago ? ' · ' + esc(p.pago) : '') + '<b>' + money(p.tot) + '</b>' + (p.paga > p.tot ? 'Paga con ' + money(p.paga) + ' → llevá <b style="display:inline;font-size:inherit">' + money(p.paga - p.tot) + '</b> de vuelto' : '') + '</div>') +
+    '<div class="lb" style="margin-top:14px">Lleva ' + p.n + ' producto' + (p.n === 1 ? '' : 's') + '</div><ul>' + p.it.map((x) => '<li>' + (x.w ? esc(String(x.q).replace('.', ',')) + ' kg' : esc(x.q) + ' ×') + ' ' + esc(x.n) + (x.x ? '<small>' + esc(x.x) + '</small>' : '') + '</li>').join('') + '</ul></div>';
+  h += '<button class="btn ok" id="ent">✅ Ya lo entregué</button><div class="mut" style="text-align:center;font-size:13.5px;margin-top:8px">Tocalo cuando el cliente lo tenga en la mano. El local y el cliente lo ven al instante.</div>';
+  app.innerHTML = h;
+  $('ent').onclick = () => {
+    if (!confirm(p.pagado ? '¿Confirmás que ya lo entregaste?' : '¿Confirmás que lo entregaste y cobraste ' + money(p.tot) + '?')) return;
+    const b = $('ent'); b.disabled = true; b.textContent = 'Avisando…';
+    llamar('entregado').then(pintar).catch((e) => { b.disabled = false; b.textContent = '✅ Ya lo entregué'; alert(e.message); });
+  };
+}
+if (!sid || !id || !k || !PAGOS_URL) app.innerHTML = '<div class="card err"><b>Link incompleto</b>Pedile al local que te lo mande de nuevo.</div>';
+else llamar('ver').then(pintar).catch((e) => { app.innerHTML = '<div class="card err"><b>No se pudo abrir el envío</b>' + esc(e.message) + '</div>'; });
+</script>
+</body>
+</html>

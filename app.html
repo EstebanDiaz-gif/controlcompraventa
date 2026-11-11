@@ -347,7 +347,8 @@ VD.desdeLink();
 function paintTr(){var e=$('trbar');if(!e)return;var v=TAB=='stk'&&!lockState();e.hidden=!v;e.innerHTML=v?TR.bar():''}
 function payOpts(sel){return PAGOS.map(function(p){return '<option value="'+p[0]+'"'+(p[0]==(sel||'ef')?' selected':'')+'>'+p[1]+'</option>'}).join('')}
 var PED0=(function(){try{return new URLSearchParams(location.search).get('ped')=='1'}catch(e){return false}})();
-var PD=window.PD=createPedidos({db:db,esc:esc,money:money,fail:function(e){fail(e)},tienda:function(){return SNAME},isAdm:function(){return ROLE=='admin'},pub:function(){return PUB},uid:function(){return U&&U.uid},misMesas:function(){return (((CS&&CS.mozos)||{})[U&&U.uid])||''},
+var PD=window.PD=createPedidos({db:db,esc:esc,money:money,fail:function(e){fail(e)},tienda:function(){return SNAME},isAdm:function(){return ROLE=='admin'},pub:function(){return PUB},cads:function(){return (CS&&CS.cads)||[]},guardarCads:function(l){return setDoc(doc(db,'stores',SID,'cfg','servicios'),{cads:l},{merge:true}).catch(fail)},
+uid:function(){return U&&U.uid},misMesas:function(){return (((CS&&CS.mozos)||{})[U&&U.uid])||''},
 push:{est:function(){return pushEst()},alta:function(b){pushAlta(b)}},catLink:function(){return catLink()},
 nuevoPedido:function(){show('caja');setTimeout(function(){alert('Cargá los productos del pedido en la caja y tocá "🛎️ Guardar como pedido".')},150)},
 abrirAlInicio:function(){var r=PED0;PED0=false;return r},

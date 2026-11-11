@@ -62,7 +62,7 @@ service cloud.firestore {
     // Pedido hecho por un cliente desde el catálogo (sin cuenta): solo campos conocidos y con tamaño acotado.
     function pedidoWebOk(id) {
       let t = request.resource.data;
-      return t.keys().hasOnly(['id', 'at', 'st', 'tipo', 'mesa', 'cl', 'tel', 'dir', 'nota', 'it', 'tot', 'env', 'pago', 'paga', 'mp', 'src'])
+      return t.keys().hasOnly(['id', 'at', 'st', 'tipo', 'mesa', 'cl', 'tel', 'dir', 'nota', 'it', 'tot', 'env', 'pago', 'paga', 'mp', 'src', 'geo'])
         && t.keys().hasAll(['id', 'at', 'st', 'tipo', 'cl', 'it', 'tot', 'src'])
         && t.id == id && id.matches('^[A-Za-z0-9]{16,40}$') && t.src == 'web' && t.st == 'nuevo'
         && t.at is int && t.at > request.time.toMillis() - 600000 && t.at < request.time.toMillis() + 600000
@@ -76,6 +76,7 @@ service cloud.firestore {
         && (!('mp' in t) || t.mp is bool)
         && (!('env' in t) || t.env is number)
         && (!('paga' in t) || t.paga is number)
+        && (!('geo' in t) || (t.geo is map && t.geo.keys().hasOnly(['la', 'lo', 'pr']) && t.geo.la is number && t.geo.lo is number))
         && t.it is list && t.it.size() > 0 && t.it.size() <= 60
         && t.tot is number && t.tot >= 0
         && (t.tipo != 'env' || ('dir' in t && t.dir.size() >= 4))
