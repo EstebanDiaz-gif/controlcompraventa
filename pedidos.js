@@ -10,10 +10,11 @@ import { tkConfig, imprimirComanda, codPedido } from './ticket.js';
 import { qrCanvas } from './qr.js';
 import { PAGOS_URL } from './pagos-config.js';
 
-const ACTIVOS = ['nuevo', 'ok', 'listo', 'camino', 'rendir'];
+const ACTIVOS = ['nuevo', 'ok', 'listo', 'camino', 'rendir', 'servido'];
 const TIPO = { mesa: ['🍽️', 'Mesa'], env: ['🛵', 'Delivery'], ret: ['🏪', 'Retiro'] };
-const EST = { nuevo: ['Nuevo', 'n'], ok: ['Preparando', 'p'], listo: ['Listo', 'l'], camino: ['En camino', 'c'], rendir: ['Por rendir', 'n'], entregado: ['Entregado', 'e'], cancelado: ['Cancelado', 'x'] };
-const SOLAPAS = [['nuevo', 'Nuevos'], ['ok', 'En curso'], ['listo', 'Listos'], ['camino', 'En camino']];
+const EST = { nuevo: ['Nuevo', 'n'], ok: ['Preparando', 'p'], listo: ['Listo', 'l'], camino: ['En camino', 'c'], rendir: ['Por rendir', 'n'], servido: ['En la mesa · por cobrar', 'c'], entregado: ['Entregado', 'e'], cancelado: ['Cancelado', 'x'] };
+const SOLAPAS = [['nuevo', 'Nuevos'], ['ok', 'En curso'], ['listo', 'Listos'], ['camino', 'Entregados']];
+const EN4 = { camino: 1, rendir: 1, servido: 1 };   // la 4ª solapa: salieron o están en la mesa, falta cerrar
 
 // Próxima acción de cada pedido: [estado nuevo, ícono, texto del botón]
 function proxima(p) {
@@ -22,6 +23,7 @@ function proxima(p) {
   if (p.st === 'listo') return p.tipo === 'env' ? ['camino', '🛵', 'Enviar pedido'] : p.tipo === 'mesa' ? ['entregado', '🍽️', 'Llevado a la mesa'] : ['entregado', '🤝', 'Entregar'];
   if (p.st === 'camino') return ['entregado', '🏁', 'Confirmar entrega'];
   if (p.st === 'rendir') return ['cobrar', '💵', 'Recibí la plata'];
+  if (p.st === 'servido') return ['cobrar', '💵', 'Cobrar'];
   return null;
 }
 const pago = (p) => !!(p.pag || p.pg || p.cob);
@@ -94,6 +96,26 @@ export function createPedidos(X) {
       '#pedd .pmn{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}#pedd .pmn button{border:0;border-radius:14px;padding:16px 0;font:inherit;font-weight:900;font-size:16px;background:#16A34A;color:#fff;cursor:pointer}',
       '#pedd .pes button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#F3F4F8;border-radius:12px;padding:13px 14px;margin-top:6px;font:inherit;font-weight:700;cursor:pointer;color:#111827}#pedd .pes button.on{background:#EEF2FF;color:var(--btn,#1D3FAF)}',
       '#pedd .ppcad{display:block;width:100%;border:0;border-radius:14px;background:#111827;color:#fff;font:inherit;font-weight:800;font-size:15.5px;padding:15px;margin-top:12px;cursor:pointer}',
+      '#pedk{position:fixed;inset:0;z-index:68;background:#0B0F19;color:#F9FAFB;overflow:auto;padding-bottom:30px;font-size:16px}',
+      '#pedk .kh,#pedm .mh{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:#111827;border-bottom:1px solid #1F2937}',
+      '#pedk .kh b{font-size:22px}#pedk .kh span{color:#9CA3AF;font-weight:700}#pedk .kclk{margin-left:auto;font-size:20px;color:#F9FAFB!important;font-variant-numeric:tabular-nums}',
+      '#pedk .kh button,#pedm .mh button{border:0;border-radius:12px;padding:10px 14px;font:inherit;font-weight:800;background:#1F2937;color:#F9FAFB;cursor:pointer}#pedk .kh .kbn{background:#E11D48;animation:pedpul 1s infinite}',
+      '#pedk .kgr{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;padding:14px;align-items:start}#pedk .ksep{padding:4px 18px 0;color:#9CA3AF;font-weight:800;text-transform:uppercase;font-size:13px;letter-spacing:.06em}',
+      '.kc{background:#F9FAFB;color:#111827;border-radius:18px;overflow:hidden;border-top:10px solid #16A34A}.kc.a{border-top-color:#F59E0B}.kc.r{border-top-color:#DC2626;box-shadow:0 0 0 3px #DC2626}.kc.n{border-top-color:#6B7280;opacity:.95}',
+      '.kc .kt{display:flex;justify-content:space-between;align-items:center;padding:12px 14px 0}.kc .kt b{font-size:24px;font-weight:900;letter-spacing:.02em}.kc .km{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums}.kc.r .km{color:#DC2626}.kc.a .km{color:#B45309}',
+      '.kc .ks{padding:2px 14px 6px;color:#6B7280;font-weight:700;font-size:14px}.kc ul{list-style:none;margin:0;padding:0 14px}',
+      '.kc li{padding:10px 0;border-top:1px dashed #D1D5DB;font-size:19px;font-weight:800;cursor:pointer;user-select:none}.kc li b{color:#1D4ED8}.kc li em{display:block;font-style:normal;font-size:15px;font-weight:900;color:#B45309;text-transform:uppercase;padding-left:30px;margin-top:2px}',
+      '.kc li.ok{opacity:.35;text-decoration:line-through}.kc .kno{margin:8px 14px 0;padding:10px 12px;border-radius:12px;background:#FEF3C7;color:#78350F;font-weight:900;font-size:16px;text-transform:uppercase}',
+      '.kc .kl{display:block;width:calc(100% - 28px);margin:12px 14px 14px;border:0;border-radius:14px;background:#16A34A;color:#fff;font:inherit;font-size:20px;font-weight:900;padding:16px;cursor:pointer}',
+      '.kc .kmn{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:12px 14px 14px}.kc .kmn button{border:0;border-radius:12px;background:#16A34A;color:#fff;font:inherit;font-weight:900;padding:12px 0;cursor:pointer}',
+      '.kvac{grid-column:1/-1;text-align:center;padding:70px 20px;color:#9CA3AF}.kvac i{font-style:normal;font-size:56px;display:block}.kvac b{display:block;font-size:22px;color:#F9FAFB;margin:8px 0 4px}',
+      '#pedm{position:fixed;inset:0;z-index:68;background:#F3F4F8;color:#111827;overflow:auto;padding-bottom:30px}#pedm .mh{background:#fff;border-bottom-color:#E5E7EB}#pedm .mh b{font-size:22px;margin-right:auto}#pedm .mh button{background:#F3F4F8;color:#111827}#pedm .mh .mf.on{background:var(--btn,#1D3FAF);color:#fff}',
+      '#pedm .mlg{display:flex;flex-wrap:wrap;gap:6px 12px;padding:12px 16px 0;font-size:13px;font-weight:700;color:#4B5563}#pedm .mlg i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:5px;vertical-align:-1px}',
+      '#pedm .mgr{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;padding:14px 16px}',
+      '.mt{position:relative;aspect-ratio:1;border:0;border-radius:20px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px;background:#fff;color:#9CA3AF;border:2px dashed #D1D5DB}',
+      '.mt b{font-size:30px;font-weight:900;line-height:1}.mt span{font-size:13px;font-weight:800}.mt em{font-style:normal;font-size:12.5px;font-weight:800;opacity:.9}.mt i{position:absolute;top:6px;right:9px;font-style:normal;font-size:11.5px;font-weight:800;opacity:.8}',
+      '.mt.nuevo,#pedm .mlg .nuevo i{background:#FDE68A;color:#78350F;border:0}.mt.ok,#pedm .mlg .ok i{background:#DDD6FE;color:#4C1D95;border:0}.mt.listo,#pedm .mlg .listo i{background:#16A34A;color:#fff;border:0}.mt.listo{animation:pedpul 1.2s infinite}',
+      '.mt.servido,#pedm .mlg .servido i{background:#BFDBFE;color:#1E3A8A;border:0}.mt.camino,.mt.rendir{background:#E5E7EB;color:#111827;border:0}#pedm .mlg .libre i{background:#fff;border:2px dashed #D1D5DB}',
       '#pedd .plk{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}#pedd .plk button{flex:1 1 auto;border:0;border-radius:12px;background:#F3F4F8;color:#111827;font:inherit;font-weight:700;font-size:14px;padding:11px 12px;cursor:pointer}#pedd .plk .rj{background:none;color:#B91C1C;text-decoration:underline;flex:0 0 auto}',
     ].join('');
     document.head.appendChild(st);
@@ -160,7 +182,7 @@ export function createPedidos(X) {
       prevSt = {}; L.forEach((p) => { prevSt[p.id] = p.st; });
       vistos = {}; L.forEach((p) => { vistos[p.id] = 1; });
       if (det) { const d2 = L.find((x) => x.id === det.id); if (d2) det = d2; }
-      alerta(); comandas(); pintar();
+      alerta(); comandas(); pintar(); pintarK(); pintarM();
       if (X.abrirAlInicio && X.abrirAlInicio() && L.length) abrir();
     }, (e) => { console.warn('Pedidos:', e && e.code); });
   }
@@ -216,18 +238,18 @@ export function createPedidos(X) {
     f.className = nn ? 'nuevo' : lm.length ? 'nuevo listo' : ''; f.hidden = abierto;
     f.innerHTML = nn ? '🛎️ ' + (nn === 1 ? 'Pedido nuevo' : 'Pedidos nuevos') + ' <b>' + nn + '</b>' : lm.length ? '🍽️ Llevar a Mesa ' + lm.map((p) => esc(p.mesa)).join(', ') + ' <b>' + lm.length + '</b>' : '🛎️ Pedidos <b>' + L.length + '</b>';
     if (abierto) dibujar();
-    if (det) detalle(det.id, true);
+    if (det) { const o = document.getElementById('pedd'); if (!o || !o.dataset.mesa) detalle(det.id, true); }
   }
   function cabecera() {
     const pub = (X.pub && X.pub()) || {}, cerr = !!pub.cerr, adm = X.isAdm && X.isAdm(), lg = pub.logo || '';
-    const enTab = (p, k) => p.st === k || (k === 'camino' && p.st === 'rendir');
+    const enTab = (p, k) => p.st === k || (k === 'camino' && EN4[p.st]);
     const cnt = (k) => L.filter((p) => enTab(p, k) && (!misOn() || mia(p))).length;
     return '<div class="ppt"><span class="plg">' + (/^(data:image|https:)/.test(lg) ? '<img alt="" src="' + esc(lg) + '">' : esc((X.tienda() || 'P').charAt(0).toUpperCase())) + '</span>' +
       '<a class="pch" href="' + esc(X.catLink ? X.catLink() : '#') + '" target="_blank" rel="noopener">👁️ Ver menú</a>' +
       (adm ? '<button type="button" class="pch ' + (cerr ? 'ce' : 'ab') + '" data-pa="abierto" title="Tocá para ' + (cerr ? 'abrir' : 'cerrar') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</button>' : '<span class="pch ' + (cerr ? 'ce' : 'ab') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</span>') +
       '<button type="button" class="px" data-pa="cerrar" aria-label="Cerrar">×</button></div>' +
       (MIAS().size || (X.push && /off|ios/.test(X.push.est())) ? '<div class="ppt" style="margin-top:8px;flex-wrap:wrap">' + (MIAS().size ? '<button type="button" class="pch' + (misOn() ? ' on' : '') + '" data-pa="mias">🍽️ ' + (misOn() ? 'Solo mis mesas: ' : 'Mis mesas: ') + esc(X.misMesas()) + '</button>' : '') + (X.push && /off|ios/.test(X.push.est()) ? '<button type="button" class="pch" data-pa="push" style="background:#FEF3C7;color:#92400E">🔔 Activar avisos en este celu</button>' : '') + '</div>' : '') +
-      '<h2>Pedidos</h2>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><h2>Pedidos</h2><div style="display:flex;gap:6px"><button type="button" class="pch" data-pa="cocina">👨‍🍳 Cocina</button>' + (mesasOn() ? '<button type="button" class="pch" data-pa="mesas">🍽️ Mesas</button>' : '') + '</div></div>' +
       '<div class="pfl"><button type="button" class="pm' + (modo === 'todos' ? ' on' : '') + '" data-pa="todos">Todos</button><button type="button" class="pm' + (modo === 'hist' ? ' on' : '') + '" data-pa="hist">Historial</button>' +
       '<label class="pse">🔍<input id="pedq" type="search" placeholder="Buscar…" value="' + esc(busca) + '" autocomplete="off"></label>' +
       '<button type="button" class="pch" data-pa="tk" title="Tiketera">🖨️</button></div>' +
@@ -241,7 +263,7 @@ export function createPedidos(X) {
       const l = filtra(HIST);
       return l.length ? l.map((p) => tarjeta(p, true)).join('') : vacio('📭', 'Sin pedidos terminados', 'Acá ves los entregados y cancelados de hoy y ayer.');
     }
-    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab || (tab === 'camino' && p.st === 'rendir'))).filter((p) => !misOn() || mia(p));
+    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab || (tab === 'camino' && EN4[p.st]))).filter((p) => !misOn() || mia(p));
     if (l.length) return l.map((p) => tarjeta(p, modo === 'todos')).join('');
     return modo === 'todos' ? vacio('📭', 'No hay pedidos activos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
       : tab === 'nuevo' ? vacio('📥', 'No hay pedidos nuevos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
@@ -348,6 +370,8 @@ export function createPedidos(X) {
       if (a === 'cerrar') cerrar();
       else if (a === 'tk') X.tiketera();
       else if (a === 'mias') { soloMias = !misOn(); dibujar(); }
+      else if (a === 'cocina') { cerrar(); cocina(); }
+      else if (a === 'mesas') { cerrar(); mesas(); }
       else if (a === 'push') { if (X.push.est() === 'ios') alert('En iPhone los avisos llegan solo con la app instalada: tocá Compartir → Agregar a inicio, abrí Pekeron desde ese ícono y activalos acá.'); else { X.push.alta(b); setTimeout(dibujar, 4000); } }
       else if (a === 'todos') { modo = modo === 'todos' ? 'act' : 'todos'; dibujar(); }
       else if (a === 'hist') { if (modo === 'hist') { modo = 'act'; dibujar(); } else { modo = 'hist'; cargarHist(); } }
@@ -367,13 +391,14 @@ export function createPedidos(X) {
     let o = document.getElementById('pedd');
     if (!o) {
       o = document.createElement('div'); o.id = 'pedd'; o.innerHTML = '<div class="pdw"></div>';
-      o.addEventListener('click', (e) => { if (e.target === o) { cerrarDet(); return; } const b = e.target.closest('[data-pd]'); if (b) clicDet(b); });
+      o.addEventListener('click', (e) => { if (e.target === o) { cerrarDet(); return; } const b = e.target.closest('[data-pd]'); if (b && !clicMesa(b)) clicDet(b); });
       document.body.appendChild(o);
     }
     const w = o.querySelector('.pdw'), sc = w.scrollTop; w.innerHTML = h; w.scrollTop = sc;
   }
-  function cerrarDet() { det = null; const o = document.getElementById('pedd'); if (o) o.remove(); }
+  function cerrarDet() { det = null; const o = document.getElementById('pedd'); if (o) o.remove(); if (mOn) pintarM(); }
   function detalle(id, refresco) {
+    const o0 = document.getElementById('pedd'); if (o0 && !refresco) delete o0.dataset.mesa;
     const p = L.find((x) => x.id === id) || (HIST || []).find((x) => x.id === id) || (det && det.id === id ? det : null);
     if (!p) { cerrarDet(); return; }
     if (refresco && document.querySelector('#pedd .pmn')) return;   // está eligiendo los minutos: no se pisa
@@ -413,7 +438,7 @@ export function createPedidos(X) {
     if (a === 'next') { avanzar(p, 'det'); return; }
     if (a === 'min') { const m = +b.dataset.m, o = { st: 'ok', acc: Date.now() }; if (m) o.min = m; set(p.id, o); online(p); cerrarDet(); return; }
     if (a === 'cob') { const ex = b.dataset.luego ? { st: b.dataset.luego } : null; b.disabled = true; b.textContent = 'Registrando la venta…'; registrar(p, b.dataset.pay, ex).then(() => cerrarDet()); return; }
-    if (a === 'sinco') { set(p.id, { st: 'entregado' }); cerrarDet(); return; }
+    if (a === 'sinco') { set(p.id, { st: p.tipo === 'mesa' ? 'servido' : 'entregado' }); cerrarDet(); return; }
     if (a === 'pg') { togPago(p); return; }
     if (a === 'estado') { estados(p); return; }
     if (a === 'setst') { const s = b.dataset.st, o = { st: s }; if (s === 'ok' && !p.acc) o.acc = Date.now(); set(p.id, o); if (s === 'listo') avisarListo(p); cerrarDet(); return; }
@@ -448,5 +473,132 @@ export function createPedidos(X) {
     w.document.close();
   }
 
-  return { start, stop, abrir, qrMesas, guardarMostrador, on: () => !!sidOn, activos: () => L.length };
+  // ================= PANTALLA DE COCINA =================
+  // Para una tablet o tele en la cocina: lo que hay que preparar en grande, sin precios, con un reloj por pedido y un botón LISTO.
+  let kOn = false, kNuevos = false, kT = null, kLock = null, kVistos = null, kHechos = {};
+  const kKey = () => 'pk_kh_' + sidOn;
+  function kCargar() { try { kHechos = JSON.parse(localStorage.getItem(kKey()) || '{}') || {}; } catch (e) { kHechos = {}; } }
+  function kGuardar() { try { const v = {}; L.forEach((p) => { if (kHechos[p.id]) v[p.id] = kHechos[p.id]; }); kHechos = v; localStorage.setItem(kKey(), JSON.stringify(v)); } catch (e) {} }
+  function despierto(on) {
+    try { if (on && navigator.wakeLock && !kLock) navigator.wakeLock.request('screen').then((l) => { kLock = l; l.addEventListener('release', () => { kLock = null; }); }).catch(() => {}); if (!on && kLock) { kLock.release(); kLock = null; } } catch (e) {}
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (kOn || mOn)) despierto(true); });
+  function cocina() {
+    mSalir(); kOn = true; kCargar(); kVistos = null;
+    let e = document.getElementById('pedk');
+    if (!e) { e = document.createElement('div'); e.id = 'pedk'; e.addEventListener('click', clicK); document.body.appendChild(e); }
+    despierto(true); clearInterval(kT); kT = setInterval(pintarK, 30000); pintar(); pintarK();
+  }
+  function kSalir() { kOn = false; clearInterval(kT); despierto(false); const e = document.getElementById('pedk'); if (e) e.remove(); try { if (document.fullscreenElement) document.exitFullscreen(); } catch (er) {} pintar(); }
+  const hm = (ms) => new Date(ms).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  const opsLineas = (x) => String(x || '').split(/,\s*/).filter(Boolean);
+  function kCard(p, nuevo) {
+    const m = mins(p.acc || p.at), obj = p.min || 20, c = nuevo ? 'n' : m >= obj ? 'r' : m >= obj * 0.7 ? 'a' : 'v', h = kHechos[p.id] || {};
+    return '<div class="kc ' + c + '"><div class="kt"><b>' + (p.tipo === 'mesa' ? 'MESA ' + esc(p.mesa || '') : p.tipo === 'env' ? '🛵 ENVÍO' : '🏪 RETIRA') + '</b><span class="km">' + (nuevo ? 'nuevo' : m < 60 ? m + ' min' : reloj(p.acc || p.at)) + '</span></div>' +
+      '<div class="ks">#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + (p.min && !nuevo ? ' · listo ~' + hm((p.acc || p.at) + p.min * 60000) : '') + '</div><ul>' +
+      (p.it || []).map((x, i) => '<li class="' + (h[i] ? 'ok' : '') + '" data-k="it" data-id="' + esc(p.id) + '" data-i="' + i + '"><b>' + (x.w ? esc(String(x.q).replace('.', ',')) + ' kg' : esc(x.q) + '×') + '</b> ' + esc(x.n) + (x.x ? opsLineas(x.x).map((o) => '<em>' + esc(o) + '</em>').join('') : '') + '</li>').join('') + '</ul>' +
+      (p.nota ? '<div class="kno">📝 ' + esc(p.nota) + '</div>' : '') +
+      (nuevo ? '<div class="kmn">' + [10, 20, 30, 45].map((n) => '<button type="button" data-k="acc" data-id="' + esc(p.id) + '" data-m="' + n + '">' + n + ' min</button>').join('') + '</div>'
+        : '<button type="button" class="kl" data-k="listo" data-id="' + esc(p.id) + '">✅ LISTO</button>') + '</div>';
+  }
+  function pintarK() {
+    if (!kOn) return; const e = document.getElementById('pedk'); if (!e) return;
+    const prep = L.filter((p) => p.st === 'ok').sort((a, b) => (a.acc || a.at || 0) - (b.acc || b.at || 0)), nue = L.filter((p) => p.st === 'nuevo');
+    const ids = prep.map((p) => p.id); if (kVistos && ids.some((id) => !kVistos[id])) sonar(); kVistos = {}; ids.forEach((id) => { kVistos[id] = 1; });
+    if (!nue.length) kNuevos = false;
+    e.innerHTML = '<div class="kh"><b>👨‍🍳 Cocina</b><span>' + prep.length + ' en preparación</span>' + (nue.length ? '<button type="button" class="kbn" data-k="nuevos">🔔 ' + nue.length + ' sin aceptar</button>' : '') +
+      '<span class="kclk">' + hm(Date.now()) + '</span><button type="button" data-k="fs" title="Pantalla completa">⛶</button><button type="button" data-k="salir">Salir</button></div>' +
+      (kNuevos ? '<div class="kgr">' + nue.map((p) => kCard(p, true)).join('') + '</div><div class="ksep">En preparación</div>' : '') +
+      '<div class="kgr">' + (prep.length ? prep.map((p) => kCard(p)).join('') : '<div class="kvac"><i>👌</i><b>Todo al día</b>Cuando se acepta un pedido, aparece acá.</div>') + '</div>';
+  }
+  function clicK(e) {
+    const b = e.target.closest('[data-k]'); if (!b) return; const a = b.dataset.k, p = L.find((x) => x.id === b.dataset.id);
+    if (a === 'salir') { kSalir(); return; }
+    if (a === 'fs') { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (er) {} return; }
+    if (a === 'nuevos') { kNuevos = !kNuevos; pintarK(); return; }
+    if (!p) return;
+    if (a === 'it') { const h = kHechos[p.id] || (kHechos[p.id] = {}); h[b.dataset.i] = !h[b.dataset.i]; kGuardar(); pintarK(); return; }
+    if (a === 'acc') { set(p.id, { st: 'ok', min: +b.dataset.m, acc: Date.now() }); online(p); return; }
+    if (a === 'listo') { set(p.id, { st: 'listo' }); avisarListo(p); delete kHechos[p.id]; kGuardar(); }
+  }
+
+  // ================= PANTALLA DEL MOZO: MAPA DE MESAS =================
+  let mOn = false, mSoloMias = null;
+  const mesasOn = () => { const c = ((X.pub && X.pub()) || {}).ped || {}; return !!c.mesa; };
+  const PRIO = { listo: 6, nuevo: 5, servido: 4, ok: 3, camino: 2, rendir: 1 };
+  const MLAB = { libre: 'Libre', nuevo: 'Pidió', ok: 'Preparando', listo: '¡Llevar!', servido: 'Por cobrar' };
+  const mkey = (m) => String(m || '').trim().toLowerCase();
+  function mesaDe(n) {
+    const ords = L.filter((p) => p.tipo === 'mesa' && mkey(p.mesa) === mkey(n));
+    if (!ords.length) return { st: 'libre', ords, tot: 0, desde: 0 };
+    const st = ords.reduce((a, p) => ((PRIO[p.st] || 0) > (PRIO[a] || 0) ? p.st : a), 'libre');
+    return { st, ords, tot: ords.filter((p) => !p.cob).reduce((a, p) => a + (p.tot || 0), 0), desde: Math.min.apply(null, ords.map((p) => p.at || Date.now())) };
+  }
+  function mMisOn() { const m = MIAS(); if (!m.size) return false; if (mSoloMias === null) mSoloMias = !(X.isAdm && X.isAdm()); return mSoloMias; }
+  function mesas() {
+    kSalir(); mOn = true;
+    let e = document.getElementById('pedm');
+    if (!e) { e = document.createElement('div'); e.id = 'pedm'; e.addEventListener('click', clicM); document.body.appendChild(e); }
+    despierto(true); pintar(); pintarM();
+  }
+  function mSalir() { if (!mOn) return; mOn = false; despierto(false); const e = document.getElementById('pedm'); if (e) e.remove(); pintar(); }
+  function pintarM() {
+    if (!mOn) return; const e = document.getElementById('pedm'); if (!e) return;
+    const nm = Math.max(0, Math.min(80, +((((X.pub && X.pub()) || {}).ped || {}).nm) || 0)), set1 = {}, nums = [];
+    for (let i = 1; i <= nm; i++) { nums.push(String(i)); set1[String(i)] = 1; }
+    L.forEach((p) => { if (p.tipo === 'mesa' && !set1[mkey(p.mesa)]) { set1[mkey(p.mesa)] = 1; nums.push(String(p.mesa)); } });
+    const mias = MIAS(), filtro = mMisOn(), ver = filtro ? nums.filter((n) => mias.has(mkey(n))) : nums;
+    const cuenta = (st) => ver.filter((n) => mesaDe(n).st === st).length;
+    e.innerHTML = '<div class="mh"><b>🍽️ Mesas</b>' + (mias.size ? '<button type="button" class="mf' + (filtro ? ' on' : '') + '" data-m="mias">' + (filtro ? 'Mis mesas' : 'Todas') + '</button>' : '') +
+      '<button type="button" data-m="pedidos">🛎️ Pedidos</button><button type="button" data-m="salir">Salir</button></div>' +
+      '<div class="mlg">' + ['listo', 'nuevo', 'ok', 'servido', 'libre'].map((st) => '<span class="' + st + '"><i></i>' + MLAB[st] + ' <b>' + cuenta(st) + '</b></span>').join('') + '</div>' +
+      (ver.length ? '<div class="mgr">' + ver.map((n) => { const d = mesaDe(n); return '<button type="button" class="mt ' + d.st + '" data-mesa="' + esc(n) + '"><b>' + esc(n) + '</b><span>' + MLAB[d.st] + '</span>' + (d.tot ? '<em>' + money(d.tot) + '</em>' : '') + (d.desde ? '<i>' + reloj(d.desde) + '</i>' : '') + '</button>'; }).join('') + '</div>'
+        : '<div class="kvac" style="color:#6B7280"><i>🍽️</i><b style="color:#111827">Sin mesas para mostrar</b>Cargá la cantidad de mesas en Equipo → Catálogo → Pedidos en la app.</div>');
+    const ab = document.getElementById('pedd'); if (ab && ab.dataset.mesa) mesaDlg(ab.dataset.mesa, true);
+  }
+  function mesaDlg(n, refresco) {
+    if (refresco && document.querySelector('#pedd .pes, #pedd .pmn')) return;
+    const d = mesaDe(n), porCobrar = d.ords.filter((p) => !p.cob);
+    let h = '<div class="pgr"></div><h3>Mesa ' + esc(n) + '</h3><div class="pds">' + (d.ords.length ? MLAB[d.st] + ' · hace ' + reloj(d.desde) : 'Libre') + '</div>';
+    d.ords.forEach((p) => {
+      const e = EST[p.st] || ['', 'e'], nx = proxima(p);
+      h += '<div class="pbx"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b>#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + '</b><span class="pbg ' + e[1] + '">' + e[0] + '</span></div>' +
+        (p.it || []).map((x) => '<div class="pli"><span><em>' + esc(x.q) + '×</em> ' + esc(x.n) + (x.x ? '<small>+ ' + esc(x.x) + '</small>' : '') + '</span><span>' + money(Math.round((+x.u || 0) * (+x.q || 0))) + '</span></div>').join('') +
+        (p.nota ? '<div class="pnt">📝 ' + esc(p.nota) + '</div>' : '') +
+        '<div class="prw t" style="font-size:16px"><span>' + (p.cob ? 'Cobrado ✓' : 'Total') + '</span><span>' + money(p.tot || 0) + '</span></div>' +
+        (nx && nx[0] !== 'cobrar' ? '<button type="button" class="ppcad" data-pd="mnext" data-id="' + esc(p.id) + '" style="background:' + (p.st === 'listo' ? '#16A34A' : 'var(--btn,#1D3FAF)') + '">' + nx[1] + ' ' + nx[2] + '</button>' : '') + '</div>';
+    });
+    h += '<div class="pft" style="flex-wrap:wrap">' + (porCobrar.length ? '<button type="button" class="pri ac" data-pd="mcob" style="flex:1 1 100%">💵 Cobrar mesa · ' + money(porCobrar.reduce((a, p) => a + (p.tot || 0), 0)) + '</button>' : '') +
+      '<button type="button" class="sec" data-pd="volver">Cerrar</button><button type="button" class="pri" data-pd="mcarga">＋ Cargar pedido</button></div>';
+    hoja(h); const o = document.getElementById('pedd'); if (o) o.dataset.mesa = n; det = d.ords[0] || { id: '' };
+  }
+  function cobrarMesa(n) {
+    const ps = mesaDe(n).ords.filter((p) => !p.cob); if (!ps.length) return;
+    const tot = ps.reduce((a, p) => a + (p.tot || 0), 0), sug = payDe(ps[0].pago) || 'ef';
+    hoja('<div class="pgr"></div><h3>Cobrar Mesa ' + esc(n) + '</h3><div class="pds">' + ps.length + ' pedido' + (ps.length === 1 ? '' : 's') + ' · <b>' + money(tot) + '</b></div><div class="pds" style="margin-top:6px">Se registra la venta y la mesa queda libre cuando ya está todo servido.</div>' +
+      '<div class="pes">' + PAYS.map((x) => '<button type="button" data-pd="mcobpay" data-pay="' + x[0] + '" class="' + (x[0] === sug ? 'on' : '') + '">' + x[1] + ' ' + x[2] + '</button>').join('') + '</div>' +
+      '<div class="pft"><button type="button" class="sec" data-pd="mvolver" style="flex:1">Volver</button></div>');
+    const o = document.getElementById('pedd'); if (o) o.dataset.mesa = n;
+  }
+  function clicM(e) {
+    const b = e.target.closest('[data-m],[data-mesa]'); if (!b) return;
+    if (b.dataset.mesa) { mesaDlg(b.dataset.mesa); return; }
+    const a = b.dataset.m;
+    if (a === 'salir') mSalir(); else if (a === 'pedidos') { mSalir(); abrir(); } else if (a === 'mias') { mSoloMias = !mMisOn(); pintarM(); }
+  }
+  function clicMesa(b) {   // botones de la hoja de una mesa
+    const a = b.dataset.pd, o = document.getElementById('pedd'), n = o && o.dataset.mesa; if (!n) return false;
+    if (a === 'mnext') { const p = L.find((x) => x.id === b.dataset.id); if (p) { if (proxima(p)[0] === 'ok') aceptar(p); else avanzar(p); } return true; }
+    if (a === 'mcob') { cobrarMesa(n); return true; }
+    if (a === 'mvolver') { mesaDlg(n); return true; }
+    if (a === 'mcarga') { cerrarDet(); mSalir(); X.nuevoPedido({ tipo: 'mesa', mesa: n, volver: 'mesas' }); return true; }
+    if (a === 'mcobpay') {
+      const ps = mesaDe(n).ords.filter((p) => !p.cob); b.disabled = true; b.textContent = 'Registrando…';
+      ps.reduce((pr, p) => pr.then(() => registrar(p, b.dataset.pay, p.st === 'servido' || p.st === 'listo' ? { st: 'entregado' } : null)), Promise.resolve()).then(() => cerrarDet());
+      return true;
+    }
+    return false;
+  }
+
+  return { start, stop, abrir, qrMesas, guardarMostrador, cocina, mesas, on: () => !!sidOn, activos: () => L.length };
 }

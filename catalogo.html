@@ -1553,13 +1553,13 @@ function pedEstado(id){OPEN='';pedEscuchar(id);$('sh').className='sheet';$('shc'
 function pedTxt(p){var hm=function(ms){return new Date(ms).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'})},eta=p.min&&p.acc?' Estimado: '+hm(p.acc+p.min*60000)+' (unos '+p.min+' min).':'';
 return {nuevo:['⏳','Esperando que el local lo confirme','Ya le llegó tu pedido. En un ratito te lo confirman.'],ok:['👨‍🍳','Lo están preparando',(p.tipo=='env'?'Después sale para tu casa.':p.tipo=='mesa'?'Te lo llevan a la mesa.':'Te avisamos acá cuando esté listo.')+eta],
 listo:p.tipo=='mesa'?['🍽️','¡Ya sale para tu mesa!','Buen provecho.']:p.tipo=='env'?['📦','¡Listo! Ya sale','En un ratito sale para '+(p.dir||'tu dirección')+'.']:['✅','¡Listo para retirar!','Ya podés pasar a buscarlo.'],camino:['🛵','Va en camino','Tu pedido ya salió para '+(p.dir||'tu dirección')+'.'],
-entregado:['🎉','Entregado','¡Gracias por tu pedido!'],rendir:['🎉','Entregado','¡Gracias por tu pedido!'],cancelado:['❌','El local no pudo tomar el pedido',p.mot?'Motivo: '+p.mot:'Escribiles por WhatsApp si querés más información.']}[p.st]||['🛎️','Pedido','']}
+entregado:['🎉','Entregado','¡Gracias por tu pedido!'],rendir:['🎉','Entregado','¡Gracias por tu pedido!'],servido:['🍽️','¡Buen provecho!','Ya está en tu mesa. Cuando quieras, pedí la cuenta al mozo.'],cancelado:['❌','El local no pudo tomar el pedido',p.mot?'Motivo: '+p.mot:'Escribiles por WhatsApp si querés más información.']}[p.st]||['🛎️','Pedido','']}
 function pedPintar(){var p=PEDV&&PEDV.d,pl=$('pedpill');
-var activo=p&&p.st!='entregado'&&p.st!='cancelado'&&p.st!='rendir';
+var activo=p&&p.st!='entregado'&&p.st!='cancelado'&&p.st!='rendir'&&p.st!='servido';
 if(!pl){pl=document.createElement('button');pl.id='pedpill';pl.type='button';pl.onclick=function(){if(PEDV)pedEstado(PEDV.id)};document.body.appendChild(pl)}
 pl.hidden=!activo;if(activo){var t=pedTxt(p);pl.innerHTML='<i>'+t[0]+'</i><span><small>Tu pedido #'+esc(pedCod(p.id))+'</small>'+esc(t[1])+'</span>'}
 var x=$('pstx');if(!x||$('sh').hidden)return;if(!p){x.innerHTML='<div style="text-align:center;padding:30px 0">No encontramos el pedido.</div>';return}
-var t2=pedTxt(p),pasos=p.tipo=='env'?['Recibido','Preparando','En camino','Entregado']:['Recibido','Preparando',p.tipo=='mesa'?'A la mesa':'Listo','Entregado'],i={nuevo:0,ok:1,listo:p.tipo=='env'?1:2,camino:2,entregado:3,rendir:3}[p.st];
+var t2=pedTxt(p),pasos=p.tipo=='env'?['Recibido','Preparando','En camino','Entregado']:['Recibido','Preparando',p.tipo=='mesa'?'A la mesa':'Listo','Entregado'],i={nuevo:0,ok:1,listo:p.tipo=='env'?1:2,camino:2,entregado:3,rendir:3,servido:3}[p.st];
 var h='<div class="pstc'+(p.st=='cancelado'?' no':'')+'"><div class="pe">'+t2[0]+'</div><b>'+esc(t2[1])+'</b><p>'+esc(t2[2])+'</p></div>';
 if(i!=null)h+='<div class="psteps">'+pasos.map(function(n,k){return '<div class="'+(k<=i?'on':'')+(k==i?' cur':'')+'"><i></i><span>'+n+'</span></div>'}).join('')+'</div>';
 h+='<div class="lbl">Pedido #'+esc(pedCod(p.id))+' · '+(p.tipo=='mesa'?'Mesa '+esc(p.mesa||''):p.tipo=='env'?'Envío':'Retiro en el local')+'</div>'+(p.it||[]).map(function(l){return '<div class="pli"><span>'+(l.w?String(l.q).replace('.',',')+' kg':l.q+' ×')+' '+esc(l.n)+(l.x?'<small>'+esc(l.x)+'</small>':'')+'</span><b>'+money(l.u*l.q)+'</b></div>'}).join('')+

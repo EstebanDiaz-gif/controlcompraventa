@@ -724,11 +724,11 @@ export function createAlmacen(X) {
   // Venta en curso → pedido para preparar (mesa, retira o envío). Se cobra después desde Pedidos → Cobrar en la caja.
   function pedidoDlg() {
     if (!S.cart.length) return;
-    let tipo = 'ret';
+    const pre = S.pedPre || {}; let tipo = pre.tipo || 'ret';
     const o = modal('<b style="font-size:19px">🛎️ Guardar como pedido</b><div class="k" style="margin:4px 0 10px">Le llega a la cocina (y sale la comanda si está activada). Lo cobrás cuando lo entregás.</div>' +
       '<label>Nombre del cliente</label><input id="pd_n" maxlength="60" placeholder="Ej: Juan (si lo dejás vacío: Mostrador)" autocomplete="off">' +
-      '<label>¿Para?</label><div class="seg" id="pd_t" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"><button type="button" class="pay on" data-t="ret">🏪 Retira</button><button type="button" class="pay" data-t="mesa">🍽️ Mesa</button><button type="button" class="pay" data-t="env">🛵 Envío</button></div>' +
-      '<div id="pd_m" hidden><label>Número de mesa</label><input id="pd_mn" maxlength="12" inputmode="numeric" placeholder="Ej: 4"></div>' +
+      '<label>¿Para?</label><div class="seg" id="pd_t" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">' + [['ret', '🏪 Retira'], ['mesa', '🍽️ Mesa'], ['env', '🛵 Envío']].map((x) => '<button type="button" class="pay' + (x[0] === tipo ? ' on' : '') + '" data-t="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>' +
+      '<div id="pd_m"' + (tipo === 'mesa' ? '' : ' hidden') + '><label>Número de mesa</label><input id="pd_mn" maxlength="12" inputmode="numeric" placeholder="Ej: 4" value="' + esc(pre.mesa || '') + '"></div>' +
       '<div id="pd_e" hidden><label>Dirección</label><input id="pd_d" maxlength="160" placeholder="Calle, número, barrio"><label>Teléfono</label><input id="pd_tel" type="tel" maxlength="24" placeholder="381 555 1234"></div>' +
       '<label>Aclaraciones (opcional)</label><input id="pd_nt" maxlength="200" placeholder="Ej: sin sal, para las 21:30">' +
       '<button class="go" id="pd_ok">Guardar pedido</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
@@ -747,7 +747,7 @@ export function createAlmacen(X) {
       const nt = q('pd_nt').value.trim(); if (nt) d.nota = nt.slice(0, 200);
       if (S.pay && PAY[S.pay] && S.pay !== 'fi') d.pago = PAY[S.pay];
       q('pd_ok').disabled = true;
-      X.guardarPedido(d).then((r) => { o.remove(); S.cart = []; S.paga = ''; S.env = null; S.last = '🛎️ Pedido #' + String(r.id).slice(-4).toUpperCase() + ' enviado a preparar'; renderCart(); clearSearch(); })
+      X.guardarPedido(d).then((r) => { o.remove(); S.cart = []; S.paga = ''; S.env = null; S.pedPre = null; S.last = '🛎️ Pedido #' + String(r.id).slice(-4).toUpperCase() + ' enviado a preparar'; renderCart(); clearSearch(); if (pre.volver && X.volver) X.volver(pre.volver); })
         .catch((e) => { q('pd_ok').disabled = false; X.fail(e); });
     };
     setTimeout(() => q('pd_n').focus(), 50);
@@ -2120,7 +2120,7 @@ export function createAlmacen(X) {
   });
 
   return {
-    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido, ventaPedido,
+    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido, ventaPedido, prePedido: (p) => { S.pedPre = p || null; renderCart(); },
     resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }
