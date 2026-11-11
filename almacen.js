@@ -1470,7 +1470,7 @@ export function createAlmacen(X) {
     o.querySelectorAll('[data-dt]').forEach((b) => {
       b.onclick = () => {
         o.querySelectorAll('button').forEach((x) => { x.disabled = true; }); b.textContent = 'Cargando…';
-        cargarDemo({ db, sid: X.sid(), sname: X.sname() || 'Mi negocio', tipo: b.dataset.dt })
+        cargarDemo({ db, sid: X.sid(), sname: X.sname() || 'Mi negocio', tipo: b.dataset.dt, fotos: X.fotosDemo || null, avance: (t) => { b.textContent = t; } })
           .then((n) => { o.remove(); publishSoon(); alert('Listo: se cargaron ' + n + ' productos de ejemplo. En unos segundos aparecen en el catálogo (Equipo → Catálogo → Copiar link).'); })
           .catch((e) => { o.remove(); failW(e); });
       };

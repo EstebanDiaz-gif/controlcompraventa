@@ -179,6 +179,18 @@ const GAS = {
     ],
   },
 };
+// Búsqueda de foto real para cada plato (banco de fotos gratuitas del servidor: Pixabay o Pexels), si está disponible.
+const QFOTO = {"burger-american": "hamburguesa bacon aros de cebolla", "burger-cheese": "cheeseburger", "burger-criolla": "hamburguesa lechuga tomate", "burger-bbq": "hamburguesa barbacoa bacon", "burger-blue": "hamburguesa queso azul", "burger-veggie": "hamburguesa vegetariana", "combo-american": "hamburguesa papas fritas gaseosa", "combo-clasico": "combo hamburguesa papas", "combo-pareja": "dos hamburguesas papas", "papas": "papas fritas", "papas-cheddar": "papas fritas queso cheddar", "aros": "aros de cebolla", "nuggets": "nuggets de pollo", "coca": "coca cola botella", "coca-zero": "gaseosa cola botella", "agua": "botella de agua", "cerveza": "cerveza ipa vaso", "limonada": "limonada menta", "brownie": "brownie helado", "cheesecake": "cheesecake frutos rojos", "pizza-muzza": "pizza muzzarella", "pizza-napo": "pizza napolitana tomate", "pizza-fugazzeta": "pizza cebolla queso", "pizza-jamon": "pizza jamon morrones", "pizza-pepperoni": "pizza pepperoni", "pizza-4quesos": "pizza cuatro quesos", "pizza-rucula": "pizza rucula jamon crudo", "promo-muzza": "pizza y gaseosa", "promo-2pizzas": "dos pizzas", "empanada-carne": "empanadas de carne", "empanada-jyq": "empanadas horno", "empanada-pollo": "empanadas", "empanadas-docena": "docena de empanadas", "faina": "faina", "coca15": "gaseosa cola", "cerveza1l": "cerveza rubia", "vino": "copa de vino tinto", "flan": "flan con dulce de leche", "tiramisu": "tiramisu", "portada-burger": "hamburguesa gourmet", "portada-pizza": "pizza horno de leña"};
+const usadas = {};
+function fotoBanco(fotos, nombre, L) {
+  const q = QFOTO[nombre]; if (!fotos || !q) return Promise.resolve(null);
+  return fotos.buscar(q).then((d) => {
+    const l = ((d && d.fotos) || []).filter((x) => x.l || x.m), x = l.find((y) => !usadas[y.id]) || l[0]; if (!x) return null; usadas[x.id] = 1;
+    const u = fotos.proxy + '?u=' + encodeURIComponent(x.l || x.m);
+    return new Promise((ok) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => { try { const c = document.createElement('canvas'), s = Math.min(im.width, im.height), W = L || 720, H = L ? Math.round(L * 0.5) : 720; c.width = W; c.height = H;
+      const sw = L ? im.width : s, sh = L ? Math.min(im.height, im.width * 0.5) : s; c.getContext('2d').drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, 0, 0, W, H); ok(c.toDataURL('image/jpeg', 0.82)); } catch (e) { ok(null); } }; im.onerror = () => ok(null); im.src = u; });
+  }).catch(() => null);
+}
 // Foto real si está en img/demo/<nombre>.jpg (se achica y se recorta cuadrada); si no, el dibujo con emoji.
 function fotoArchivo(nombre) {
   return fetch('img/demo/' + nombre + '.jpg').then((r) => (r.ok ? r.blob() : null)).then((b) => {
@@ -189,11 +201,12 @@ function fotoArchivo(nombre) {
 function opsDe(op, base) {   // -1 en "Chica" = mitad de precio
   return (op || []).map((g) => ({ t: g.t, min: g.min, max: g.max, o: g.o.map((x) => ({ n: x.n, p: x.p === -1 ? 0 : x.p })) }));
 }
-async function cargarGas({ db, sid, sname, tipo }) {
+async function cargarGas({ db, sid, sname, tipo, fotos, avance }) {
   const set = GAS[tipo], ops = [];
   for (let i = 0; i < set.p.length; i++) {
     const x = set.p[i], id = 'demo_' + tipo + '_' + i;
-    const img = (x.f && await fotoArchivo(x.f)) || foto(x.em, i);
+    if (avance) avance('Cargando ' + (i + 1) + ' de ' + set.p.length + '…');
+    const img = (x.f && (await fotoArchivo(x.f) || await fotoBanco(fotos, x.f))) || foto(x.em, i);
     const o = { n: x.n, s: '', cat: x.cat, pn: x.p, c: x.c, q: 0, min: 0, oh: false, alm: 1, w: false, ns: true, img, demo: 1 };
     if (x.d) o.d = x.d; if (x.dt) o.dt = x.dt; if (x.pa) o.pa = x.pa; if (x.op) o.op = opsDe(x.op, x.p);
     ops.push([id, o]);
@@ -203,7 +216,7 @@ async function cargarGas({ db, sid, sname, tipo }) {
     ops.slice(i, i + 10).forEach(([id, o]) => b.set(doc(db, 'stores', sid, 'stock', id), o));
     await b.commit();
   }
-  const pt = (await fotoArchivo('portada-' + tipo)) || portada(set);
+  const pt = (await fotoArchivo('portada-' + tipo)) || (await fotoBanco(fotos, 'portada-' + tipo, 1200)) || portada(set);
   await setDoc(doc(db, 'stores', sid, 'public', 'portada'), { f: pt, at: Date.now() });
   await setDoc(doc(db, 'stores', sid, 'cfg', 'servicios'), { tipo, biz: 'almacen' }, { merge: true });
   await setDoc(doc(db, 'stores', sid, 'public', 'info'), { enabled: true, alm: true, biz: 'almacen', tp: tipo, est: '', name: sname, tag: set.tag, hours: set.hours, pt: 1, cerr: false,
@@ -263,8 +276,8 @@ function ean(n) {
   return b + ((10 - (s % 10)) % 10);
 }
 
-export async function cargarDemo({ db, sid, sname, tipo }) {
-  if (GAS[tipo]) return cargarGas({ db, sid, sname, tipo });
+export async function cargarDemo({ db, sid, sname, tipo, fotos, avance }) {
+  if (GAS[tipo]) return cargarGas({ db, sid, sname, tipo, fotos, avance });
   const set = SETS[tipo] || SETS.super;
   const ops = set.p.map((r, i) => {
     const [n, cat, pn, c, q, w, em, dt, pa] = r, id = 'demo_' + tipo + '_' + i;
