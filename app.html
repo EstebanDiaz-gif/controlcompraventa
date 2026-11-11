@@ -2254,6 +2254,9 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
+// Pedidos (panel, hojas, cocina, mesas) maneja sus propios clics: sus data-pd/data-pa/data-t no son los de acá.
+// (composedPath y no closest: la hoja se redibuja al tocar y el botón ya no está en la página cuando llega acá)
+if((e.composedPath?e.composedPath():[]).some(function(n){return n&&/^ped(p|d|k|m|fab|toast)$/.test(n.id||'')}))return;
 if(e.target.closest&&RP.click(e))return;
 if(e.target.closest&&IS_OWNER&&VD.click(e))return;
 var d=((e.target.closest&&e.target.closest('[data-t],[data-y],[data-inv],[data-cp],[data-send-code],[data-an],[data-rm],[data-del],[data-pa],[data-pd],[data-pr],[data-sz],[data-ed],[data-edx],[data-man],[data-gdel],[data-gend],[data-lt],[data-cat],[data-svx],[data-adel],[data-bz],[data-stema],[data-tmall],[data-em],[data-emd],[data-fia],[data-dto],[data-cj],[data-nsuc],[data-ost],[data-cjfix],[data-famadd],[data-tr],[data-reinv],[data-ig]'))||e.target).dataset||{};
