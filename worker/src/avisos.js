@@ -55,6 +55,16 @@ export async function pedidoNuevo(env, sid, id) {
   await enviar(env, quien, { t: '🛎️ Pedido nuevo · ' + (TIPO_PED[d.tipo] || '') + (d.tipo === 'mesa' ? (d.mesa || '') : '') + ' · ' + money(d.tot || 0), b: (d.cl || 'Un cliente') + ' pidió ' + n + ' producto' + (n === 1 ? '' : 's') + '. Tocá para verlo y aceptarlo.', u: APP(env) + '?ped=1', tag: 'ped-' + id });
   return true;
 }
+// Comprobante de pago que subió el cliente del catálogo: aviso a los del local, una vez por comprobante.
+export async function comprobante(env, sid, id) {
+  if (!/^[A-Za-z0-9]{12,40}$/.test(String(id))) return false;
+  const d = await aGet(env, 'stores/' + sid + '/pedidos/' + id);
+  if (!d || d.src !== 'web' || !d.cmp || !(Math.abs(Date.now() - d.cmp) < 10 * 60000)) return false;
+  if (!await una(env, 'cmp:' + sid + ':' + id + ':' + d.cmp)) return false;
+  const quien = (await aQuery(env, 'stores/' + sid, 'members', [])).map((x) => x.id);
+  await enviar(env, quien, { t: '🧾 Comprobante de pago · ' + money(d.tot || 0), b: (d.cl || 'Un cliente') + ' mandó el comprobante del pedido #' + String(id).slice(-4).toUpperCase() + '. Revisalo y marcalo como pagado.', u: APP(env) + '?ped=1', tag: 'cmp-' + id });
+  return true;
+}
 // ---------- Cadete sin app: el local le manda por WhatsApp un link con una clave; la clave no se guarda, solo su huella (kh) ----------
 async function huella(k) { const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(k))); return Array.from(new Uint8Array(h)).map((b) => b.toString(16).padStart(2, '0')).join(''); }
 const pagado = (d) => !!(d.pag || d.pg || d.cob);

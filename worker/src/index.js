@@ -227,6 +227,7 @@ async function pushRuta(req, env, path) {
   if (path === '/push/clave') return json(req, env, { clave: (await PUSH.vapid(env)).pub });
   if (!env.FB_SA) return json(req, env, { ok: false });
   // Avisos que dispara el catálogo (sin sesión): el servidor verifica todo antes de mandar.
+  if (path === '/push/comp') { if (sidOk(b.sid)) { try { await AV.comprobante(env, b.sid, String(b.id || '')); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
   if (path === '/push/pedido') { if (sidOk(b.sid)) { try { await AV.pedidoNuevo(env, b.sid, String(b.id || '')); } catch (e) { console.error(e && e.message); } } return json(req, env, { ok: true }); }
   if (path === '/push/cadete') { if (!sidOk(b.sid)) return err(req, env, 'Link inválido.', 400); try { const r = await AV.cadete(env, b.sid, String(b.id || ''), String(b.k || ''), String(b.a || '')); return r.error ? err(req, env, r.error, 404) : json(req, env, r); } catch (e) { console.error(e && e.message); return err(req, env, 'No se pudo cargar el pedido. Probá de nuevo.', 502); } }
   if (path === '/push/cliente') { if (!sidOk(b.sid)) return err(req, env, 'Link inválido.', 400); const r = await AV.clienteAlta(env, b.sid, String(b.id || ''), b.sub); return r.error ? err(req, env, r.error, 400) : json(req, env, r); }

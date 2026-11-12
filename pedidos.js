@@ -5,7 +5,7 @@
 // st: nuevo → ok (en preparación) → listo → camino (solo envío) → entregado · o cancelado
 // Pantalla pensada para el celu (solapas y un botón grande con la próxima acción) que en la compu se ve en columnas.
 
-import { collection, doc, onSnapshot, query, where, updateDoc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { collection, doc, onSnapshot, query, where, updateDoc, setDoc, getDocs, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { tkConfig, imprimirComanda, codPedido } from './ticket.js';
 import { qrCanvas } from './qr.js';
 import { PAGOS_URL } from './pagos-config.js';
@@ -38,6 +38,7 @@ export function mesasDe(t) {
 export function createPedidos(X) {
   const { db, esc, money } = X;
   let un = null, sidOn = '', L = [], abierto = false, vistos = null, sonT = null, titT = null, titulo = '', audio = null, impresos = {};
+  let prevCmp = {};
   let tab = 'nuevo', modo = 'act', busca = '', canalF = '', HIST = null, det = null, prevSt = {}, soloMias = null, toastT = null;
   const MIAS = () => mesasDe(X.misMesas ? X.misMesas() : '');
   const mia = (p) => p.tipo === 'mesa' && MIAS().has(String(p.mesa || '').trim().toLowerCase());
@@ -98,6 +99,8 @@ export function createPedidos(X) {
       '#pedd .pft button{border:0;border-radius:14px;padding:15px 16px;font:inherit;font-weight:800;font-size:15px;cursor:pointer}#pedd .pft .sec{background:#F3F4F8;color:#111827}#pedd .pft .pri{flex:1;background:var(--btn,#1D3FAF);color:#fff}#pedd .pft .pri.ac{background:#16A34A}',
       '#pedd .pmn{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}#pedd .pmn button{border:0;border-radius:14px;padding:16px 0;font:inherit;font-weight:900;font-size:16px;background:#16A34A;color:#fff;cursor:pointer}',
       '#pedd .pes button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:#F3F4F8;border-radius:12px;padding:13px 14px;margin-top:6px;font:inherit;font-weight:700;cursor:pointer;color:#111827}#pedd .pes button.on{background:#EEF2FF;color:var(--btn,#1D3FAF)}',
+      '#pedd .ppcmp{display:block;width:100%;border:0;border-radius:14px;background:#1D4ED8;color:#fff;font:inherit;font-weight:800;font-size:15.5px;padding:15px;margin-top:12px;cursor:pointer}',
+      '#pedcmp{position:fixed;inset:0;z-index:95;background:rgba(10,16,34,.75);display:flex;align-items:center;justify-content:center;padding:14px}#pedcmp .pcw{background:#fff;color:#111827;border-radius:20px;max-width:520px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden}#pedcmp .pci{flex:1;overflow:auto;background:#F3F4F6;display:flex;align-items:flex-start;justify-content:center}#pedcmp .pci img{max-width:100%;display:block}#pedcmp .pcb{display:flex;gap:8px;padding:12px}#pedcmp .pcb button,#pedcmp .pcb a{flex:1;border:0;border-radius:14px;padding:14px;font:inherit;font-weight:800;font-size:15px;cursor:pointer;text-align:center;text-decoration:none}#pedcmp .pcb .ok{background:#16A34A;color:#fff}#pedcmp .pcb .no{background:#E5E7EB;color:#111827}#pedcmp .pct{padding:12px 14px;font-weight:800;border-bottom:1px solid #E5E7EB}',
       '#pedd .ppcad{display:block;width:100%;border:0;border-radius:14px;background:#111827;color:#fff;font:inherit;font-weight:800;font-size:15.5px;padding:15px;margin-top:12px;cursor:pointer}',
       '#pedk{position:fixed;inset:0;z-index:68;background:#0B0F19;color:#F9FAFB;overflow:auto;padding-bottom:30px;font-size:16px}',
       '#pedk .kh,#pedm .mh{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:#111827;border-bottom:1px solid #1F2937}',
@@ -182,6 +185,9 @@ export function createPedidos(X) {
       if (vistos && ids.some((id) => !vistos[id])) { sonar(); if (abierto && modo === 'act') tab = 'nuevo'; }
       const nl = L.filter((p) => p.st === 'listo' && mia(p) && prevSt[p.id] && prevSt[p.id] !== 'listo');
       if (vistos && nl.length) { sonarListo(); toast('🍽️ Mesa ' + nl.map((p) => p.mesa).join(', ') + ': ' + (nl.length === 1 ? 'pedido listo' : 'pedidos listos') + ' para llevar'); }
+      const nc = L.filter((p) => p.cmp && prevCmp[p.id] !== undefined && prevCmp[p.id] !== p.cmp && !pago(p));
+      if (vistos && nc.length) { sonarListo(); toast('🧾 ' + (nc.length === 1 ? (nc[0].cl || 'Un cliente') + ' mandó el comprobante del pedido #' + codPedido(nc[0].id) : nc.length + ' comprobantes nuevos')); }
+      prevCmp = {}; L.forEach((p) => { prevCmp[p.id] = p.cmp || 0; });
       prevSt = {}; L.forEach((p) => { prevSt[p.id] = p.st; });
       vistos = {}; L.forEach((p) => { vistos[p.id] = 1; });
       if (det) { const d2 = L.find((x) => x.id === det.id); if (d2) det = d2; }
@@ -230,7 +236,7 @@ export function createPedidos(X) {
     return '<div class="pk' + (p.st === 'nuevo' ? ' nuevo' : tarde(p) ? ' tarde' : '') + '" data-pid="' + esc(p.id) + '"><div class="pkc" style="background:' + cn[1] + ';color:' + cn[2] + '">' + (p.ap ? apNombreHtml(p.pago || 'App', esc) + (p.apo ? ' #' + esc(p.apo) : '') : esc(cn[0])) + '<small>' + (p.tipo === 'env' && p.dir ? esc(String(p.dir).slice(0, 28)) : hora(p.at)) + '</small></div><div class="pki">' +
       '<div class="pkt"><b><span>#' + esc(codPedido(p.id)) + '</span> ' + esc(nombre(p)) + '</b>' + (conEstado ? '<span class="pbg ' + e[1] + '">' + e[0] + '</span>' : '') + '</div>' +
       '<div class="pkm">' + cuantos(p) + ' producto' + (cuantos(p) === 1 ? '' : 's') + (p.nota ? ' · 📝 ' + esc(String(p.nota).slice(0, 40)) : '') + '</div>' +
-      '<div class="pkp"><b>' + money(p.tot || 0) + '</b> · ' + esc(p.pago || 'A definir') + '</div>' +
+      '<div class="pkp"><b>' + money(p.tot || 0) + '</b> · ' + esc(p.pago || 'A definir') + (p.cmp && !pago(p) ? ' <span class="pbg l">🧾 mandó comprobante</span>' : '') + '</div>' +
       '<button type="button" class="ppg' + (pago(p) ? ' si' : '') + '" data-pq="pg"><i>' + (pago(p) ? '✓' : '') + '</i>' + (pago(p) ? 'Está pago' : 'Sin pagar') + '</button></div>' +
       '<div class="pkr"><span class="tm' + (tarde(p) ? ' tarde' : '') + '">🕒 ' + reloj(p.at) + '</span>' +
       (nx ? '<button type="button" class="pka' + (p.st === 'nuevo' ? ' ac' : '') + '" data-pq="next"><i>' + nx[1] + '</i>' + nx[2] + '</button>' : '') + '</div></div>';
@@ -376,6 +382,27 @@ export function createPedidos(X) {
       '<div class="pmn">' + [10, 15, 20, 30, 45, 60].map((m) => '<button type="button" data-pd="min" data-m="' + m + '">' + m + ' min</button>').join('') + '</div>' +
       '<div class="pft"><button type="button" class="sec" data-pd="volver">Volver</button><button type="button" class="pri ac" data-pd="min" data-m="0">Aceptar sin tiempo</button></div>');
   }
+  // Comprobante que subió el cliente (foto o PDF): se ve acá y desde acá se marca como pagado.
+  function verComp(p) {
+    const o0 = document.getElementById('pedcmp'); if (o0) o0.remove();
+    const o = document.createElement('div'); o.id = 'pedcmp';
+    o.innerHTML = '<div class="pcw"><div class="pct">🧾 Comprobante · #' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + ' · ' + money(p.tot || 0) + '</div><div class="pci"><div style="padding:40px;color:#6B7280">Cargando…</div></div>' +
+      '<div class="pcb">' + (pago(p) ? '' : '<button type="button" class="ok" data-cmpx="ok">✅ Ya está pago</button>') + '<button type="button" class="no" data-cmpx="no">Cerrar</button></div></div>';
+    o.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-cmpx]'); if (e.target === o || (b && b.dataset.cmpx === 'no')) { o.remove(); return; }
+      if (b && b.dataset.cmpx === 'ok') { o.remove(); togPago(p); }
+    });
+    document.body.appendChild(o);
+    getDoc(doc(db, 'stores', sidOn, 'pedidos', p.id, 'comp', 'c')).then((sn) => {
+      const c = sn.exists() ? sn.data() : null, box = o.querySelector('.pci'); if (!box) return;
+      if (!c || !/^data:/.test(c.img || '')) { box.innerHTML = '<div style="padding:40px;color:#6B7280">No se encontró el comprobante.</div>'; return; }
+      if (c.t === 'application/pdf') {
+        const bin = atob(c.img.split(',')[1] || ''), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        const url = URL.createObjectURL(new Blob([u8], { type: 'application/pdf' }));
+        box.innerHTML = '<div style="padding:30px;text-align:center"><div style="font-size:48px">📄</div><b>' + esc(c.n || 'Comprobante.pdf') + '</b><br><a href="' + url + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:12px;background:#111827;color:#fff;border-radius:12px;padding:12px 18px;font-weight:800;text-decoration:none">Abrir el PDF</a></div>';
+      } else box.innerHTML = '<img alt="Comprobante de pago" src="' + c.img + '">';
+    }).catch((e) => { const box = o.querySelector('.pci'); if (box) box.innerHTML = '<div style="padding:40px;color:#6B7280">' + (/permission/.test(String(e && (e.code || e.message))) ? 'Falta publicar las reglas nuevas de Firebase para ver comprobantes.' : 'No se pudo cargar el comprobante.') + '</div>'; });
+  }
   function togPago(p) {
     if (p.cob) { alert('Este pedido ya está cobrado y registrado como venta' + (p.cpay ? ' (' + p.cpay + ')' : '') + '. Si hubo un error, anulá la venta desde el Resumen.'); return; }
     if (p.pag) { if (confirm('Este pedido se pagó online con Mercado Pago. ¿Lo registro ahora como venta?')) registrar(p, 'qr'); return; }
@@ -444,6 +471,7 @@ export function createPedidos(X) {
       '<div class="prw t"><span>Total</span><span>' + money(p.tot || 0) + '</span></div>' +
       '<div class="pli" style="align-items:center"><span>' + esc(p.pago || 'Pago a definir') + '</span><button type="button" class="ppg' + (pago(p) ? ' si' : '') + '" data-pd="pg" style="padding:0"><i>' + (pago(p) ? '✓' : '') + '</i>' + (p.cob ? 'Cobrado' + (p.cpay ? ' · ' + esc(p.cpay) : '') : p.pag ? 'Pagado online' : pago(p) ? 'Está pago' : 'Sin pagar') + '</button></div>' +
       (p.paga > 0 ? '<div class="prw" style="margin-top:8px"><span>Abona con</span><span>' + money(p.paga) + '</span></div><div class="prw v"><span>Vuelto</span><span>' + money(Math.max(0, p.paga - (p.tot || 0))) + '</span></div>' : '') + '</div>';
+    if (p.cmp) h += '<button type="button" class="ppcmp" data-pd="cmpver">🧾 Ver el comprobante de pago' + (pago(p) ? '' : ' que mandó el cliente') + '</button>';
     if (p.tipo === 'env' && /^(ok|listo|camino)$/.test(p.st)) h += '<button type="button" class="ppcad" data-pd="cad">🛵 ' + (p.kh ? 'Mandar de nuevo al cadete' + (p.cad ? ' (' + esc(p.cad) + ')' : '') : 'Mandar al cadete por WhatsApp') + '</button>';
     if (p.st === 'rendir') h += '<div class="pnt" style="background:#FEF3C7">🛵 Lo entregó ' + esc(p.cad || 'el cadete') + ' y cobró ' + money(p.tot || 0) + '. Cuando te rinda la plata, tocá "Recibí la plata" y la venta queda registrada.</div>';
     h += '<div class="plk">' + (p.cob ? '' : '<button type="button" data-pd="caja">💵 Cobrar en la caja</button>') + '<button type="button" data-pd="com">🖨️ Comanda</button>' +
@@ -473,6 +501,7 @@ export function createPedidos(X) {
     if (a === 'caja') { if (X.aCaja(p)) cerrar(); return; }
     if (a === 'cancel') { cancelar(p); return; }
     if (a === 'cad') { cadDlg(p); return; }
+    if (a === 'cmpver') { verComp(p); return; }
     if (a === 'cadsel') { mandarCad(p, b.dataset.n || '', b.dataset.t || ''); return; }
     if (a === 'cadadd') { const n = (document.getElementById('cad_n').value || '').trim().slice(0, 40), t = (document.getElementById('cad_t').value || '').trim().slice(0, 24); if (!n || t.replace(/\D/g, '').length < 6) { alert('Escribí el nombre y el WhatsApp del cadete.'); return; } const base = cadsLoc && Date.now() - cadsLoc.t < 8000 ? cadsLoc.l : (X.cads() || []); cadsGuardar(base.concat([{ n, t }]).slice(-12), p); return; }
     if (a === 'caddel') { if (!confirm('¿Borrar a ' + b.dataset.n + ' de la lista?')) return; const base = cadsLoc && Date.now() - cadsLoc.t < 8000 ? cadsLoc.l : (X.cads() || []); cadsGuardar(base.filter((c, i) => i !== +b.dataset.i), p); return; }

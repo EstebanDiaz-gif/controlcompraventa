@@ -403,9 +403,9 @@ body.est-calzado .sec h2,body.est-celus .sec h2{text-transform:uppercase;letter-
 .pays .pb2.rcg{background:#EEF0F3;color:#3b4048}
 .dsc span:last-child{white-space:nowrap;flex:none}
 .pdet{background:var(--soft);border-radius:14px;padding:12px 14px;margin-top:10px;font-size:14.5px}
-.pdet .pr2{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0}
-.pdet .pr2 span{min-width:0;word-break:break-all}.pdet .pr2 small{display:block;color:var(--mut);font-size:12px;font-weight:600;word-break:normal}
-.pdet .cpb{flex:none;border:0;border-radius:10px;background:var(--ink);color:#fff;font-weight:800;font-size:13px;padding:7px 12px;cursor:pointer}
+.pdet .pr2,.cmpc .pr2{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0}
+.pdet .pr2 span,.cmpc .pr2 span{min-width:0;word-break:break-all}.pdet .pr2 small,.cmpc .pr2 small{display:block;color:var(--mut);font-size:12px;font-weight:600;word-break:normal}
+.pdet .cpb,.cmpc .cpb{flex:none;border:0;border-radius:10px;background:var(--ink);color:#fff;font-weight:800;font-size:13px;padding:7px 12px;cursor:pointer}
 .pdet .lk{display:block;text-align:center;text-decoration:none;border-radius:12px;background:var(--ink);color:#fff;font-weight:800;padding:12px;margin-top:6px}
 .pdet p{margin:6px 0 0;color:var(--mut);font-size:13px;line-height:1.35}
 /* ---------- Pie de página ---------- */
@@ -522,7 +522,7 @@ main,.sec,.tools,.cats,.info,.promos,#carta{position:relative;z-index:1}
 .ln img,.ln .t{width:52px;height:52px;border-radius:12px;object-fit:cover;background:var(--soft);flex:none}
 .ln .d{flex:1;min-width:0}.ln small{display:block;color:var(--mut)}
 .tot{display:flex;justify-content:space-between;font-weight:800;font-size:20px;margin:14px 0}
-.note{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}.note.avon{background:#E8F7EE;color:#14532D;font-weight:700;text-align:center;margin-top:14px}
+.note{background:var(--soft);border-radius:12px;padding:10px 12px;font-size:14px;margin:10px 0}.cmpc{margin-top:14px;border:2px dashed var(--line);border-radius:16px;padding:14px}.cmpc.ok{border-style:solid;border-color:#9ed8b4;background:#effaf3}.cmpc > b{display:block;font-size:16px}.cmpc p{margin:6px 0}.cmpb{display:block;width:100%;margin-top:10px;padding:14px;border-radius:99px;border:0;background:var(--ink);color:#fff;font:inherit;font-weight:800;font-size:16px;cursor:pointer}.cmpb.alt{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink)}.note.avon{background:#E8F7EE;color:#14532D;font-weight:700;text-align:center;margin-top:14px}
 .avb{display:block;width:100%;margin:14px auto 0;padding:14px;border-radius:99px;border:2px solid var(--ink);background:#fff;color:var(--ink);font:inherit;font-weight:800;font-size:16px;cursor:pointer}.hint{color:var(--ink);font-weight:700}
 /* carta de servicios y reserva de turnos */
 .svl{max-width:var(--mw);margin:0 auto;padding:6px 16px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:0 24px}
@@ -809,7 +809,7 @@ body.est-retro .ahb .achips a.mapa{background:#fff;border-color:#9cc7e4;color:#1
 <div class="sheet" id="sh" hidden><div id="shc"></div></div>
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot,writeBatch,query,where} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot,writeBatch,query,where,setDoc,updateDoc} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {firebaseConfig} from './firebase-config.js';
 import {PAGOS_URL} from './pagos-config.js';
 import {fotoId} from './fotos.js';
@@ -1537,7 +1537,7 @@ function cpRow(lbl,v){return v?'<div class="pr2"><span><small>'+lbl+'</small>'+e
 function pdet(m,monto,que){if(!m)return '';var d=m.d||{},h='<div class="pdet">';
 if(m.id=='mpa')h+='<button class="lk" data-mpa="1" style="width:100%;border:0;font:inherit;font-weight:800;cursor:pointer">Pagar '+money(monto)+' con Mercado Pago</button><p>Tarjeta de crédito (en cuotas), débito o dinero en cuenta. El monto ya va cargado. Después volvés acá y mandás el pedido por WhatsApp.</p>';
 else if(m.id=='ef')h+='<b>💵 Pagás en efectivo</b><p>'+(que=='sena'?'Llevá la seña al local.':'Pagás '+money(monto)+' al '+(envCosto()||(pedOn()&&MESA)?'recibir':'retirar')+' el pedido.')+'</p>';
-else if(m.id=='tr')h+='<b>Transferí '+money(monto)+'</b>'+cpRow('Alias',d.alias)+cpRow('CBU / CVU',d.cbu)+(d.tit?'<div class="pr2"><span><small>Titular</small>'+esc(d.tit)+'</span></div>':'')+'<p>Después mandá el comprobante por WhatsApp.</p>';
+else if(m.id=='tr')h+='<b>Transferí '+money(monto)+'</b>'+cpRow('Alias',d.alias)+cpRow('CBU / CVU',d.cbu)+(d.tit?'<div class="pr2"><span><small>Titular</small>'+esc(d.tit)+'</span></div>':'')+'<p>'+(pedOn()?'Cuando hagas el pedido vas a poder subir el comprobante acá mismo o mandarlo por WhatsApp.':'Después mandá el comprobante por WhatsApp.')+'</p>';
 else if(d.link)h+='<a class="lk" href="'+esc(d.link)+'" target="_blank" rel="noopener">Pagar '+money(monto)+(m.id=='mp'?' con Mercado Pago':' · '+esc(m.n))+' ↗</a>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>Si el link te pide el monto, poné '+money(monto)+'. Después mandá el comprobante por WhatsApp.</p>';
 else h+='<b>'+esc(m.n)+'</b>'+(d.nota?'<p>'+esc(d.nota)+'</p>':'')+'<p>El negocio te confirma cómo pagar por WhatsApp.</p>';
 return h+'</div>'}
@@ -1642,12 +1642,36 @@ var t2=pedTxt(p),pasos=p.tipo=='env'?['Recibido','Preparando','En camino','Entre
 var h='<div class="pstc'+(p.st=='cancelado'?' no':'')+'"><div class="pe">'+t2[0]+'</div><b>'+esc(t2[1])+'</b><p>'+esc(t2[2])+'</p></div>';
 if(i!=null)h+='<div class="psteps">'+pasos.map(function(n,k){return '<div class="'+(k<=i?'on':'')+(k==i?' cur':'')+'"><i></i><span>'+n+'</span></div>'}).join('')+'</div>';
 h+='<div class="lbl">Pedido #'+esc(pedCod(p.id))+' · '+(p.tipo=='mesa'?'Mesa '+esc(p.mesa||''):p.tipo=='env'?'Envío':'Retiro en el local')+'</div>'+(p.it||[]).map(function(l){return '<div class="pli"><span>'+(l.w?String(l.q).replace('.',',')+' kg':l.q+' ×')+' '+esc(l.n)+(l.x?'<small>'+esc(l.x)+'</small>':'')+'</span><b>'+money(l.u*l.q)+'</b></div>'}).join('')+
-(p.env?'<div class="pli"><span>🛵 Envío</span><b>'+money(p.env)+'</b></div>':'')+'<div class="tot"><span>Total</span><span>'+money(p.tot||0)+'</span></div>'+(p.pago?'<div class="k" style="color:var(--mut);text-align:center">'+esc(p.pago)+(p.pag?' · <b style="color:#1a8f4c">pagado ✓</b>':'')+'</div>':'');
+(p.env?'<div class="pli"><span>🛵 Envío</span><b>'+money(p.env)+'</b></div>':'')+'<div class="tot"><span>Total</span><span>'+money(p.tot||0)+'</span></div>'+(p.pago?'<div class="k" style="color:var(--mut);text-align:center">'+esc(p.pago)+(p.pag||p.pg?' · <b style="color:#1a8f4c">pagado ✓</b>':'')+'</div>':'');
+if(compVa(p))h+=compHtml(p);
 if(activo&&p.tipo!='mesa'&&avisoSop()){var avOk=false;try{avOk=localStorage.getItem('pk_av_'+PEDV.id)=='1'}catch(e){}var avT=p.tipo=='env'?'cuando salga':'cuando esté listo';
 h+=avOk&&Notification.permission=='granted'?'<div class="note avon">🔔 Te vamos a avisar con una notificación '+avT+'.</div>':Notification.permission=='denied'?'':'<button type="button" class="avb" data-avisame="1">🔔 Avisame '+avT+'</button><div class="k" style="color:var(--mut);text-align:center;font-size:13px;margin-top:6px">Te llega un aviso al celular aunque cierres esta página.</div>'}
 if(WAS.length){var wm=p.st=='nuevo'&&p.tipo!='mesa';h+=(wm?'<div class="note" style="margin-top:14px">✅ Tu pedido ya está en el sistema del local. Si querés, avisales también por WhatsApp (no hace falta).</div>':'')+
 '<a class="wa" target="_blank" rel="noopener" style="margin-top:'+(wm?8:14)+'px'+(wm?'':';background:var(--soft);color:var(--ink)')+'" href="'+esc(waUrl(WAS[0].w,wm?pedMsg(p):'Hola! Te escribo por mi pedido #'+pedCod(p.id)+' ('+(p.cl||'')+').'))+'">'+(wm?'Mandar también por WhatsApp':'Escribirle al local')+'</a>'}
-x.innerHTML=h+'<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';var ab=x.querySelector('[data-avisame]');if(ab)ab.onclick=function(){avisame(PEDV.id,ab)}}
+x.innerHTML=h+'<button class="x" data-cl="1" style="display:block;margin:14px auto 0">Seguir mirando</button>';var ab=x.querySelector('[data-avisame]');if(ab)ab.onclick=function(){avisame(PEDV.id,ab)};
+var cb=x.querySelector('[data-cmp]'),cf=$('cmpf');if(cb&&cf){cb.onclick=function(){cf.click()};cf.onchange=function(){if(cf.files&&cf.files[0])subirComp(PEDV.id,cf.files[0],cb)}}}
+// ---------- Comprobante de pago (transferencia u otro link): el cliente lo sube acá o lo manda por WhatsApp ----------
+// La foto se achica en el celular (JPEG de hasta ~1400 px) y se guarda en stores/{sid}/pedidos/{id}/comp/c; la ve solo el local.
+function compVa(p){return !!(p&&p.src=='web'&&p.st!='cancelado'&&p.pago&&!p.mp&&!p.pag&&!p.pg&&!p.cob&&!/efectivo/i.test(p.pago))}
+function compHtml(p){var tr=((INFO.pagos||{}).tr)||{},esTr=/transf/i.test(p.pago),cod=pedCod(p.id),env=p.cmp;
+var h='<div class="cmpc'+(env?' ok':'')+'"><b>'+(env?'✅ Comprobante enviado':'🧾 ¿Ya pagaste? Mandá el comprobante')+'</b>';
+if(env)h+='<p>El local lo revisa y marca tu pedido como pagado.</p>';
+else if(esTr&&(tr.alias||tr.cbu))h+='<p>Transferí <b>'+money(p.tot||0)+'</b></p>'+cpRow('Alias',tr.alias)+cpRow('CBU / CVU',tr.cbu)+(tr.tit?'<div class="pr2"><span><small>Titular</small>'+esc(tr.tit)+'</span></div>':'');
+h+='<button type="button" class="cmpb'+(env?' alt':'')+'" data-cmp="1">'+(env?'Cambiar el comprobante':'📷 Subir el comprobante')+'</button><input type="file" id="cmpf" accept="image/*,application/pdf" hidden>';
+if(WAS.length)h+='<a class="wa" target="_blank" rel="noopener" style="margin-top:8px;background:var(--soft);color:var(--ink)" href="'+esc(waUrl(WAS[0].w,'Hola! Te mando el comprobante de '+(esTr?'la transferencia':'pago')+' del pedido #'+cod+' ('+money(p.tot||0)+').'))+'">💬 Mandarlo por WhatsApp</a>';
+return h+'<div class="k" style="color:var(--mut);font-size:12.5px;margin-top:8px;text-align:center">Una captura de pantalla sirve. Solo lo ve el local.</div></div>'}
+function leerComp(f){return new Promise(function(ok,no){
+if(/pdf/i.test(f.type)||/\.pdf$/i.test(f.name)){if(f.size>650000){no(new Error('El PDF es muy pesado. Mandá una captura de pantalla del comprobante.'));return}var r=new FileReader();r.onload=function(){ok({img:String(r.result).replace(/^data:[^;]*;/,'data:application/pdf;'),t:'application/pdf'})};r.onerror=function(){no(new Error('No se pudo leer el archivo.'))};r.readAsDataURL(f);return}
+if(!/^image\//.test(f.type)){no(new Error('Elegí una foto o captura del comprobante (o un PDF).'));return}
+var u=URL.createObjectURL(f),im=new Image();im.onload=function(){var tam=[1400,1100,900],cal=[.72,.6,.5],out='';
+for(var i=0;i<tam.length;i++){var k=Math.min(1,tam[i]/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);var g=c.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(im,0,0,c.width,c.height);out=c.toDataURL('image/jpeg',cal[i]);if(out.length<900000)break}
+URL.revokeObjectURL(u);if(out.length>=900000){no(new Error('La imagen es muy pesada. Probá con una captura de pantalla.'));return}ok({img:out,t:'image/jpeg'})};
+im.onerror=function(){URL.revokeObjectURL(u);no(new Error('No se pudo abrir la imagen. Probá con una captura de pantalla.'))};im.src=u})}
+function subirComp(id,f,b){var t0=b.textContent;b.disabled=true;b.textContent='Subiendo…';
+leerComp(f).then(function(c){return setDoc(doc(db,'stores',sid,'pedidos',id,'comp','c'),{img:c.img,t:c.t,n:String(f.name||'comprobante').slice(0,80),at:Date.now()})})
+.then(function(){return updateDoc(doc(db,'stores',sid,'pedidos',id),{cmp:Date.now()})})
+.then(function(){if(PAGOS_URL)fetch(PAGOS_URL+'/push/comp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:id})}).catch(function(){});if(PEDV&&PEDV.d)PEDV.d.cmp=Date.now();pedPintar()})
+.catch(function(e){b.disabled=false;b.textContent=t0;alert(e&&e.message&&!/permission/i.test(e.message)?e.message:'No se pudo subir el comprobante. Mandalo por WhatsApp.')})}
 // Avisos al cliente (sin cuenta): notificación del navegador cuando el pedido sale o está listo. Lo manda el servidor de pagos.
 function avisoSop(){try{return !!PAGOS_URL&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window}catch(e){return false}}
 function u8(b){b=String(b).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';return Uint8Array.from(atob(b),function(c){return c.charCodeAt(0)})}

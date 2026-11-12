@@ -413,8 +413,17 @@ service cloud.firestore {
         allow get: if true;
         allow list: if isMember(sid);
         allow create: if (pedidosOn(sid) && pedidoWebOk(id)) || (isMember(sid) && accessOk(sid));
-        allow update: if isMember(sid);
+        // El cliente del catálogo solo puede marcar que mandó el comprobante (cmp = cuándo).
+        allow update: if isMember(sid) || (resource.data.src == 'web' && resource.data.st != 'cancelado'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cmp']) && request.resource.data.cmp is int);
         allow delete: if isAdmin(sid);
+        // Comprobante de pago (foto o PDF): lo sube el cliente del catálogo; lo ve solo el local.
+        match /comp/{c} {
+          allow read, delete: if isMember(sid);
+          allow create, update: if c == 'c' && get(/databases/$(database)/documents/stores/$(sid)/pedidos/$(id)).data.src == 'web'
+            && request.resource.data.keys().hasOnly(['img', 't', 'n', 'at']) && request.resource.data.img is string
+            && request.resource.data.img.size() < 950000 && request.resource.data.t in ['image/jpeg', 'application/pdf'];
+        }
       }
       match /impresion/{id} {
         allow read, delete: if isMember(sid);
