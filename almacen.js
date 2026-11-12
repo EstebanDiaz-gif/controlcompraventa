@@ -18,7 +18,8 @@ import { abrirSueltos } from './sueltos.js';
 import { limpiarOps, calcOps, tocarOps, selInicial, reglaOps, MODELOS_OPS, MAX_GRUPOS, MAX_OPCIONES, selDe } from './opciones.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
-import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv, limpiarApps, lunes, semanasApp, semanaTxt, apTotal, apNeto, APPS_SUG, appId } from './almacen-calc.js';
+import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv, limpiarApps, lunes, semanasApp, semanaTxt, apTotal, apNeto, APPS_SUG, appId, apEstilo, apNombreHtml } from './almacen-calc.js';
+import { esGas } from './plans.js';
 import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
@@ -32,7 +33,7 @@ export { CATS, PAY };
 export function createAlmacen(X) {
   const { db, $, esc, money } = X;
   const S = {
-    cart: [], q: '', cat: '', pay: 'ef', apSel: '', apTot: '', aps: null, cli: '', cliQ: '', paga: '', last: '', mixEf: '', mixO: 'tr', caja: null, cajaErr: false, cajasM: null, prBy: 'v',
+    cart: [], q: '', cat: '', pay: 'ef', apSel: '', apTot: '', aps: null, canal: '', apo: '', apcl: '', cli: '', cliQ: '', paga: '', last: '', mixEf: '', mixO: 'tr', caja: null, cajaErr: false, cajasM: null, prBy: 'v',
     cl: [], clErr: false, fq: '', sel: null, fmov: null,
     stQ: '', stCat: '', stLow: false, stNoCod: false, edit: null, repo: null, rq: '', rcomp: null, imp: null, qk: null,
     month: X.today().slice(0, 7), tot: null, totM: null, hoy: [], hoyDay: '', day: X.today(), dayV: null
@@ -139,7 +140,7 @@ export function createAlmacen(X) {
   function listenTot() {
     if (!adm() || (un.tot && S.totM === S.month)) return;
     off('tot'); S.totM = S.month; S.tot = null;
-    un.tot = onSnapshot(ref('totales', S.month), (sn) => { S.tot = sn.exists() ? sn.data() : {}; if (X.tab() === 'res') drawRes(); }, () => { S.tot = {}; });
+    un.tot = onSnapshot(ref('totales', S.month), (sn) => { S.tot = sn.exists() ? sn.data() : {}; if (X.tab() === 'res' || X.tab() === 'apd') redraw(); }, () => { S.tot = {}; });
   }
   // ---------- Cierre de caja ----------
   // Una caja abierta por tienda (el cajón de la plata). stores/{sid}/cajas/{id}:
@@ -160,7 +161,7 @@ export function createAlmacen(X) {
     if (un.caja) return;
     un.caja = onSnapshot(query(col('cajas'), where('st', '==', 'open')), (sn) => {
       const l = []; sn.forEach((x) => l.push(x.data())); l.sort((a, b) => (a.ab || 0) - (b.ab || 0));
-      S.caja = l[0] || null; S.cajaErr = false; renderCajaBar(); if (X.tab() === 'res') drawRes();
+      S.caja = l[0] || null; S.cajaErr = false; renderCajaBar(); if (X.tab() === 'res') drawRes(); if (X.tab() === 'ini' && X.ini) X.ini();
     }, (e) => { S.caja = null; S.cajaErr = deny(e); renderCajaBar(); });
   }
   function listenCajasMes() {
@@ -340,7 +341,7 @@ export function createAlmacen(X) {
   function redraw() {
     if (!X.isAlm()) return;
     const t = X.tab();
-    if (t === 'caja') drawCaja(); else if (t === 'fia') drawFiado(); else if (t === 'stk') drawStock(); else if (t === 'res') drawRes();
+    if (t === 'caja') drawCaja(); else if (t === 'fia') drawFiado(); else if (t === 'stk') drawStock(); else if (t === 'res') drawRes(); else if (t === 'apd') drawApps(); else if (t === 'ini' && X.ini) X.ini();
   }
 
   // =====================================================================
@@ -355,7 +356,7 @@ export function createAlmacen(X) {
       return;
     }
     if (!$('cjq')) {
-      box.innerHTML = '<div id="cjbar"></div><div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar o escanear" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
+      box.innerHTML = '<div id="cjbar"></div><div id="cjcanal"></div><div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="cjq" type="search" enterkeyhint="go" placeholder="Buscar o escanear" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.q) + '">' + scanButton('scancaja') + '</div>' +
         '<div class="r1w"><button type="button" class="r1a l" data-r1="-1" aria-label="Ver categorías anteriores">‹</button><div id="cjcats" class="chips r1"></div><button type="button" class="r1a r" data-r1="1" aria-label="Ver más categorías">›</button></div><div id="cjres"></div></div><div id="cjcart"></div><div id="cjhoy"></div>';
       loadSan();
       const qi = $('cjq');
@@ -363,7 +364,7 @@ export function createAlmacen(X) {
       qi.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); enterAdd(); } };
       if (PC) setTimeout(() => { if (!document.activeElement || document.activeElement === document.body) qi.focus({ preventScroll: true }); }, 50);
     }
-    renderCats(); renderRes(); renderHoy(); renderCajaBar();
+    renderCats(); renderRes(); renderHoy(); renderCajaBar(); renderCanal();
     // Si el cajero está escribiendo (paga con, buscar cliente), no le borramos lo que escribe.
     const fa = document.activeElement;
     if (!(fa && fa.closest && fa.closest('#cjcart'))) renderCart();
@@ -592,11 +593,14 @@ export function createAlmacen(X) {
     else if (EF.cerca) h += '<div class="k" style="margin-top:8px">🏷️ Sumá ' + EF.cerca.faltan + ' más' + (EF.cerca.p.cat ? ' de ' + esc(EF.cerca.p.cat) : '') + ' y tiene ' + EF.cerca.p.pct + '% OFF.</div>';
     if (S.env) h += '<div class="it"><div><b>🛵 Envío a domicilio</b><small>' + esc(S.env.rn || '') + (S.env.dir ? ' · ' + esc(S.env.dir) : '') + (S.env.pag ? ' · al repartidor ' + money(S.env.pag) : '') + '</small></div><div style="display:flex;align-items:center;gap:6px"><b style="min-width:76px;text-align:right">' + money(S.env.cob) + '</b><button class="x" data-al="envx" aria-label="Quitar envío">×</button></div></div>';
     else if (RPm() && RPm().on()) h += '<button class="x" data-al="envadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:10px">🛵 Agregar envío a domicilio</button>';
-    h += '<div class="big" style="font-size:40px;margin:14px 0 4px">' + money(tot) + '</div>';
+    const enApp0 = /^ap:/.test(S.canal), A0 = enApp0 ? appDe(S.canal.slice(3)) : null;
+    h += '<div class="big" id="cjbig" style="font-size:40px;margin:14px 0 4px">' + money(A0 ? (Math.round(+S.apTot) || apTotal(tot, A0.rec)) : tot) + '</div>' + (A0 && A0.rec ? '<div class="k" style="margin-top:-2px">Con precios de ' + esc(A0.n) + ' (+' + A0.rec + '%). En el local: ' + money(tot) + '</div>' : '');
     const PB = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / MP', fi: 'Fiado', mix: 'Dividido' }, AL = apps();
-    if (AL.length) PB.ap = '📲 App';
+    if (AL.length && !canales().length) PB.ap = '📲 App';
     if (S.pay === 'ap' && !AL.length) S.pay = 'ef';
-    h += '<div class="seg" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + Object.keys(PB).map((k) => '<button class="pay' + (S.pay === k ? ' on' : '') + '" data-al="pay" data-v="' + k + '" style="margin:0">' + PB[k] + '</button>').join('') + '</div>';
+    const CAN = S.canal, enApp = /^ap:/.test(CAN), coc = X.pedOn && X.pedOn() && !S.ped && (enApp || ['mesa', 'ret', 'env'].indexOf(CAN) >= 0);
+    if (enApp) { S.pay = 'ap'; S.apSel = CAN.slice(3); }
+    if (!enApp) h += '<div class="seg" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + Object.keys(PB).map((k) => '<button class="pay' + (S.pay === k ? ' on' : '') + '" data-al="pay" data-v="' + k + '" style="margin:0">' + PB[k] + '</button>').join('') + '</div>';
     if (S.pay === 'ef') {
       h += '<label>¿Con cuánto paga?</label><div class="chips" style="margin-top:4px">' + ['justo'].concat(billetes(tot)).map((b) => '<button class="ch' + (String(b === 'justo' ? tot : b) === String(S.paga) ? ' on' : '') + '" data-al="paga" data-v="' + (b === 'justo' ? tot : b) + '">' + (b === 'justo' ? 'Justo' : money(b)) + '</button>').join('') + '</div>' +
         '<input id="cjpg" type="number" inputmode="decimal" placeholder="O escribí el monto" value="' + esc(S.paga) + '" style="margin-top:8px" enterkeyhint="done"><div id="cjvu">' + vueltoHtml(tot) + '</div>';
@@ -612,11 +616,18 @@ export function createAlmacen(X) {
     if (S.pay === 'ap') {
       if (!appDe(S.apSel)) S.apSel = AL.length === 1 ? AL[0].id : '';
       const A = appDe(S.apSel); apT = A ? (Math.round(+S.apTot) || apTotal(tot, A.rec)) : 0;
-      h += '<label>¿Por qué app?</label><div class="chips" style="margin-top:4px">' + AL.map((a) => '<button class="ch' + (a.id === S.apSel ? ' on' : '') + '" data-al="apsel" data-v="' + esc(a.id) + '">' + esc(a.n) + '</button>').join('') + '</div>' +
-        (A ? '<label>Total del pedido en ' + esc(A.n) + '</label><input id="cjap" type="number" inputmode="numeric" value="' + apT + '">' +
-          '<div class="k" style="margin-top:6px">' + (A.rec ? 'Con el ' + A.rec + '% de recargo de la app. ' : '') + 'No entra a la caja: queda a cobrar en la cuenta de ' + esc(A.n) + (A.com ? ' (te depositan ≈ <b id="cjapn">' + money(apNeto(apT, A.com)) + '</b> con el ' + A.com + '% de comisión)' : '') + '.</div>' : '');
+      if (enApp && A) h += '<div class="row" style="margin-top:4px"><div><label>N° de pedido</label><input id="cjapo" maxlength="20" inputmode="text" autocomplete="off" placeholder="Ej: 4821" value="' + esc(S.apo) + '"></div><div><label>Cliente (opcional)</label><input id="cjapc" maxlength="60" autocomplete="off" placeholder="Ej: Sofía" value="' + esc(S.apcl) + '"></div></div>';
+      if (!enApp) h += '<label>¿Por qué app?</label><div class="chips" style="margin-top:4px">' + AL.map((a) => '<button class="ch' + (a.id === S.apSel ? ' on' : '') + '" data-al="apsel" data-v="' + esc(a.id) + '">' + esc(a.n) + '</button>').join('') + '</div>';
+      h += (A ? '<label>Total del pedido en ' + esc(A.n) + '</label><input id="cjap" type="number" inputmode="numeric" value="' + apT + '">' +
+          '<div class="k" style="margin-top:6px">' + (A.rec && !enApp ? 'Con el ' + A.rec + '% de recargo de la app. ' : '') + 'No entra a la caja: queda a cobrar en la cuenta de ' + esc(A.n) + (A.com ? ' (te depositan ≈ <b id="cjapn">' + money(apNeto(apT, A.com)) + '</b> con el ' + A.com + '% de comisión)' : '') + '.</div>' : '');
     }
-    h += '<button class="go" data-al="cobrar">' + (S.pay === 'fi' ? 'Anotar en el fiado ' : S.pay === 'ap' ? 'Registrar venta' + (appDe(S.apSel) ? ' de ' + esc(appDe(S.apSel).n) + ' ' + money(apT) : '') : 'Cobrar ' + money(tot)) + '</button>' +
+    const cobTxt = (S.pay === 'fi' ? 'Anotar en el fiado ' : S.pay === 'ap' ? 'Registrar venta' + (appDe(S.apSel) ? ' de ' + esc(appDe(S.apSel).n) + ' ' + money(apT) : '') : 'Cobrar ' + money(tot));
+    if (coc) {
+      // Gastronomía: el pedido va a la cocina (y se cobra al entregarlo); cobrar ya queda como segunda opción.
+      const cc = enApp ? apEstilo(CAN.slice(3)) : (CANC[CAN] || ['#1D3FAF', '#fff']);
+      h += '<button class="go" data-al="' + (enApp ? 'apcoc' : 'aped') + '" style="background:' + cc[0] + ';color:' + cc[1] + ';display:flex;align-items:center;justify-content:center;gap:10px">' + ICO.flame + ' Mandar a cocina' + (enApp && apT ? ' · ' + money(apT) : '') + '</button>' +
+        '<button class="go alt" data-al="cobrar" style="margin-top:8px">' + (enApp ? 'Registrar la venta sin pasar por cocina' : cobTxt + ' ahora') + '</button></div>';
+    } else h += '<button class="go" data-al="cobrar">' + cobTxt + '</button>' +
       (X.pedOn && X.pedOn() && !S.ped ? '<button class="go alt" data-al="aped" style="margin-top:8px">🛎️ Guardar como pedido (se cobra después)</button>' : '') + '</div>';
     e.innerHTML = h;
     const pg = $('cjpg');
@@ -627,10 +638,67 @@ export function createAlmacen(X) {
     const mx = $('cjmx'), mo = $('cjmo');
     if (mx) mx.oninput = () => { S.mixEf = mx.value; $('cjmr').innerHTML = mixTxt(tot); };
     if (mo) mo.onchange = () => { S.mixO = mo.value; $('cjmr').innerHTML = mixTxt(tot); };
+    const apo = $('cjapo'), apc = $('cjapc');
+    if (apo) apo.oninput = () => { S.apo = apo.value; };
+    if (apc) apc.oninput = () => { S.apcl = apc.value; };
     const ap = $('cjap');
-    if (ap) ap.oninput = () => { S.apTot = ap.value; const A = appDe(S.apSel), n = $('cjapn'), b = e.querySelector('[data-al="cobrar"]'), v = Math.round(+ap.value || 0); if (n && A) n.textContent = money(apNeto(v, A.com)); if (b && A) b.textContent = 'Registrar venta de ' + A.n + ' ' + money(v); };
+    if (ap) ap.oninput = () => { S.apTot = ap.value; const A = appDe(S.apSel), n = $('cjapn'), b = e.querySelector('[data-al="cobrar"]'), v = Math.round(+ap.value || 0); if (n && A) n.textContent = money(apNeto(v, A.com)); if (b && A && !S.canal) b.textContent = 'Registrar venta de ' + A.n + ' ' + money(v); const bc = e.querySelector('[data-al="apcoc"]'); if (bc && A) bc.innerHTML = ICO.flame + ' Mandar a cocina · ' + money(v); const bg = $('cjbig'); if (bg && S.canal) bg.textContent = money(v); };
     const cq = $('cjcq');
     if (cq) cq.oninput = () => { S.cliQ = cq.value; const l = $('cjcl'); if (l) l.innerHTML = cliList(); };
+  }
+  // ---------- Gastronomía: ¿de dónde viene el pedido? (mostrador, mesa, retira, delivery o una app) ----------
+  const ICO = {
+    store: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18"/></svg>',
+    mesa: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9h18M6 9v11M18 9v11M8 5h8"/></svg>',
+    bag: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l1 14H5z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
+    moto: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6h3l-3 11.5M5.5 17.5 9 10h7"/></svg>',
+    flame: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c1 3 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1 1 2 2 3 4 0-3 0-5 0-7z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>'
+  };
+  const CANC = { mos: ['#1D3FAF', '#fff'], mesa: ['#15803D', '#fff'], ret: ['#334155', '#fff'], env: ['#0E7490', '#fff'] };
+  const gas = () => esGas(((X.cs && X.cs()) || {}).tipo);
+  function canales() {
+    if (!gas()) return [];
+    const ped = X.pedOn && X.pedOn(), pub = (X.pub && X.pub()) || {}, l = [['mos', 'Mostrador', ICO.store]];
+    if (ped) { if (pub.ped && pub.ped.mesa) l.push(['mesa', 'Mesa', ICO.mesa]); l.push(['ret', 'Retira', ICO.bag], ['env', 'Delivery', ICO.moto]); }
+    const ap = apps();
+    if (l.length === 1 && !ap.length) return [];
+    return l.concat(ap.map((a) => ['ap:' + a.id, a.n, null]));
+  }
+  function renderCanal() {
+    const e = $('cjcanal'); if (!e) return;
+    const L = canales(); if (!L.length) { e.innerHTML = ''; if (S.canal) S.canal = ''; return; }
+    if (!L.some((c) => c[0] === S.canal)) S.canal = '';
+    const cur = S.canal || 'mos', loc = L.filter((c) => c[2]), ap = L.filter((c) => !c[2]);
+    e.innerHTML = '<div class="card can"><div class="cant">¿De dónde viene el pedido?</div>' +
+      '<div class="canl" style="grid-template-columns:repeat(' + loc.length + ',minmax(0,1fr))">' + loc.map((c) => { const k = CANC[c[0]], on = cur === c[0];
+        return '<button type="button" class="canb' + (on ? ' on' : '') + '" data-al="canal" data-v="' + c[0] + '" aria-pressed="' + on + '" style="' + (on ? 'background:' + k[0] + ';color:' + k[1] : 'color:' + k[0]) + '">' + c[2] + '<span>' + c[1] + '</span></button>'; }).join('') + '</div>' +
+      (ap.length ? '<div class="cana" style="grid-template-columns:repeat(' + Math.min(3, ap.length) + ',minmax(0,1fr))">' + ap.map((c) => { const k = apEstilo(c[0].slice(3)), on = cur === c[0];
+        return '<button type="button" class="capp' + (on ? ' on' : '') + '" data-al="canal" data-v="' + esc(c[0]) + '" aria-pressed="' + on + '" style="background:' + k[0] + ';color:' + k[1] + (on ? ';box-shadow:0 0 0 3px var(--card),0 0 0 5.5px ' + k[0] : '') + '">' + apNombreHtml(c[1], esc) + (on ? '<i>' + ICO.check + '</i>' : '') + '</button>'; }).join('') + '</div>' : '') + '</div>';
+  }
+  function setCanal(v) {
+    S.canal = v === 'mos' ? '' : v; S.apTot = '';
+    if (/^ap:/.test(S.canal)) { S.pay = 'ap'; S.apSel = S.canal.slice(3); } else if (S.pay === 'ap') S.pay = 'ef';
+    renderCanal(); renderCart();
+  }
+  // Los productos del carrito como renglones de un pedido.
+  function itemsPed() {
+    return S.cart.map((l) => {
+      const m = l.op ? /^(.*?) \((.+)\)$/.exec(l.n) : null, x = { k: l.promo || /^lib_/.test(l.id || '') ? '' : (l.id || ''), n: String(m ? m[1] : l.n).slice(0, 80), q: l.w ? r3(l.q) : l.q, u: Math.round(l.u) };
+      if (m) x.x = m[2].slice(0, 200); if (l.w) x.w = 1; if (l.promo) x.t = 'promo'; return x;
+    });
+  }
+  // Pedido de una app → cocina. Lo retira el repartidor de la app; al entregarlo se registra la venta (a cobrar de la app).
+  function apCocina() {
+    const A = appDe(S.apSel); if (!A || !S.cart.length) return;
+    if (!X.canWrite()) { alert('El acceso de la tienda venció.'); return; }
+    const t0 = Math.round(cartTotals(efectivo().lines).tot), T = Math.round(+S.apTot) || apTotal(t0, A.rec);
+    const apo = String(S.apo || '').trim().slice(0, 20), cl = String(S.apcl || '').trim().slice(0, 60);
+    const d = { tipo: 'ret', cl: cl || A.n + (apo ? ' #' + apo : ''), it: itemsPed(), tot: T, apt: 1, ap: A.id, pago: A.n, by: X.user().uid };
+    if (apo) d.apo = apo;
+    const b = $('cjcart') && $('cjcart').querySelector('[data-al="apcoc"]'); if (b) b.disabled = true;
+    X.guardarPedido(d).then(() => { S.cart = []; S.apTot = ''; S.apo = ''; S.apcl = ''; S.paga = ''; S.env = null; S.last = '🔥 ' + esc(A.n) + (apo ? ' #' + esc(apo) : '') + ' enviado a la cocina'; S.canal = ''; S.pay = 'ef'; renderCanal(); renderCats(); renderCart(); clearSearch(); })
+      .catch((e) => { if (b) b.disabled = false; X.fail(e); });
   }
   function vueltoHtml(tot) {
     const pg = Math.round(+S.paga || 0);
@@ -747,13 +815,13 @@ export function createAlmacen(X) {
     if (tkConfig().auto) imprimir(S.lastTk);
     if (S.ped) { updateDoc(doc(db, 'stores', sid, 'pedidos', S.ped), { cob: true, vid: id, cpay: payLabel(v) }).catch(() => {}); S.ped = null; }
     S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : APP ? 'Venta de ' + esc(APP.n) + ' registrada ✓ (a cobrar) ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
-    S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.apTot = ''; S.cat = ''; S.env = null; renderCats();
+    S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.apTot = ''; S.apo = ''; S.apcl = ''; S.canal = ''; S.cat = ''; S.env = null; renderCats(); renderCanal();
     renderCart(); clearSearch();
   }
   // Venta en curso → pedido para preparar (mesa, retira o envío). Se cobra después desde Pedidos → Cobrar en la caja.
   function pedidoDlg() {
     if (!S.cart.length) return;
-    const pre = S.pedPre || {}; let tipo = pre.tipo || 'ret';
+    const pre = S.pedPre || {}; let tipo = pre.tipo || (['mesa', 'ret', 'env'].indexOf(S.canal) >= 0 ? S.canal : 'ret');
     const o = modal('<b style="font-size:19px">🛎️ Guardar como pedido</b><div class="k" style="margin:4px 0 10px">Le llega a la cocina (y sale la comanda si está activada). Lo cobrás cuando lo entregás.</div>' +
       '<label>Nombre del cliente</label><input id="pd_n" maxlength="60" placeholder="Ej: Juan (si lo dejás vacío: Mostrador)" autocomplete="off">' +
       '<label>¿Para?</label><div class="seg" id="pd_t" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">' + [['ret', '🏪 Retira'], ['mesa', '🍽️ Mesa'], ['env', '🛵 Envío']].map((x) => '<button type="button" class="pay' + (x[0] === tipo ? ' on' : '') + '" data-t="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>' +
@@ -767,17 +835,14 @@ export function createAlmacen(X) {
       const mesa = q('pd_mn').value.trim(), dir = q('pd_d').value.trim();
       if (tipo === 'mesa' && !mesa) { alert('Escribí el número de mesa.'); return; }
       if (tipo === 'env' && dir.length < 4) { alert('Escribí la dirección del envío.'); return; }
-      const EF = efectivo(), it = S.cart.map((l) => {
-        const m = l.op ? /^(.*?) \((.+)\)$/.exec(l.n) : null, x = { k: l.promo || /^lib_/.test(l.id || '') ? '' : (l.id || ''), n: String(m ? m[1] : l.n).slice(0, 80), q: l.w ? r3(l.q) : l.q, u: Math.round(l.u) };
-        if (m) x.x = m[2].slice(0, 200); if (l.w) x.w = 1; if (l.promo) x.t = 'promo'; return x;
-      });
+      const EF = efectivo(), it = itemsPed();
       const d = { tipo, cl: q('pd_n').value.trim().slice(0, 60) || 'Mostrador', it, tot: Math.round(cartTotals(EF.lines).tot), by: X.user().uid };
       if (tipo === 'mesa') d.mesa = mesa.slice(0, 12); if (tipo === 'env') { d.dir = dir.slice(0, 160); const t = q('pd_tel').value.trim(); if (t) d.tel = t.slice(0, 24); }
       const nt = q('pd_nt').value.trim(); if (nt) d.nota = nt.slice(0, 200);
       if (S.pay === 'ap' && appDe(S.apSel)) { d.pago = appDe(S.apSel).n; d.ap = S.apSel; }
       else if (S.pay && PAY[S.pay] && S.pay !== 'fi') d.pago = PAY[S.pay];
       q('pd_ok').disabled = true;
-      X.guardarPedido(d).then((r) => { o.remove(); S.cart = []; S.paga = ''; S.env = null; S.pedPre = null; S.last = '🛎️ Pedido #' + String(r.id).slice(-4).toUpperCase() + ' enviado a preparar'; renderCart(); clearSearch(); if (pre.volver && X.volver) X.volver(pre.volver); })
+      X.guardarPedido(d).then((r) => { o.remove(); S.cart = []; S.paga = ''; S.env = null; S.pedPre = null; S.canal = ''; renderCanal(); S.last = '🛎️ Pedido #' + String(r.id).slice(-4).toUpperCase() + ' enviado a preparar'; renderCart(); clearSearch(); if (pre.volver && X.volver) X.volver(pre.volver); })
         .catch((e) => { q('pd_ok').disabled = false; X.fail(e); });
     };
     setTimeout(() => q('pd_n').focus(), 50);
@@ -790,7 +855,7 @@ export function createAlmacen(X) {
     const sid = X.sid(), d = X.today(), m = d.slice(0, 7), dd = d.slice(8, 10), u = X.user();
     const APP = /^ap:/.test(pay || '') ? appDe(pay.slice(3)) : null; if (APP) pay = 'ap'; else if (pay === 'ap') pay = 'tr';
     const it = (p.it || []).map((l) => { const pr = l.t ? null : prod(l.k), q = +l.q || 1; return { id: pr ? pr.id : '', n: String((l.n || 'Producto') + (l.x ? ' (' + l.x + ')' : '')).slice(0, 140), q: l.w ? r3(q) : q, u: +l.u || 0, c: pr ? (pr.c || 0) : 0, w: l.w ? 1 : 0 }; });
-    const subt = it.reduce((a, x) => a + x.q * x.u, 0), env = Math.max(0, +p.env || 0), obj0 = Math.max(0, Math.round((+p.tot || 0) - env)), obj = APP ? apTotal(obj0, APP.rec) : obj0;
+    const subt = it.reduce((a, x) => a + x.q * x.u, 0), env = Math.max(0, +p.env || 0), obj0 = Math.max(0, Math.round((+p.tot || 0) - env)), obj = APP && !p.apt ? apTotal(obj0, APP.rec) : obj0;
     if (subt > 0 && Math.abs(subt - obj) > 1) { const f = obj / subt; it.forEach((x) => { x.u = x.u * f; }); }
     if (env > 0) it.push({ id: '', n: 'Envío a domicilio', q: 1, u: env, c: 0, w: 0, env: 1 });
     const { tot, cost } = cartTotals(it), id = uid();
@@ -1426,15 +1491,15 @@ export function createAlmacen(X) {
   // ---------- Apps de delivery: cuenta por app y por semana (lunes a domingo) ----------
   function listenAps() {
     if (un.aps || !adm()) return;
-    un.aps = onSnapshot(col('apsal'), (sn) => { S.aps = {}; S.apsErr = false; sn.forEach((d) => { S.aps[d.id] = d.data(); }); if (X.tab() === 'res') drawRes(); },
-      (e) => { S.aps = {}; S.apsErr = deny(e); if (X.tab() === 'res') drawRes(); });
+    un.aps = onSnapshot(col('apsal'), (sn) => { S.aps = {}; S.apsErr = false; sn.forEach((d) => { S.aps[d.id] = d.data(); }); if (['res', 'apd', 'ini'].indexOf(X.tab()) >= 0) redraw(); },
+      (e) => { S.aps = {}; S.apsErr = deny(e); if (['res', 'apd', 'ini'].indexOf(X.tab()) >= 0) redraw(); });
   }
   const apInfo = (id) => appDe(id) || { id, n: ((S.aps || {})[id] || {}).n || id, com: 0, rec: 0 };
   function appsCard() {
     if (!adm()) return '';
     const AL = apps(), SA = S.aps || {}, hoy = X.today();
     const ids = AL.map((a) => a.id).concat(Object.keys(SA).filter((k) => !appDe(k) && semanasApp(SA[k].w, hoy).length));
-    let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b>📲 Apps de delivery</b>' + (ids.length ? '<button class="x" data-al="apcfg" style="font-size:14px;text-decoration:underline">Configurar</button>' : '') + '</div>';
+    let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b>📲 Apps de delivery</b>' + (ids.length ? '<button class="x" data-t="apd" style="font-size:14px;text-decoration:underline;color:var(--ink)">Abrir la cuenta</button>' : '') + '</div>';
     if (!ids.length) return h + '<div class="k" style="margin-top:4px">¿Vendés por PedidosYa, Uber Eats o Rappi? Cargalas y llevá la cuenta de lo que te tienen que depositar cada semana. Las ventas descuentan el stock igual que las de la caja.</div><button class="go alt" data-al="apcfg" style="margin-top:10px">Configurar apps</button></div>';
     if (S.apsErr) h += '<div class="bn warn" style="margin-top:10px">Falta publicar las reglas nuevas de Firebase para ver la cuenta de las apps. Avisale a Pekeron App.</div>';
     ids.forEach((id) => {
@@ -1449,6 +1514,46 @@ export function createAlmacen(X) {
       h += '<button class="x" data-al="aphist" data-id="' + esc(id) + '" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Depósitos anteriores</button></div>';
     });
     return h + '</div>';
+  }
+  // Lo que te depositan en el próximo pago: las semanas ya cerradas (sin la que está en curso), menos la comisión de cada app.
+  function apsResumen() {
+    const SA = S.aps || {}, hoy = X.today(), l = [];
+    let bru = 0, net = 0;
+    apps().map((a) => a.id).concat(Object.keys(SA).filter((k) => !appDe(k))).forEach((id) => {
+      const A = apInfo(id), W = semanasApp((SA[id] || {}).w, hoy), v = W.filter((x) => !x.cur).reduce((a, x) => a + x.a, 0), c = W.filter((x) => x.cur).reduce((a, x) => a + x.a, 0);
+      if (!appDe(id) && !W.length) return;
+      bru += v; net += A.com ? apNeto(v, A.com) : v; l.push({ A, W, v, c });
+    });
+    const lu = new Date(lunes(hoy) + 'T12:00:00Z'); lu.setUTCDate(lu.getUTCDate() + 7);
+    return { l, bru, net, prox: lu.toISOString().slice(0, 10) };
+  }
+  // Pantalla de las apps de delivery: cuánto te depositan el lunes, por app y por semana.
+  function drawApps() {
+    const box = $('s-apd'); if (!box) return;
+    if (!adm()) { box.innerHTML = '<div class="card"><div class="empty">Solo el administrador ve la cuenta de las apps.</div></div>'; return; }
+    listenAps(); S.month = X.today().slice(0, 7); listenTot();
+    const R = apsResumen(), apc = (S.tot || {}).apcom || 0;
+    let h = '<div class="aph"><button type="button" class="apbk" data-t="' + (X.inicioTab ? X.inicioTab() : 'res') + '" aria-label="Volver">‹</button><b>Apps de delivery</b><button type="button" class="x" data-al="apcfg" style="margin-left:auto;font-size:14px;text-decoration:underline;color:var(--ink)">Configurar</button></div>';
+    if (S.apsErr) h += '<div class="bn warn">Falta publicar las reglas nuevas de Firebase para ver la cuenta de las apps. Avisale a Pekeron App.</div>';
+    if (!R.l.length) { box.innerHTML = h + '<div class="card"><div class="k">¿Vendés por PedidosYa, Uber Eats o Rappi? Cargalas con su comisión y llevá la cuenta de lo que te tienen que depositar cada semana. Las ventas por app descuentan el stock igual que las de la caja.</div><button class="go" data-al="apcfg" style="margin-top:12px">Configurar apps</button></div>'; return; }
+    h += '<div class="aphero"><small>' + (R.net ? 'El lunes ' + dmy(R.prox).slice(0, 5) + ' te depositan' : 'Para cobrar') + '</small><b>' + (R.net ? '≈ ' + money(R.net) : 'Todo al día') + '</b><span>' + (R.bru ? 'Vendiste ' + money(R.bru) + ' por apps en semanas cerradas' + (R.bru > R.net ? ' · comisiones ≈ ' + money(R.bru - R.net) : '') : 'No hay semanas cerradas sin cobrar.') + '</span></div>';
+    R.l.forEach(({ A, W, v }) => {
+      const k = apEstilo(A.id);
+      if (!W.length) { h += '<div class="apcard apmini"><span class="apchip" style="background:' + k[0] + ';color:' + k[1] + '">' + apNombreHtml(A.n, esc) + '</span><span class="k" style="flex:1">Nada pendiente de cobro</span><button class="x" data-al="aphist" data-id="' + esc(A.id) + '" style="font-size:13px;text-decoration:underline">Depósitos</button></div>'; return; }
+      h += '<div class="apcard"><div class="aptop" style="background:' + k[0] + ';color:' + k[1] + '"><b>' + apNombreHtml(A.n, esc) + '</b><span>' + (A.com ? 'comisión ' + A.com + '%' : 'sin comisión cargada') + '</span></div><div class="apbody">' +
+        W.map((x) => '<div class="apw' + (x.cur ? ' cur' : '') + '"><span>' + (x.cur ? 'Esta semana' : 'Semana del ' + x.txt) + '<small>' + (x.cur ? 'en curso · ' : 'a cobrar · ') + 'vendiste ' + money(x.a) + '</small></span><b>' + money(A.com ? apNeto(x.a, A.com) : x.a) + '</b></div>').join('') +
+        '<button class="go" data-al="apcob" data-id="' + esc(A.id) + '" style="background:' + k[0] + ';color:' + k[1] + ';margin-top:10px">Registrar el depósito</button>' +
+        '<button class="x" data-al="aphist" data-id="' + esc(A.id) + '" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Depósitos anteriores</button></div></div>';
+    });
+    if (apc) h += '<div class="r2" style="padding:6px 4px"><span>Comisiones de ' + X.mlabel(X.today().slice(0, 7)).toLowerCase() + '</span><b class="neg">− ' + money(apc) + '</b></div>';
+    box.innerHTML = h + '<div class="note">Las ventas por app no entran a la caja: suman acá, en la semana en que se vendieron (de lunes a domingo). Cuando la app te deposita, marcá las semanas que te pagó y la diferencia queda como comisión en el Resumen.</div>';
+  }
+  // Para la pantalla de Inicio (gastronomía).
+  function iniDatos() {
+    listenHoy(); listenCaja(); if (adm()) listenAps();
+    let vend = 0; S.hoy.forEach((v) => { vend += v.tot || 0; });
+    const R = adm() ? apsResumen() : { net: 0, l: [], prox: '' };
+    return { vend, n: S.hoy.length, caja: S.caja ? { ef: esperado(S.caja) } : null, cajaErr: S.cajaErr, apCobrar: R.net, apProx: R.prox, apps: apps(), apHay: R.l.length > 0 };
   }
   function appsCfg() {
     if (!adm()) { alert('Solo el administrador configura las apps.'); return; }
@@ -1471,7 +1576,7 @@ export function createAlmacen(X) {
     pint();
     o.querySelector('#ap_ok').onclick = () => {
       const l = limpiarApps(L); o.querySelector('#ap_ok').disabled = true;
-      setDoc(doc(db, 'stores', X.sid(), 'cfg', 'servicios'), { apps: l }, { merge: true }).then(() => { o.remove(); if (X.cs && X.cs()) X.cs().apps = l; if (X.tab() === 'res') drawRes(); renderCart(); })
+      setDoc(doc(db, 'stores', X.sid(), 'cfg', 'servicios'), { apps: l }, { merge: true }).then(() => { o.remove(); if (X.cs && X.cs()) X.cs().apps = l; redraw(); renderCanal(); renderCart(); })
         .catch((e) => { o.querySelector('#ap_ok').disabled = false; X.fail(e); });
     };
   }
@@ -1503,7 +1608,7 @@ export function createAlmacen(X) {
       bt.set(ref('apsal', id), { s: increment(-b), w: wd, u: Date.now() }, { merge: true });
       bt.set(ref('totales', m), { apcom: increment(b - n), apcob: increment(n) }, { merge: true });
       q('apc_ok').disabled = true;
-      bt.commit().then(() => o.remove()).catch((e) => { q('apc_ok').disabled = false; failW(e); });
+      bt.commit().then(() => { o.remove(); redraw(); }).catch((e) => { q('apc_ok').disabled = false; failW(e); });
     };
   }
   function apHist(id) {
@@ -2154,6 +2259,8 @@ export function createAlmacen(X) {
     else if (a === 'aped') pedidoDlg();
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
     else if (a === 'apsel') { S.apSel = el.dataset.v; S.apTot = ''; renderCart(); }
+    else if (a === 'canal') setCanal(el.dataset.v);
+    else if (a === 'apcoc') apCocina();
     else if (a === 'apcfg') appsCfg();
     else if (a === 'apcob') apCobro(el.dataset.id);
     else if (a === 'aphist') apHist(el.dataset.id);
@@ -2259,7 +2366,7 @@ export function createAlmacen(X) {
   });
 
   return {
-    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido, ventaPedido, apps, prePedido: (p) => { S.pedPre = p || null; renderCart(); },
+    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, drawApps, iniDatos, cargarPedido, ventaPedido, apps, prePedido: (p) => { S.pedPre = p || null; if (p && p.mesa && canales().some((c) => c[0] === 'mesa')) S.canal = 'mesa'; renderCanal(); renderCart(); },
     resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }

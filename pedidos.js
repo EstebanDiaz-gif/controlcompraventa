@@ -9,6 +9,7 @@ import { collection, doc, onSnapshot, query, where, updateDoc, setDoc, getDocs }
 import { tkConfig, imprimirComanda, codPedido } from './ticket.js';
 import { qrCanvas } from './qr.js';
 import { PAGOS_URL } from './pagos-config.js';
+import { canalPedido, apNombreHtml } from './almacen-calc.js';
 
 const ACTIVOS = ['nuevo', 'ok', 'listo', 'camino', 'rendir', 'servido'];
 const TIPO = { mesa: ['🍽️', 'Mesa'], env: ['🛵', 'Delivery'], ret: ['🏪', 'Retiro'] };
@@ -37,7 +38,7 @@ export function mesasDe(t) {
 export function createPedidos(X) {
   const { db, esc, money } = X;
   let un = null, sidOn = '', L = [], abierto = false, vistos = null, sonT = null, titT = null, titulo = '', audio = null, impresos = {};
-  let tab = 'nuevo', modo = 'act', busca = '', HIST = null, det = null, prevSt = {}, soloMias = null, toastT = null;
+  let tab = 'nuevo', modo = 'act', busca = '', canalF = '', HIST = null, det = null, prevSt = {}, soloMias = null, toastT = null;
   const MIAS = () => mesasDe(X.misMesas ? X.misMesas() : '');
   const mia = (p) => p.tipo === 'mesa' && MIAS().has(String(p.mesa || '').trim().toLowerCase());
   const listosMios = () => L.filter((p) => p.st === 'listo' && mia(p));
@@ -75,6 +76,8 @@ export function createPedidos(X) {
       '.pk .pkr{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none}.pk .tm{font-size:13px;font-weight:700;color:var(--pm);white-space:nowrap}.pk .tm.tarde{color:#B45309;background:#FEF3C7;border-radius:99px;padding:2px 8px}',
       '.pk .pka{width:104px;min-height:74px;border:0;border-radius:14px;background:var(--pa);color:#fff;font:inherit;font-size:13px;font-weight:800;line-height:1.15;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px}.pk .pka i{font-style:normal;font-size:20px}',
       '.pk .pka.ac{background:#16A34A}',
+      '.pk{flex-wrap:wrap;row-gap:10px}.pk .pkc{flex:0 0 calc(100% + 28px);margin:-14px -14px 0;padding:8px 14px;border-radius:14px 14px 0 0;font-size:14px;font-weight:900;display:flex;justify-content:space-between;align-items:center;gap:8px}.pk .pkc small{font-size:12.5px;font-weight:700;opacity:.9}',
+      '.pcf{display:flex;gap:6px;overflow-x:auto;margin-top:10px;padding-bottom:2px;scrollbar-width:none}.pcf button{flex:none;border:0;border-radius:99px;padding:7px 12px;font:inherit;font-size:13px;font-weight:800;background:#fff;color:var(--pt);box-shadow:inset 0 0 0 1.5px #E5E7EB;cursor:pointer}.pcf button.on{background:var(--pt);color:#fff;box-shadow:none}',
       '.ppg{display:inline-flex;align-items:center;gap:7px;border:0;background:none;font:inherit;font-size:14px;font-weight:700;color:var(--pm);padding:6px 0 0;cursor:pointer}.ppg i{width:20px;height:20px;border-radius:50%;border:2px solid #9CA3AF;display:inline-flex;align-items:center;justify-content:center;font-style:normal;font-size:12px}',
       '.ppg.si{color:#15803D}.ppg.si i{border-color:#16A34A;background:#16A34A;color:#fff}',
       '.pbg{display:inline-flex;align-items:center;border-radius:99px;padding:3px 9px;font-size:12px;font-weight:800}.pbg.n{background:#FFE4E6;color:#BE123C}.pbg.p{background:#EDE9FE;color:#6D28D9}.pbg.l{background:#DCFCE7;color:#15803D}.pbg.c{background:#DBEAFE;color:#1D4ED8}.pbg.e{background:#F3F4F6;color:#374151}.pbg.x{background:#FEE2E2;color:#B91C1C}',
@@ -223,9 +226,10 @@ export function createPedidos(X) {
 
   function tarjeta(p, conEstado) {
     const nx = proxima(p), e = EST[p.st] || ['', 'e'];
-    return '<div class="pk' + (p.st === 'nuevo' ? ' nuevo' : tarde(p) ? ' tarde' : '') + '" data-pid="' + esc(p.id) + '"><div class="pki">' +
+    const cn = canalPedido(p);
+    return '<div class="pk' + (p.st === 'nuevo' ? ' nuevo' : tarde(p) ? ' tarde' : '') + '" data-pid="' + esc(p.id) + '"><div class="pkc" style="background:' + cn[1] + ';color:' + cn[2] + '">' + (p.ap ? apNombreHtml(p.pago || 'App', esc) + (p.apo ? ' #' + esc(p.apo) : '') : esc(cn[0])) + '<small>' + (p.tipo === 'env' && p.dir ? esc(String(p.dir).slice(0, 28)) : hora(p.at)) + '</small></div><div class="pki">' +
       '<div class="pkt"><b><span>#' + esc(codPedido(p.id)) + '</span> ' + esc(nombre(p)) + '</b>' + (conEstado ? '<span class="pbg ' + e[1] + '">' + e[0] + '</span>' : '') + '</div>' +
-      '<div class="pkm">' + tipoTxt(p) + (p.src === 'local' ? ' · mostrador' : '') + ' · ' + cuantos(p) + ' producto' + (cuantos(p) === 1 ? '' : 's') + '</div>' +
+      '<div class="pkm">' + cuantos(p) + ' producto' + (cuantos(p) === 1 ? '' : 's') + (p.nota ? ' · 📝 ' + esc(String(p.nota).slice(0, 40)) : '') + '</div>' +
       '<div class="pkp"><b>' + money(p.tot || 0) + '</b> · ' + esc(p.pago || 'A definir') + '</div>' +
       '<button type="button" class="ppg' + (pago(p) ? ' si' : '') + '" data-pq="pg"><i>' + (pago(p) ? '✓' : '') + '</i>' + (pago(p) ? 'Está pago' : 'Sin pagar') + '</button></div>' +
       '<div class="pkr"><span class="tm' + (tarde(p) ? ' tarde' : '') + '">🕒 ' + reloj(p.at) + '</span>' +
@@ -241,11 +245,12 @@ export function createPedidos(X) {
     f.innerHTML = nn ? '🛎️ ' + (nn === 1 ? 'Pedido nuevo' : 'Pedidos nuevos') + ' <b>' + nn + '</b>' : lm.length ? '🍽️ Llevar a Mesa ' + lm.map((p) => esc(p.mesa)).join(', ') + ' <b>' + lm.length + '</b>' : '🛎️ Pedidos <b>' + L.length + '</b>';
     if (abierto) dibujar();
     if (det) { const o = document.getElementById('pedd'); if (!o || !o.dataset.mesa) detalle(det.id, true); }
+    if (X.cambio) X.cambio();
   }
   function cabecera() {
     const pub = (X.pub && X.pub()) || {}, cerr = !!pub.cerr, adm = X.isAdm && X.isAdm(), lg = pub.logo || '';
     const enTab = (p, k) => p.st === k || (k === 'camino' && EN4[p.st]);
-    const cnt = (k) => L.filter((p) => enTab(p, k) && (!misOn() || mia(p))).length;
+    const cnt = (k) => L.filter((p) => enTab(p, k) && (!misOn() || mia(p)) && (!canalF || CANF(p) === canalF)).length;
     return '<div class="ppt"><span class="plg">' + (/^(data:image|https:)/.test(lg) ? '<img alt="" src="' + esc(lg) + '">' : esc((X.tienda() || 'P').charAt(0).toUpperCase())) + '</span>' +
       '<a class="pch" href="' + esc(X.catLink ? X.catLink() : '#') + '" target="_blank" rel="noopener">👁️ Ver menú</a>' +
       (adm ? '<button type="button" class="pch ' + (cerr ? 'ce' : 'ab') + '" data-pa="abierto" title="Tocá para ' + (cerr ? 'abrir' : 'cerrar') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</button>' : '<span class="pch ' + (cerr ? 'ce' : 'ab') + '"><i></i>' + (cerr ? 'Cerrado' : 'Abierto') + '</span>') +
@@ -255,7 +260,16 @@ export function createPedidos(X) {
       '<div class="pfl"><button type="button" class="pm' + (modo === 'todos' ? ' on' : '') + '" data-pa="todos">Todos</button><button type="button" class="pm' + (modo === 'hist' ? ' on' : '') + '" data-pa="hist">Historial</button>' +
       '<label class="pse">🔍<input id="pedq" type="search" placeholder="Buscar…" value="' + esc(busca) + '" autocomplete="off"></label>' +
       '<button type="button" class="pch" data-pa="tk" title="Tiketera">🖨️</button></div>' +
+      filtroCanal() +
       '<div class="pts">' + SOLAPAS.map((s) => { const n = cnt(s[0]); return '<button type="button" class="' + (modo === 'act' && tab === s[0] ? 'on' : '') + (n ? ' hay' : '') + (s[0] === 'nuevo' && n ? ' alerta' : '') + '" data-tab="' + s[0] + '">' + s[1] + '<b>' + n + '</b></button>'; }).join('') + '</div>';
+  }
+  // Filtro por canal: Todos / Local / cada app (cuando hay apps de delivery configuradas o pedidos de apps).
+  const CANF = (p) => (p.ap ? 'ap:' + p.ap : 'loc');
+  function filtroCanal() {
+    const ap = (X.apps ? X.apps() : []).map((a) => ['ap:' + a.id, a.n]);
+    L.forEach((p) => { if (p.ap && !ap.some((x) => x[0] === 'ap:' + p.ap)) ap.push(['ap:' + p.ap, p.pago || 'App']); });
+    if (!ap.length) { canalF = ''; return ''; }
+    return '<div class="pcf">' + [['', 'Todos los canales'], ['loc', 'Local']].concat(ap).map((c) => '<button type="button" class="' + (canalF === c[0] ? 'on' : '') + '" data-pcf="' + esc(c[0]) + '">' + esc(c[1]) + '</button>').join('') + '</div>';
   }
   function lista() {
     const q = busca.trim().toLowerCase();
@@ -265,7 +279,7 @@ export function createPedidos(X) {
       const l = filtra(HIST);
       return l.length ? l.map((p) => tarjeta(p, true)).join('') : vacio('📭', 'Sin pedidos terminados', 'Acá ves los entregados y cancelados de hoy y ayer.');
     }
-    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab || (tab === 'camino' && EN4[p.st]))).filter((p) => !misOn() || mia(p));
+    const l = filtra(modo === 'todos' ? L.slice().reverse() : L.filter((p) => p.st === tab || (tab === 'camino' && EN4[p.st]))).filter((p) => (!misOn() || mia(p)) && (!canalF || CANF(p) === canalF));
     if (l.length) return l.map((p) => tarjeta(p, modo === 'todos')).join('');
     return modo === 'todos' ? vacio('📭', 'No hay pedidos activos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
       : tab === 'nuevo' ? vacio('📥', 'No hay pedidos nuevos', 'Los pedidos de tu menú entran acá solos, sin recargar la página.')
@@ -373,6 +387,7 @@ export function createPedidos(X) {
     if (m === null) return; const o = { st: 'cancelado' }; if (m.trim()) o.mot = m.trim().slice(0, 120); set(p.id, o); cerrarDet();
   }
   function clic(e) {
+    const fc = e.target.closest('[data-pcf]'); if (fc) { canalF = fc.dataset.pcf; dibujar(); return; }
     const b = e.target.closest('[data-pa],[data-tab],[data-pq]'), card = e.target.closest('[data-pid]');
     const p = card ? (L.find((x) => x.id === card.dataset.pid) || (HIST || []).find((x) => x.id === card.dataset.pid)) : null;
     if (b && b.dataset.tab) { modo = 'act'; tab = b.dataset.tab; dibujar(); return; }
@@ -506,7 +521,8 @@ export function createPedidos(X) {
   const opsLineas = (x) => String(x || '').split(/,\s*/).filter(Boolean);
   function kCard(p, nuevo) {
     const m = mins(p.acc || p.at), obj = p.min || 20, c = nuevo ? 'n' : m >= obj ? 'r' : m >= obj * 0.7 ? 'a' : 'v', h = kHechos[p.id] || {};
-    return '<div class="kc ' + c + '"><div class="kt"><b>' + (p.tipo === 'mesa' ? 'MESA ' + esc(p.mesa || '') : p.tipo === 'env' ? '🛵 ENVÍO' : '🏪 RETIRA') + '</b><span class="km">' + (nuevo ? 'nuevo' : m < 60 ? m + ' min' : reloj(p.acc || p.at)) + '</span></div>' +
+    const kcn = canalPedido(p);
+    return '<div class="kc ' + c + '"><div class="kt"><b>' + (p.ap ? '<span style="background:' + kcn[1] + ';color:' + kcn[2] + ';border-radius:8px;padding:2px 8px">' + apNombreHtml(p.pago || 'App', esc) + (p.apo ? ' #' + esc(p.apo) : '') + '</span>' : p.tipo === 'mesa' ? 'MESA ' + esc(p.mesa || '') : p.tipo === 'env' ? '🛵 ENVÍO' : '🏪 RETIRA') + '</b><span class="km">' + (nuevo ? 'nuevo' : m < 60 ? m + ' min' : reloj(p.acc || p.at)) + '</span></div>' +
       '<div class="ks">#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + (p.min && !nuevo ? ' · listo ~' + hm((p.acc || p.at) + p.min * 60000) : '') + '</div><ul>' +
       (p.it || []).map((x, i) => '<li class="' + (h[i] ? 'ok' : '') + '" data-k="it" data-id="' + esc(p.id) + '" data-i="' + i + '"><b>' + (x.w ? esc(String(x.q).replace('.', ',')) + ' kg' : esc(x.q) + '×') + '</b> ' + esc(x.n) + (x.x ? opsLineas(x.x).map((o) => '<em>' + esc(o) + '</em>').join('') : '') + '</li>').join('') + '</ul>' +
       (p.nota ? '<div class="kno">📝 ' + esc(p.nota) + '</div>' : '') +
@@ -612,5 +628,17 @@ export function createPedidos(X) {
     return false;
   }
 
-  return { start, stop, abrir, qrMesas, guardarMostrador, cocina, mesas, on: () => !!sidOn, activos: () => L.length };
+  // Números para la pantalla de Inicio.
+  function resumen() {
+    const pub = (X.pub && X.pub()) || {}, nu = nuevos();
+    return { total: L.length, nuevos: nu.length, nuevosTxt: nu.slice(0, 2).map((p) => canalPedido(p)[0]).join(' · '),
+      cocina: L.filter((p) => p.st === 'ok').length, listos: L.filter((p) => p.st === 'listo').length, camino: L.filter((p) => p.st === 'camino').length,
+      mesas: new Set(L.filter((p) => p.tipo === 'mesa' && p.mesa).map((p) => String(p.mesa))).size, nm: +((pub.ped || {}).nm) || 0, mesasOn: mesasOn(), cerr: !!pub.cerr };
+  }
+  function abiertoCerrado() {
+    const c = !((X.pub && X.pub()) || {}).cerr;
+    if (c && !confirm('¿Cerrar el local? El catálogo se sigue viendo, pero no se pueden hacer pedidos hasta que lo vuelvas a abrir.')) return;
+    setDoc(doc(db, 'stores', sidOn, 'public', 'info'), { cerr: c }, { merge: true }).catch((er) => X.fail(er));
+  }
+  return { start, stop, abrir, qrMesas, guardarMostrador, cocina, mesas, on: () => !!sidOn, activos: () => L.length, resumen, abiertoCerrado };
 }

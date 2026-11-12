@@ -188,3 +188,17 @@ export function semanasApp(w, hoy) {
   const cur = lunes(hoy);
   return Object.keys(w || {}).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && Math.round(w[k] || 0) > 0).sort().map((k) => ({ k, a: Math.round(w[k]), txt: semanaTxt(k), cur: k >= cur }));
 }
+// Color de cada app (fondo, letra) para botones, tarjetas de pedidos y la cuenta. Las que no conocemos van en gris oscuro.
+const AP_COL = { pya: ['#E6004C', '#FFFFFF'], pedidosya: ['#E6004C', '#FFFFFF'], uber: ['#000000', '#FFFFFF'], ubereats: ['#000000', '#FFFFFF'], rappi: ['#FF5A1F', '#1A0A00'] };
+export function apEstilo(id) { return AP_COL[String(id || '')] || ['#334155', '#FFFFFF']; }
+// Nombre de la app para mostrar sobre su color ("Uber Eats" lleva "Eats" en verde, como la marca).
+export function apNombreHtml(n, esc) { const t = esc(n || 'App'); return /^uber\s*eats$/i.test(String(n || '').trim()) ? 'Uber<span style="color:#06C167">Eats</span>' : t; }
+// Canal de un pedido: [texto, fondo, letra]
+export function canalPedido(p) {
+  if (p.ap) { const c = apEstilo(p.ap); return [(p.pago || 'App') + (p.apo ? ' #' + p.apo : ''), c[0], c[1]]; }
+  const web = p.src === 'web';
+  if (p.tipo === 'mesa') return ['Mesa ' + (p.mesa || '') + (web ? ' · QR' : ''), '#15803D', '#FFFFFF'];
+  if (p.tipo === 'env') return ['Delivery' + (web ? ' · menú online' : ''), '#0E7490', '#FFFFFF'];
+  if (!web && (p.cl || '') === 'Mostrador') return ['Mostrador', '#1D3FAF', '#FFFFFF'];
+  return ['Retira' + (web ? ' · menú online' : ''), '#334155', '#FFFFFF'];
+}
