@@ -210,6 +210,7 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <div id="banner"></div>
 <section id="lock" hidden></section>
 <div id="trbar" hidden></div>
+<div id="uiprom" hidden></div>
 <div class="tabs" id="tabs"></div>
 <section id="s-add" hidden></section><section id="s-sell" hidden></section><section id="s-res" hidden></section>
 <section id="s-hist" hidden></section><section id="s-stk" hidden></section><section id="s-att" hidden></section><section id="s-svc" hidden></section><section id="s-gas" hidden></section><section id="s-team" hidden></section><section id="s-plat" hidden></section><section id="s-caja" hidden></section><section id="s-ini" hidden></section><section id="s-apd" hidden></section><section id="s-promo" hidden></section><section id="s-fia" hidden></section><section id="s-agd" hidden></section>
@@ -246,7 +247,8 @@ import {normDur,durTxt} from './turnos.js';
 import {TEMAS,temaActivo,temaGeneral,temaEfectivo,cuentaRegresiva,fechaLarga,flor,proxima,hasta,porFecha,adornos,cssApp,faltan} from './temas.js';
 import {introTema} from './intro.js';
 import {createPedidos} from './pedidos.js';
-import {createInicio} from './inicio.js';
+import {createInicio,createInicioCom} from './inicio.js';
+import {uiModo,uiAplicar,uiTabs,masBoton,abrirMas,elegirUI,uiGuardar,uiEligio} from './ui.js';
 import {abrirTiketera} from './ticket.js';
 
 var $=function(i){return document.getElementById(i)};
@@ -363,14 +365,28 @@ push:{est:function(){return pushEst()},alta:function(b){pushAlta(b)}},catLink:fu
 nuevoPedido:function(pre){show('caja');if(pre&&ALM.prePedido)ALM.prePedido(pre);setTimeout(function(){alert(pre&&pre.mesa?'Cargá los productos para la Mesa '+pre.mesa+' y tocá "🛎️ Guardar como pedido". Va directo a la cocina.':'Cargá los productos del pedido en la caja y tocá "🛎️ Guardar como pedido".')},150)},
 abrirAlInicio:function(){var r=PED0;PED0=false;return r},
 tiketera:function(){abrirTiketera({tienda:SNAME,dir:(PUB||{}).addr||'',lineas:[{n:'Producto de prueba',q:1,u:1000}],tot:1000,pago:'Efectivo'})},
-cambio:function(){if(TAB=='ini'&&!lockState())INI.draw()},cobrar:function(p,pay){if(biz()!='almacen'||!ALM.ventaPedido)return null;return ALM.ventaPedido(p,pay)},apps:function(){return biz()=='almacen'&&ALM.apps?ALM.apps():[]},
+cambio:function(){iniDraw()},cobrar:function(p,pay){if(biz()!='almacen'||!ALM.ventaPedido)return null;return ALM.ventaPedido(p,pay)},apps:function(){return biz()=='almacen'&&ALM.apps?ALM.apps():[]},
 aCaja:function(p){if(biz()!='almacen'||!ALM.cargarPedido)return false;show('caja');return ALM.cargarPedido(p)}});
 // Inicio de gastronomía (rubros de comida): botones de colores para Pedidos, Mesas, Cocina, Caja, Delivery y Apps.
 var INI=createInicio({$:$,esc:esc,money:money,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},tienda:function(){return SNAME},nombre:function(){return U?nm():''},
 alm:{iniDatos:function(){return ALM.iniDatos()}},pd:{on:function(){return PD.on()},resumen:function(){return PD.resumen()},abrir:function(){PD.abrir()},mesas:function(){PD.mesas()},cocina:function(){PD.cocina()},abiertoCerrado:function(){PD.abiertoCerrado()}},
 catLink:function(){return catLink()},qrMesas:function(){var nm0=+(((PUB||{}).ped||{}).nm)||0,n=nm0||Math.round(+(prompt('¿Cuántas mesas tenés?','10')||0));if(n>0)PD.qrMesas(catLink(),n,SNAME,(PUB||{}).color||'')}});
+function iniDraw(){if(TAB!='ini'||lockState())return;if(uiGas())INI.draw();else INIC.draw()}
+var INIC=createInicioCom({$:$,esc:esc,money:money,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},esGas:function(){return uiGas()},datos:function(){return biz()=='almacen'?ALM.iniCom():iniLegacy()}});
+// Inicio Nuevo para tiendas y servicios (motor de movimientos): las mismas cuentas que el Resumen, para hoy y el mes.
+function iniLegacy(){var hoy=today(),m=hoy.slice(0,7),dd=hoy.slice(8,10),y=+m.slice(0,4),mo=+m.slice(5,7),pm=mo==1?(y-1)+'-12':y+'-'+String(mo-1).padStart(2,'0'),ix=costIdx();
+var sell=0,cost=0,envc=0,vp=0,vh=0,nh=0,uh=0,sal={};
+M.forEach(function(x){if(x.t=='te'||x.t=='ts'||x.imp||x.t=='c')return;var t=x.q*x.u,mm=String(x.d||'').slice(0,7);
+if(mm==m){sell+=t;cost+=x.q*hcost(x,ix);if(x.t=='v'&&x.env)envc+=x.env.cob||0}
+if(mm==pm&&x.d.slice(8,10)<=dd)vp+=t;
+if(x.d==hoy){vh+=t;nh++;uh+=x.q}
+if(x.t=='v'&&x.fia){var f=fiaCalc(x),c=x.fia.cli||'?';sal[c]=(sal[c]||0)+f.saldo}});
+var sv=biz()=='productos'?null:svcTotals(m),deuda=0,deudores=0;Object.keys(sal).forEach(function(k){if(sal[k]>0.5){deuda+=sal[k];deudores++}});
+var srv=biz()=='servicios',low=null;try{low=stkRows().filter(function(g){return g.q<=0}).length}catch(e){}
+return {ganMes:sell-cost+envc+(sv?sv.net:0)-gTotal(m),ventasMes:sell,ventasPrev:ROLE=='admin'?vp:null,ventasHoy:vh,nHoy:nh,unidHoy:uh,deudores:deudores,deuda:deuda,cajaEf:null,
+stockBajo:srv?null:low,stkTab:'stk',venta:srv?['att','Atender a un cliente']:['caja','Nueva venta'],stock:srv?(isAgBiz()?['agd','Ver la agenda']:null):['stk','Gestionar stock'],fiado:'fia',resTab:ROLE=='admin'?'res':''}}
 function pedSync(){var p=PUB||{};if(SID&&ROLE&&!SOP&&biz()=='almacen'&&p.enabled&&p.ped&&p.ped.on){PD.start(SID);funAbrir()}else PD.stop()}
-var ALM=createAlmacen({ini:function(){if(TAB=='ini')INI.draw()},inicioTab:function(){return gasNow()?'ini':'res'},fotosDemo:PAGOS_URL?{buscar:function(q){return pushFetch('/fotos/buscar',{q:q,p:1})},proxy:PAGOS_URL+'/img'}:null,volver:function(a){if(a=='mesas')PD.mesas()},pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
+var ALM=createAlmacen({ini:function(){iniDraw()},inicioTab:function(){return gasNow()?'ini':'res'},fotosDemo:PAGOS_URL?{buscar:function(q){return pushFetch('/fotos/buscar',{q:q,p:1})},proxy:PAGOS_URL+'/img'}:null,volver:function(a){if(a=='mesas')PD.mesas()},pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},
@@ -757,8 +773,20 @@ un.gas=onSnapshot(collection(db,'stores',SID,'gastos'),function(sn){GA=[];GAERR=
 un.mem=onSnapshot(collection(db,'stores',SID,'members'),function(sn){MEM=[];sn.forEach(function(d){var x=d.data();x.id=d.id;MEM.push(x)});redrawData()},sdErr);
 un.inv=onSnapshot(collection(db,'stores',SID,'invites'),function(sn){INV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;INV.push(x)});redrawData()},function(){})}
 gate('app');drawHdr();drawAcct();TR.listen();TR.cargarFam();drawBanner();buildTabs();novedadesLuego()}
+// Interfaz (Clásica / Nueva clara / Nueva oscura): la elige cada persona en su equipo. Gastronomía tiene la suya.
+var UIM='clasica',UIX=[];
+function uiGas(){return biz()=='almacen'&&gasNow()}
+function uiNow(){return uiModo({gas:uiGas(),creada:STCREADA})}
+function uiElegir(){elegirUI(UIM,esc,function(){TAB='';buildTabs();drawAcct();window.scrollTo(0,0)})}
+function uiProm(){var e=$('uiprom');if(!e)return;var v=UIM=='clasica'&&!uiGas()&&!SOP&&!uiEligio();e.hidden=!v;
+e.innerHTML=v?'<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span style="font-size:26px">✨</span><div style="flex:1;min-width:0"><b>Hay un diseño nuevo de la app</b><div class="k" style="margin-top:2px">Más ordenado, con Inicio y versión para la compu. Probalo: podés volver a este cuando quieras.</div></div></div><div style="display:flex;gap:8px;margin:-4px 0 14px"><button class="go" id="uiprv" style="margin:0;flex:1">Ver los diseños</button><button class="go alt" id="uipno" style="margin:0;width:auto;padding:0 16px">Ahora no</button></div>':'';
+if(v){$('uiprv').onclick=uiElegir;$('uipno').onclick=function(){uiGuardar('clasica');uiProm()}}}
 function buildTabs(){
-var tabs=tabsFor();$('tabs').innerHTML=tabs.map(function(t){return '<button data-t="'+t[0]+'">'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('');AG.badge();
+UIM=uiNow();uiAplicar(UIM);var nueva=UIM!='clasica'&&!SOP;
+var tabs=tabsFor(),mk={};
+if(nueva){uiTabs(tabs,biz()).forEach(function(t){mk[t[0]]=t[2]});tabs=[['ini','Inicio']].concat(tabs)}
+UIX=nueva?tabs.filter(function(t){return t[0]!='ini'&&!mk[t[0]]}):[];
+$('tabs').innerHTML=tabs.map(function(t){var tx=nueva&&t[0]!='ini'&&!mk[t[0]];return '<button data-t="'+t[0]+'"'+(tx?' class="tx"':'')+'>'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('')+(nueva?masBoton():'');AG.badge();uiProm();
 var ok=TAB=='promo'&&ROLE=='admin'||tabs.some(function(t){return t[0]==TAB});show(ok?TAB:tabs[0][0])}
 
 /* ---------- cuenta pausada o vencida: se bloquean todas las pantallas ---------- */
@@ -881,6 +909,7 @@ if(IS_OWNER)t.push(['plat','Empresas']);return t}
 function show(t){if(t=='promo'&&TAB!='promo')PREVTAB=TAB;TAB=t;paintTr();Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.t==t)});
 ['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd','ini','apd'].forEach(function(i){$('s-'+i).hidden=i!=t});
 if(lockState()){drawLock();return}
+if(t=='ini'&&biz()!='almacen'){iniDraw();return}
 if(t=='agd'){AG.draw();return}
 if(t=='promo'){window.scrollTo(0,0);PRO.draw();return}
 if(t=='fia'&&biz()!='almacen'){drawFia();return}
@@ -893,6 +922,7 @@ if(biz()=='productos'||biz()=='ambos')applyEx();
 if(ROLE=='admin'&&isAgBiz())AG.publishSoon();
 if(TAB=='agd'){if(!AG.editing())AG.draw();return}
 if(biz()=='almacen'&&['caja','fia','stk','res','ini','apd'].indexOf(TAB)>=0){ALM.redraw();return}
+if(TAB=='ini'){iniDraw();return}
 if(TAB=='caja'&&ventaEnCaja()){if($('es'))refreshSell();else if(!(MAN&&type=='v'))drawSell();return}
 if(ROLE=='admin'){if(TAB=='att')drawAtt();else if(TAB=='svc'){var fa=document.activeElement;if(!(fa&&fa.closest&&fa.closest('#s-svc')&&/INPUT|SELECT|TEXTAREA/.test(fa.tagName)))drawSvc()}else if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='gas')drawGas();else if(TAB=='add'){if($('es'))refreshSell();else if($('prods'))fillList()}}
 else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
@@ -904,8 +934,8 @@ var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#FFD6AA','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(SOP?'soporte':ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v=='__vend'){this.value=SID;openVend()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
-a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
-$('out').onclick=function(){salir()};
+a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(SID&&!uiGas()?' · <button class="x" id="uiap" style="font-size:13px;text-decoration:underline">Apariencia</button>':'')+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
+$('out').onclick=function(){salir()};if($('uiap'))$('uiap').onclick=uiElegir;
 if($('instb'))$('instb').onclick=function(){if(!INSTP)return;INSTP.prompt();INSTP.userChoice.finally(function(){INSTP=null;drawAcct()})}}
 // Instalar como app (en la compu queda con su ventana propia y su ícono, como un programa).
 var INSTP=null;
@@ -2273,6 +2303,7 @@ callFn('ownerMigrateLegacy').then(function(r){alert('Listo. Tiendas inicializada
 
 /* ---------- clics ---------- */
 document.addEventListener('click',function(e){
+if(e.target.closest&&e.target.closest('[data-uimas]')){abrirMas(UIX,ICON,esc,function(t){show(t);window.scrollTo(0,0)},uiElegir);return}
 // Pedidos (panel, hojas, cocina, mesas) maneja sus propios clics: sus data-pd/data-pa/data-t no son los de acá.
 // (composedPath y no closest: la hoja se redibuja al tocar y el botón ya no está en la página cuando llega acá)
 if((e.composedPath?e.composedPath():[]).some(function(n){return n&&/^ped(p|d|k|m|fab|toast)$/.test(n.id||'')}))return;

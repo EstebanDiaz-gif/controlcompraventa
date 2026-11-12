@@ -1548,6 +1548,23 @@ export function createAlmacen(X) {
     if (apc) h += '<div class="r2" style="padding:6px 4px"><span>Comisiones de ' + X.mlabel(X.today().slice(0, 7)).toLowerCase() + '</span><b class="neg">− ' + money(apc) + '</b></div>';
     box.innerHTML = h + '<div class="note">Las ventas por app no entran a la caja: suman acá, en la semana en que se vendieron (de lunes a domingo). Cuando la app te deposita, marcá las semanas que te pagó y la diferencia queda como comisión en el Resumen.</div>';
   }
+  // Para el Inicio de la interfaz Nueva (comercios): mes actual, mismo tramo del mes pasado, hoy, deudas, caja y stock bajo.
+  let totPrev = null, totPrevM = '';
+  function iniCom() {
+    const m = X.today().slice(0, 7), dd = X.today().slice(8, 10);
+    if (S.month !== m) S.month = m;
+    listenTot(); listenHoy(); listenCaja();
+    const [yy, mo] = m.split('-').map(Number), pm = mo === 1 ? (yy - 1) + '-12' : yy + '-' + String(mo - 1).padStart(2, '0');
+    if (adm() && totPrevM !== pm) { totPrevM = pm; totPrev = null; getDoc(ref('totales', pm)).then((sn) => { totPrev = sn.exists() ? sn.data() : {}; if (X.tab() === 'ini' && X.ini) X.ini(); }).catch(() => { totPrev = {}; }); }
+    const t = S.tot || {};
+    let ventasPrev = null;
+    if (totPrev) { const di = totPrev.dias || {}; ventasPrev = Object.keys(di).filter((k) => k <= dd).reduce((a, k) => a + ((di[k] || {}).v || 0), 0); }
+    let vh = 0, uh = 0; S.hoy.forEach((v) => { vh += v.tot || 0; (v.it || []).forEach((x) => { if (!x.env) uh += x.w ? 1 : (+x.q || 0); }); });
+    let deuda = 0, deudores = 0; S.cl.forEach((c) => { if (c.s > 0) { deuda += c.s; deudores++; } });
+    const isLow = (p) => !p.ns && p.q <= (p.min || 0) && (p.min || p.q <= 0);
+    return { ganMes: (t.v || 0) - (t.c || 0) - X.gTotal(m) - (t.apcom || 0), ventasMes: t.v || 0, ventasPrev, ventasHoy: vh, nHoy: S.hoy.length, unidHoy: uh,
+      deudores, deuda, cajaEf: S.caja ? esperado(S.caja) : null, stockBajo: P().filter(isLow).length, venta: ['caja', 'Nueva venta'], stock: ['stk', 'Gestionar stock'], fiado: 'fia', resTab: adm() ? 'res' : '' };
+  }
   // Para la pantalla de Inicio (gastronomía).
   function iniDatos() {
     listenHoy(); listenCaja(); if (adm()) listenAps();
@@ -2366,7 +2383,7 @@ export function createAlmacen(X) {
   });
 
   return {
-    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, drawApps, iniDatos, cargarPedido, ventaPedido, apps, prePedido: (p) => { S.pedPre = p || null; if (p && p.mesa && canales().some((c) => c[0] === 'mesa')) S.canal = 'mesa'; renderCanal(); renderCart(); },
+    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, drawApps, iniDatos, iniCom, cargarPedido, ventaPedido, apps, prePedido: (p) => { S.pedPre = p || null; if (p && p.mesa && canales().some((c) => c[0] === 'mesa')) S.canal = 'mesa'; renderCanal(); renderCart(); },
     resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }

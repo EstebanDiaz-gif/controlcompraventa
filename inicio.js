@@ -96,3 +96,68 @@ export function createInicio(X) {
   function wire() { const s = X.$('s-ini'); if (s && !wired) { wired = true; s.addEventListener('click', clic); } }
   return { draw() { wire(); draw(); } };
 }
+
+// =====================================================================
+// Inicio de la interfaz Nueva para comercios, tiendas y servicios (no gastronomía):
+// ganancia del mes, ventas de hoy, resumen rápido (caja, deudas, stock bajo) y botones grandes.
+// X: $, esc, money, show(tab), isAdm(), datos() → {
+//   ganMes, ventasMes, ventasPrev (mismo día del mes pasado; null si no se sabe), ventasHoy, nHoy, unidHoy,
+//   deudores, deuda, cajaEf (null si no hay caja abierta), stockBajo (null si no aplica),
+//   venta: [tab, texto], stock: [tab, texto] | null, extra: [tab, texto, icono] | null, fiado: tab | null }
+// =====================================================================
+const CSS2 = '#s-ini .ini-h{background:linear-gradient(135deg,#1D4ED8,#0B2F9F);color:#fff;border-radius:24px;padding:18px;position:relative;overflow:hidden}' +
+  '#s-ini .ini-h small{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;opacity:.92}#s-ini .ini-h b{display:block;font-size:38px;font-weight:900;letter-spacing:-.02em;margin-top:6px;line-height:1.05}' +
+  '#s-ini .ini-p{display:inline-flex;align-items:center;gap:4px;margin-top:10px;border-radius:99px;padding:5px 11px;font-size:13.5px;font-weight:800;background:#16A34A;color:#fff}#s-ini .ini-p.baja{background:#B42318}#s-ini .ini-p span{font-weight:600;opacity:.9}' +
+  '#s-ini .ini-h svg.sp{position:absolute;right:14px;bottom:12px;width:120px;height:48px;opacity:.55}' +
+  '#s-ini .ini-k{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}#s-ini .ini-k div{background:var(--card);border-radius:18px;padding:12px;box-shadow:0 1px 3px rgba(15,27,61,.06)}' +
+  '#s-ini .ini-k svg{width:24px;height:24px;stroke:var(--sell);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}#s-ini .ini-k small{display:block;font-size:12.5px;font-weight:700;color:var(--mut);margin-top:6px}#s-ini .ini-k b{display:block;font-size:19px;font-weight:900;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+  '#s-ini .ini-t{display:flex;align-items:center;justify-content:space-between;font-size:16px;font-weight:900;margin:20px 4px 8px}' +
+  '#s-ini .ini-r{background:var(--card);border-radius:20px;overflow:hidden;box-shadow:0 1px 3px rgba(15,27,61,.06)}#s-ini .ini-r button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:var(--ink);font:inherit;font-size:15.5px;font-weight:700;padding:13px 14px;text-align:left;cursor:pointer}' +
+  '#s-ini .ini-r button + button{border-top:1px solid var(--line)}#s-ini .ini-r i{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none}#s-ini .ini-r i svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}' +
+  '#s-ini .ini-r b{margin-left:auto;font-weight:900}#s-ini .ini-r em{margin-left:auto;font-style:normal;background:#D92D20;color:#fff;border-radius:99px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;padding:0 7px}' +
+  '#s-ini .ini-b{display:grid;gap:10px;margin-top:16px}#s-ini .ini-b button{display:flex;align-items:center;justify-content:center;gap:10px;border-radius:16px;padding:16px;font:inherit;font-size:17px;font-weight:800;cursor:pointer}' +
+  '#s-ini .ini-b .b1{background:var(--btn);color:var(--btnink);border:0}#s-ini .ini-b .b2{background:transparent;color:var(--ink);border:2px solid var(--ink)}#s-ini .ini-b svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}';
+const I2 = {
+  chart: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 20v-6M10 20V9M15 20v-9M20 20V4"/></svg>',
+  cart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg>',
+  box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+  people: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>',
+  cash: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
+  down: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>',
+  spark: '<svg class="sp" viewBox="0 0 120 48" aria-hidden="true" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M2 40 22 34 40 37 58 26 76 28 94 15 118 6"/></svg>'
+};
+export function createInicioCom(X) {
+  const { esc, money } = X;
+  let cssOk = false, wired = false;
+  function draw() {
+    const box = X.$('s-ini'); if (!box) return;
+    if (!cssOk) { cssOk = true; const st = document.createElement('style'); st.textContent = CSS2; document.head.appendChild(st); }
+    if (!wired) { wired = true; box.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-inc]'); if (!b || !X.$('s-ini').contains(b)) return; X.show(b.dataset.inc); window.scrollTo(0, 0); }); }
+    if (X.esGas && X.esGas()) return;
+    const d = X.datos(), adm = X.isAdm();
+    let h = '';
+    if (adm) {
+      const pct = d.ventasPrev > 0 ? Math.round((d.ventasMes - d.ventasPrev) / d.ventasPrev * 100) : null;
+      h += '<div class="ini-h">' + I2.spark + '<small>' + I2.chart + 'Ganancia de este mes</small><b>' + money(d.ganMes) + '</b>' +
+        (pct !== null ? '<span class="ini-p' + (pct < 0 ? ' baja' : '') + '">' + (pct < 0 ? I2.down : I2.arrow) + (pct > 0 ? '+' : '') + pct + '% <span>en ventas vs. el mes pasado</span></span>' : '') + '</div>';
+    }
+    h += '<div class="ini-k"><div>' + I2.cart + '<small>' + (adm ? 'Ventas hoy' : 'Mis ventas hoy') + '</small><b>' + (adm ? money(d.ventasHoy) : String(d.nHoy)) + '</b></div>' +
+      '<div>' + I2.box + '<small>Productos vendidos</small><b>' + fmt(d.unidHoy) + '</b></div>' +
+      '<div>' + I2.people + '<small>Clientes con deuda</small><b>' + d.deudores + '</b></div></div>';
+    const rows = [];
+    if (adm && d.cajaEf !== null && d.cajaEf !== undefined) rows.push(['caja', '#16A34A', I2.cash, 'Caja actual', '<b>' + money(d.cajaEf) + '</b>']);
+    if (d.fiado) rows.push([d.fiado, '#2563EB', I2.card, 'Deuda de clientes', '<b>' + money(d.deuda) + '</b>']);
+    if (d.stockBajo !== null && d.stockBajo !== undefined) rows.push([d.stkTab || 'stk', '#D97706', I2.alert, d.stockBajo ? 'Stock bajo (' + d.stockBajo + ')' : 'Stock al día', d.stockBajo ? '<em>!</em>' : '']);
+    if (d.extra) rows.push([d.extra[0], '#7C3AED', I2.cal, d.extra[1], d.extra[2] ? '<b>' + esc(d.extra[2]) + '</b>' : '']);
+    if (rows.length) h += '<div class="ini-t">Resumen rápido' + (adm && d.resTab ? '<button type="button" class="x" data-inc="' + d.resTab + '" style="font-size:14px;color:var(--sell);text-decoration:none;font-weight:800">Ver más ›</button>' : '') + '</div><div class="ini-r">' +
+      rows.map((r) => '<button type="button" data-inc="' + r[0] + '"><i style="background:' + r[1] + '22;color:' + r[1] + '">' + r[2] + '</i>' + esc(r[3]) + r[4] + '</button>').join('') + '</div>';
+    h += '<div class="ini-b"><button type="button" class="b1" data-inc="' + d.venta[0] + '">' + I2.cart + esc(d.venta[1]) + '</button>' + (d.stock ? '<button type="button" class="b2" data-inc="' + d.stock[0] + '">' + I2.box + esc(d.stock[1]) + '</button>' : '') + '</div>';
+    box.innerHTML = h;
+  }
+  const fmt = (n) => (Math.round((n || 0) * 100) / 100).toLocaleString('es-AR');
+  return { draw };
+}
