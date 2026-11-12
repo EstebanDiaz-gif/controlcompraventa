@@ -11,7 +11,7 @@ export const CATS_TIPO = {
   panaderia: ['Panadería', 'Facturas', 'Tortas y postres', 'Masas y confitería', 'Sándwiches y salados', 'Galletitas y budines', 'Bebidas', 'Almacén', 'Lácteos', 'Otros'],
 };
 export const catsFor = (tipo) => CATS_TIPO[tipo] || CATS;
-export const PAY = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / Mercado Pago', fi: 'Fiado' };
+export const PAY = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / Mercado Pago', fi: 'Fiado', ap: 'Apps de delivery' };
 // Medios que se pueden combinar con efectivo en un pago dividido.
 export const OTROS = ['tr', 'tj', 'qr'];
 
@@ -99,6 +99,7 @@ export function partes(v) {
   return { [v.pay]: v.tot || 0 };
 }
 export function payLabel(v, PAYS = PAY) {
+  if (v.pay === 'ap') return v.apn || PAYS.ap || 'App';
   if (v.pay !== 'mix') return PAYS[v.pay] || v.pay;
   return Object.keys(partes(v)).map((k) => PAYS[k] || k).join(' + ');
 }
@@ -151,4 +152,39 @@ export function csv(rows) {
     return /[;"\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   return '﻿' + rows.map((r) => r.map(cell).join(';')).join('\r\n') + '\r\n';
+}
+
+// ---------- Apps de delivery (PedidosYa, Uber Eats, Rappi…) ----------
+// Lo vendido por una app no entra a la caja: la app se lo cobra al cliente y le deposita al local (por semana,
+// de lunes a domingo, menos su comisión). Cada app guarda su saldo por semana en stores/{sid}/apsal/{app}.w[lunes].
+export const APPS_SUG = [['pya', 'PedidosYa'], ['uber', 'Uber Eats'], ['rappi', 'Rappi']];
+const ent = (v, a, b) => Math.max(a, Math.min(b, Math.round(+v || 0)));
+export function appId(n) { return String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '').slice(0, 16) || 'app'; }
+// cfg/servicios.apps = [{ id, n, com (comisión %), rec (recargo de precios en la app, %) }]
+export function limpiarApps(l) {
+  const out = [], ids = {};
+  (Array.isArray(l) ? l : []).forEach((a) => {
+    const n = String((a && a.n) || '').replace(/\s+/g, ' ').trim().slice(0, 30); if (!n) return;
+    let id = String((a && a.id) || '').replace(/[^a-z0-9]/g, '').slice(0, 16) || appId(n); while (ids[id]) id += 'x'; ids[id] = 1;
+    out.push({ id, n, com: ent(a.com, 0, 90), rec: ent(a.rec, 0, 200) });
+  });
+  return out.slice(0, 8);
+}
+// Lunes de la semana de una fecha AAAA-MM-DD (las apps liquidan de lunes a domingo).
+export function lunes(d) {
+  const [y, m, dd] = String(d).split('-').map(Number), t = new Date(Date.UTC(y, m - 1, dd)), w = (t.getUTCDay() + 6) % 7;
+  return new Date(t.getTime() - w * 86400000).toISOString().slice(0, 10);
+}
+const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+// "2 al 8 nov" / "28 oct al 3 nov"
+export function semanaTxt(k) {
+  const a = new Date(k + 'T12:00:00Z'), b = new Date(a.getTime() + 6 * 86400000);
+  return a.getUTCDate() + (a.getUTCMonth() !== b.getUTCMonth() ? ' ' + MES[a.getUTCMonth()] : '') + ' al ' + b.getUTCDate() + ' ' + MES[b.getUTCMonth()];
+}
+export const apTotal = (tot, rec) => Math.round((+tot || 0) * (1 + (+rec || 0) / 100));
+export const apNeto = (bruto, com) => Math.round((+bruto || 0) * (1 - (+com || 0) / 100));
+// Semanas con saldo de una app, de la más vieja a la más nueva: [{ k, a, txt, cur (la semana en curso) }]
+export function semanasApp(w, hoy) {
+  const cur = lunes(hoy);
+  return Object.keys(w || {}).filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k) && Math.round(w[k] || 0) > 0).sort().map((k) => ({ k, a: Math.round(w[k]), txt: semanaTxt(k), cur: k >= cur }));
 }

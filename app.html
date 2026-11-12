@@ -353,7 +353,7 @@ push:{est:function(){return pushEst()},alta:function(b){pushAlta(b)}},catLink:fu
 nuevoPedido:function(pre){show('caja');if(pre&&ALM.prePedido)ALM.prePedido(pre);setTimeout(function(){alert(pre&&pre.mesa?'Cargá los productos para la Mesa '+pre.mesa+' y tocá "🛎️ Guardar como pedido". Va directo a la cocina.':'Cargá los productos del pedido en la caja y tocá "🛎️ Guardar como pedido".')},150)},
 abrirAlInicio:function(){var r=PED0;PED0=false;return r},
 tiketera:function(){abrirTiketera({tienda:SNAME,dir:(PUB||{}).addr||'',lineas:[{n:'Producto de prueba',q:1,u:1000}],tot:1000,pago:'Efectivo'})},
-cobrar:function(p,pay){if(biz()!='almacen'||!ALM.ventaPedido)return null;return ALM.ventaPedido(p,pay)},
+cobrar:function(p,pay){if(biz()!='almacen'||!ALM.ventaPedido)return null;return ALM.ventaPedido(p,pay)},apps:function(){return biz()=='almacen'&&ALM.apps?ALM.apps():[]},
 aCaja:function(p){if(biz()!='almacen'||!ALM.cargarPedido)return false;show('caja');return ALM.cargarPedido(p)}});
 function pedSync(){var p=PUB||{};if(SID&&ROLE&&!SOP&&biz()=='almacen'&&p.enabled&&p.ped&&p.ped.on){PD.start(SID);funAbrir()}else PD.stop()}
 var ALM=createAlmacen({fotosDemo:PAGOS_URL?{buscar:function(q){return pushFetch('/fotos/buscar',{q:q,p:1})},proxy:PAGOS_URL+'/img'}:null,volver:function(a){if(a=='mesas')PD.mesas()},pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},

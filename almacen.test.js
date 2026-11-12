@@ -150,3 +150,14 @@ test('ranking de vendidos, sin ventas y CSV', async () => {
   assert.deepEqual(sinVentas(pr, P).map((p) => p.n), ['Yerba']);
   assert.equal(csv([['Nombre', 'Precio'], ['Pan "lactal"; grande', 1.5]]), '﻿Nombre;Precio\r\n"Pan ""lactal""; grande";1,5\r\n');
 });
+
+import { lunes, semanaTxt, semanasApp, apTotal, apNeto, limpiarApps, payLabel } from './almacen-calc.js';
+test('apps de delivery: semanas de lunes a domingo, comisión, recargo y configuración', () => {
+  assert.equal(lunes('2026-11-11'), '2026-11-09'); assert.equal(lunes('2026-11-09'), '2026-11-09'); assert.equal(lunes('2026-11-15'), '2026-11-09'); assert.equal(lunes('2026-11-01'), '2026-10-26');
+  assert.equal(semanaTxt('2026-11-02'), '2 al 8 nov'); assert.equal(semanaTxt('2026-10-26'), '26 oct al 1 nov');
+  assert.deepEqual(semanasApp({ '2026-11-09': 5000, '2026-11-02': 41000, '2026-10-26': 0 }, '2026-11-11').map((x) => [x.k, x.a, x.cur]), [['2026-11-02', 41000, false], ['2026-11-09', 5000, true]]);
+  assert.equal(apTotal(10000, 20), 12000); assert.equal(apNeto(100000, 30), 70000);
+  assert.deepEqual(limpiarApps([{ n: ' Uber  Eats ', com: '30', rec: 15 }, { n: 'PedidosYa', com: 150 }, { n: '' }, { id: 'ubereats', n: 'Otra' }]),
+    [{ id: 'ubereats', n: 'Uber Eats', com: 30, rec: 15 }, { id: 'pedidosya', n: 'PedidosYa', com: 90, rec: 0 }, { id: 'ubereatsx', n: 'Otra', com: 0, rec: 0 }]);
+  assert.equal(payLabel({ pay: 'ap', apn: 'Uber Eats' }), 'Uber Eats');
+});

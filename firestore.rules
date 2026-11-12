@@ -290,6 +290,18 @@ service cloud.firestore {
         allow read: if isAdmin(sid);
         allow write: if isAdmin(sid) && accessOk(sid);
       }
+      // Apps de delivery (PedidosYa, Uber Eats…): saldo a cobrar por app y por semana. Cada venta por app lo suma
+      // (cualquier miembro, solo con increment del saldo); los depósitos los registra y los ve el administrador.
+      match /apsal/{app} {
+        allow read: if isAdmin(sid);
+        allow create, update: if isMember(sid) && accessOk(sid) && request.resource.data.keys().hasOnly(['n', 's', 'w', 'u']);
+        allow delete: if isAdmin(sid) && accessOk(sid);
+      }
+      match /apmov/{id} {
+        allow read: if isAdmin(sid);
+        allow create: if isAdmin(sid) && accessOk(sid) && request.resource.data.by == request.auth.uid;
+        allow delete: if isAdmin(sid) && accessOk(sid);
+      }
 
       // Datos públicos de la tienda (nombre, WhatsApp, reglas del catálogo) y lista de precios
       // del catálogo del almacén (public/lista, lista_d0…, lista_i0…). Los ve cualquiera; solo un administrador los cambia.

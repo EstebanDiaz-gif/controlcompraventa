@@ -18,7 +18,7 @@ import { abrirSueltos } from './sueltos.js';
 import { limpiarOps, calcOps, tocarOps, selInicial, reglaOps, MODELOS_OPS, MAX_GRUPOS, MAX_OPCIONES, selDe } from './opciones.js';
 import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
-import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv } from './almacen-calc.js';
+import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv, limpiarApps, lunes, semanasApp, semanaTxt, apTotal, apNeto, APPS_SUG, appId } from './almacen-calc.js';
 import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
@@ -32,7 +32,7 @@ export { CATS, PAY };
 export function createAlmacen(X) {
   const { db, $, esc, money } = X;
   const S = {
-    cart: [], q: '', cat: '', pay: 'ef', cli: '', cliQ: '', paga: '', last: '', mixEf: '', mixO: 'tr', caja: null, cajaErr: false, cajasM: null, prBy: 'v',
+    cart: [], q: '', cat: '', pay: 'ef', apSel: '', apTot: '', aps: null, cli: '', cliQ: '', paga: '', last: '', mixEf: '', mixO: 'tr', caja: null, cajaErr: false, cajasM: null, prBy: 'v',
     cl: [], clErr: false, fq: '', sel: null, fmov: null,
     stQ: '', stCat: '', stLow: false, stNoCod: false, edit: null, repo: null, rq: '', rcomp: null, imp: null, qk: null,
     month: X.today().slice(0, 7), tot: null, totM: null, hoy: [], hoyDay: '', day: X.today(), dayV: null
@@ -77,6 +77,17 @@ export function createAlmacen(X) {
   const usedCats = () => { const o = cats(); return Object.keys(o).filter((c) => o[c] > 0).sort((a, b) => { const L = CATL(), i = (x) => { const k = L.indexOf(x); return k < 0 ? 999 : k; }; return i(a) - i(b) || a.localeCompare(b); }); };
   const priceTxt = (p) => (p.pn ? money(p.pn) + (p.w ? ' / kg' : '') : 'sin precio');
   const deny = (e) => e && /permission/.test(String(e.code || e.message));
+  // ---------- Apps de delivery: la venta va al stock y a los totales, pero no a la caja; queda a cobrar en la cuenta de la app ----------
+  const apps = () => limpiarApps(((X.cs && X.cs()) || {}).apps);
+  const appDe = (id) => apps().find((a) => a.id === id) || null;
+  let apAvisado = false;
+  function apSumar(id, n, d, a) {
+    if (!id || !a) return;
+    setDoc(doc(db, 'stores', X.sid(), 'apsal', id), { n: n || id, s: increment(a), w: { [lunes(d)]: increment(a) }, u: Date.now() }, { merge: true }).catch((e) => {
+      console.warn('apps', e && e.code);
+      if (deny(e) && !apAvisado) { apAvisado = true; alert('La venta se guardó ✓, pero Firebase no dejó anotarla en la cuenta de ' + (n || 'la app') + '. Falta publicar las reglas nuevas de Firebase: avisale a Pekeron App.'); }
+    });
+  }
   const rulesCard = () => '<div class="card"><b>Falta un paso</b><div class="k" style="margin-top:6px">Para usar el almacén hay que agregar las reglas nuevas en Firebase (archivo <b>ALMACEN-LEEME.md</b>, paso 2). Tus datos están a salvo.</div></div>';
   function failW(e) { if (deny(e)) alert('Firebase no dejó guardar: faltan las reglas del almacén (ALMACEN-LEEME.md, paso 2), o tu usuario no tiene permiso.'); else X.fail(e); }
   function modal(html) {
@@ -249,7 +260,7 @@ export function createAlmacen(X) {
     let h = '<div class="rows" style="margin:10px 0 0">' + (c.prev != null && c.prev !== c.ini ? r((c.prevBn ? esc(c.prevBn) + ' dejó' : 'Quedó en el cierre anterior') + '<small style="color:#b3261e">' + esc(c.bn || '') + ' contó ' + money(c.ini || 0) + ' al abrir: ' + (c.ini < c.prev ? 'faltan ' + money(c.prev - c.ini) : 'sobran ' + money(c.ini - c.prev)) + ' entre turnos</small>', money(c.prev)) : '') + r('Efectivo inicial' + (c.prev != null && c.prev !== c.ini ? '<small style="color:' + (c.ini < c.prev ? '#b3261e' : 'var(--sell)') + '">' + (c.ini < c.prev ? 'abrió con ' + money(c.prev - c.ini) + ' menos' : 'abrió con ' + money(c.ini - c.prev) + ' más') + '</small>' : ''), money(c.ini || 0)) + r('Ventas en efectivo', '+ ' + money(p.ef || 0)) +
       (cb.ef ? r('Cobros de fiado en efectivo', '+ ' + money(cb.ef)) : '') + (c.ing ? r('Puse plata', '+ ' + money(c.ing)) : '') + (c.ret ? r('Saqué plata', '<span style="color:#b3261e">− ' + money(c.ret) + '</span>') : '') +
       '<div class="r2" style="border-top:2px solid var(--line);padding-top:8px"><span><b>Debería haber</b></span><b style="font-size:20px">' + money(esperado(c)) + '</b></div></div>';
-    const otros = ['tr', 'tj', 'qr', 'fi'].filter((k) => (p[k] || 0) || (cb[k] || 0));
+    const otros = ['tr', 'tj', 'qr', 'fi', 'ap'].filter((k) => (p[k] || 0) || (cb[k] || 0));
     if (otros.length) h += '<div class="k" style="margin-top:12px"><b>Otros medios</b> (no van al cajón)</div><div class="rows" style="margin:4px 0 0">' + otros.map((k) => r(PAY[k], money((p[k] || 0) + (cb[k] || 0)))).join('') + '</div>';
     const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(a.h).localeCompare(String(b.h)));
     if (mv.length) h += '<div class="k" style="margin-top:12px"><b>Movimientos</b></div>' + mv.map(mvHtml).join('');
@@ -286,7 +297,7 @@ export function createAlmacen(X) {
     if (c.ing) l.push('Puse plata: ' + money(c.ing));
     if (c.ret) l.push('Saqué plata: ' + money(c.ret));
     l.push('Debería haber: ' + money(c.esp != null ? c.esp : esperado(c)), 'Contado: ' + money(c.cnt || 0), (c.dif === 0 ? 'Diferencia: justo ✓' : c.dif < 0 ? 'Faltan: ' + money(-c.dif) : 'Sobran: ' + money(c.dif)));
-    ['tr', 'tj', 'qr', 'fi'].forEach((k) => { const v = (p[k] || 0) + (cb[k] || 0); if (v) l.push(PAY[k] + ': ' + money(v)); });
+    ['tr', 'tj', 'qr', 'fi', 'ap'].forEach((k) => { const v = (p[k] || 0) + (cb[k] || 0); if (v) l.push(PAY[k] + ': ' + money(v)); });
     if (c.cnt != null) l.push('Queda en la caja para el próximo turno: ' + money(c.deja != null ? c.deja : c.cnt));
     if (c.nota) l.push('Nota: ' + c.nota);
     return l.join('\n');
@@ -582,7 +593,9 @@ export function createAlmacen(X) {
     if (S.env) h += '<div class="it"><div><b>🛵 Envío a domicilio</b><small>' + esc(S.env.rn || '') + (S.env.dir ? ' · ' + esc(S.env.dir) : '') + (S.env.pag ? ' · al repartidor ' + money(S.env.pag) : '') + '</small></div><div style="display:flex;align-items:center;gap:6px"><b style="min-width:76px;text-align:right">' + money(S.env.cob) + '</b><button class="x" data-al="envx" aria-label="Quitar envío">×</button></div></div>';
     else if (RPm() && RPm().on()) h += '<button class="x" data-al="envadd" style="font-size:15px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:10px">🛵 Agregar envío a domicilio</button>';
     h += '<div class="big" style="font-size:40px;margin:14px 0 4px">' + money(tot) + '</div>';
-    const PB = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / MP', fi: 'Fiado', mix: 'Dividido' };
+    const PB = { ef: 'Efectivo', tr: 'Transferencia', tj: 'Tarjeta', qr: 'QR / MP', fi: 'Fiado', mix: 'Dividido' }, AL = apps();
+    if (AL.length) PB.ap = '📲 App';
+    if (S.pay === 'ap' && !AL.length) S.pay = 'ef';
     h += '<div class="seg" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">' + Object.keys(PB).map((k) => '<button class="pay' + (S.pay === k ? ' on' : '') + '" data-al="pay" data-v="' + k + '" style="margin:0">' + PB[k] + '</button>').join('') + '</div>';
     if (S.pay === 'ef') {
       h += '<label>¿Con cuánto paga?</label><div class="chips" style="margin-top:4px">' + ['justo'].concat(billetes(tot)).map((b) => '<button class="ch' + (String(b === 'justo' ? tot : b) === String(S.paga) ? ' on' : '') + '" data-al="paga" data-v="' + (b === 'justo' ? tot : b) + '">' + (b === 'justo' ? 'Justo' : money(b)) + '</button>').join('') + '</div>' +
@@ -595,7 +608,15 @@ export function createAlmacen(X) {
         '<div class="k" id="cjmr" style="margin-top:8px;font-size:15px">' + mixTxt(tot) + '</div>';
     }
     if (S.pay === 'fi') h += cliPicker();
-    h += '<button class="go" data-al="cobrar">' + (S.pay === 'fi' ? 'Anotar en el fiado ' : 'Cobrar ') + money(tot) + '</button>' +
+    let apT = 0;
+    if (S.pay === 'ap') {
+      if (!appDe(S.apSel)) S.apSel = AL.length === 1 ? AL[0].id : '';
+      const A = appDe(S.apSel); apT = A ? (Math.round(+S.apTot) || apTotal(tot, A.rec)) : 0;
+      h += '<label>¿Por qué app?</label><div class="chips" style="margin-top:4px">' + AL.map((a) => '<button class="ch' + (a.id === S.apSel ? ' on' : '') + '" data-al="apsel" data-v="' + esc(a.id) + '">' + esc(a.n) + '</button>').join('') + '</div>' +
+        (A ? '<label>Total del pedido en ' + esc(A.n) + '</label><input id="cjap" type="number" inputmode="numeric" value="' + apT + '">' +
+          '<div class="k" style="margin-top:6px">' + (A.rec ? 'Con el ' + A.rec + '% de recargo de la app. ' : '') + 'No entra a la caja: queda a cobrar en la cuenta de ' + esc(A.n) + (A.com ? ' (te depositan ≈ <b id="cjapn">' + money(apNeto(apT, A.com)) + '</b> con el ' + A.com + '% de comisión)' : '') + '.</div>' : '');
+    }
+    h += '<button class="go" data-al="cobrar">' + (S.pay === 'fi' ? 'Anotar en el fiado ' : S.pay === 'ap' ? 'Registrar venta' + (appDe(S.apSel) ? ' de ' + esc(appDe(S.apSel).n) + ' ' + money(apT) : '') : 'Cobrar ' + money(tot)) + '</button>' +
       (X.pedOn && X.pedOn() && !S.ped ? '<button class="go alt" data-al="aped" style="margin-top:8px">🛎️ Guardar como pedido (se cobra después)</button>' : '') + '</div>';
     e.innerHTML = h;
     const pg = $('cjpg');
@@ -606,6 +627,8 @@ export function createAlmacen(X) {
     const mx = $('cjmx'), mo = $('cjmo');
     if (mx) mx.oninput = () => { S.mixEf = mx.value; $('cjmr').innerHTML = mixTxt(tot); };
     if (mo) mo.onchange = () => { S.mixO = mo.value; $('cjmr').innerHTML = mixTxt(tot); };
+    const ap = $('cjap');
+    if (ap) ap.oninput = () => { S.apTot = ap.value; const A = appDe(S.apSel), n = $('cjapn'), b = e.querySelector('[data-al="cobrar"]'), v = Math.round(+ap.value || 0); if (n && A) n.textContent = money(apNeto(v, A.com)); if (b && A) b.textContent = 'Registrar venta de ' + A.n + ' ' + money(v); };
     const cq = $('cjcq');
     if (cq) cq.oninput = () => { S.cliQ = cq.value; const l = $('cjcl'); if (l) l.innerHTML = cliList(); };
   }
@@ -656,6 +679,8 @@ export function createAlmacen(X) {
     if (!S.cart.length) return;
     if (!X.canWrite()) { alert('El acceso de la tienda venció.'); return; }
     if (S.pay === 'fi' && !cli(S.cli)) { alert('Elegí a quién le fiás.'); return; }
+    const APP = S.pay === 'ap' ? appDe(S.apSel) : null;
+    if (S.pay === 'ap' && !APP) { alert('Elegí por qué app fue la venta.'); return; }
     if (S.pay === 'ef' && +S.paga > 0 && +S.paga < cartTotals(efectivo().lines).tot + envCob() && !confirm('Paga con ' + money(+S.paga) + ' y la venta es de ' + money(cartTotals(efectivo().lines).tot + envCob()) + '. ¿Cobrar igual?')) return;
     if (S.pay === 'mix') { const ef0 = Math.round(+S.mixEf || 0), t0 = cartTotals(efectivo().lines).tot + envCob(); if (!(ef0 > 0 && ef0 < t0)) { alert(ef0 >= t0 ? 'El efectivo cubre todo: elegí Efectivo.' : 'Escribí cuánto paga en efectivo.'); return; } }
     const sid = X.sid(), d = X.today(), m = d.slice(0, 7), dd = d.slice(8, 10), u = X.user();
@@ -669,9 +694,12 @@ export function createAlmacen(X) {
       ps.forEach((x, j) => { const p = prod(x.id) || {}, q = x.q * l.q; it.push({ id: x.id, n: x.n, q, u: parts[j] / q, c: p.c || 0, w: p.w ? 1 : 0, pr: l.n }); });
     });
     const ENV = S.env; if (ENV && ENV.cob > 0) it.push({ id: '', n: 'Envío a domicilio', q: 1, u: ENV.cob, c: 0, w: 0, env: 1 });
+    // Venta por app: el total es el de la app (con su recargo o el que escribieron); se reparte entre los productos.
+    if (APP) { const t0 = cartTotals(it).tot, ta = Math.round(+S.apTot) || apTotal(t0, APP.rec); if (t0 > 0 && ta > 0 && ta !== t0) { const f = ta / t0; it.forEach((x) => { x.u = x.u * f; }); } }
     const { tot, cost } = cartTotals(it);
     const id = uid();
     const v = { id, d, m, h: now(), it, tot, cost, pay: S.pay, by: u.uid, bn: X.nm() };
+    if (APP) { v.ap = APP.id; v.apn = APP.n; }
     if (S.pay === 'mix') { const ef = Math.round(+S.mixEf); v.pp = { ef, [S.mixO]: tot - ef }; }
     if (S.caja) v.cj = S.caja.id;
     if (EF.dsc) v.dsc = EF.dsc;
@@ -710,6 +738,7 @@ export function createAlmacen(X) {
     // La caja va aparte: si justo la cerraron en otro equipo, la venta igual se guarda.
     if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
     if (ENV && RPm()) RPm().registrar(ENV, { det: it.filter((x) => !x.env).map((x) => x.n).join(', '), vid: id });
+    if (APP) apSumar(APP.id, APP.n, d, tot);
     const pg = +S.paga;
     // Ticket de la venta (para la tiketera): con los precios de lista, el descuento aparte y el vuelto.
     S.lastTk = { tienda: X.sname(), dir: (X.pub() || {}).addr || '', fecha: new Date(), atendio: X.nm(), cliente: S.pay === 'fi' ? cli(S.cli).n : '',
@@ -717,8 +746,8 @@ export function createAlmacen(X) {
       tot, pago: payLabel(v), paga: S.pay === 'ef' && pg >= tot && pg > 0 ? pg : 0, vuelto: S.pay === 'ef' && pg >= tot ? pg - tot : 0 };
     if (tkConfig().auto) imprimir(S.lastTk);
     if (S.ped) { updateDoc(doc(db, 'stores', sid, 'pedidos', S.ped), { cob: true, vid: id, cpay: payLabel(v) }).catch(() => {}); S.ped = null; }
-    S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
-    S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.cat = ''; S.env = null; renderCats();
+    S.last = (S.pay === 'fi' ? 'Anotado en el fiado de ' + esc(cli(S.cli).n) + ': ' : APP ? 'Venta de ' + esc(APP.n) + ' registrada ✓ (a cobrar) ' : 'Cobrado ✓ ') + money(tot) + (S.pay === 'mix' ? ' (' + payLabel(v) + ')' : '') + (S.pay === 'ef' && pg >= tot && pg > 0 ? ' · Vuelto ' + money(pg - tot) : '');
+    S.cart = []; S.paga = ''; S.mixEf = ''; S.cli = ''; S.cliQ = ''; S.pay = 'ef'; S.apTot = ''; S.cat = ''; S.env = null; renderCats();
     renderCart(); clearSearch();
   }
   // Venta en curso → pedido para preparar (mesa, retira o envío). Se cobra después desde Pedidos → Cobrar en la caja.
@@ -745,7 +774,8 @@ export function createAlmacen(X) {
       const d = { tipo, cl: q('pd_n').value.trim().slice(0, 60) || 'Mostrador', it, tot: Math.round(cartTotals(EF.lines).tot), by: X.user().uid };
       if (tipo === 'mesa') d.mesa = mesa.slice(0, 12); if (tipo === 'env') { d.dir = dir.slice(0, 160); const t = q('pd_tel').value.trim(); if (t) d.tel = t.slice(0, 24); }
       const nt = q('pd_nt').value.trim(); if (nt) d.nota = nt.slice(0, 200);
-      if (S.pay && PAY[S.pay] && S.pay !== 'fi') d.pago = PAY[S.pay];
+      if (S.pay === 'ap' && appDe(S.apSel)) { d.pago = appDe(S.apSel).n; d.ap = S.apSel; }
+      else if (S.pay && PAY[S.pay] && S.pay !== 'fi') d.pago = PAY[S.pay];
       q('pd_ok').disabled = true;
       X.guardarPedido(d).then((r) => { o.remove(); S.cart = []; S.paga = ''; S.env = null; S.pedPre = null; S.last = '🛎️ Pedido #' + String(r.id).slice(-4).toUpperCase() + ' enviado a preparar'; renderCart(); clearSearch(); if (pre.volver && X.volver) X.volver(pre.volver); })
         .catch((e) => { q('pd_ok').disabled = false; X.fail(e); });
@@ -758,14 +788,16 @@ export function createAlmacen(X) {
     if (!X.canWrite()) return Promise.reject(new Error('El acceso de la tienda venció.'));
     if (p.cob) return Promise.resolve(null);
     const sid = X.sid(), d = X.today(), m = d.slice(0, 7), dd = d.slice(8, 10), u = X.user();
+    const APP = /^ap:/.test(pay || '') ? appDe(pay.slice(3)) : null; if (APP) pay = 'ap'; else if (pay === 'ap') pay = 'tr';
     const it = (p.it || []).map((l) => { const pr = l.t ? null : prod(l.k), q = +l.q || 1; return { id: pr ? pr.id : '', n: String((l.n || 'Producto') + (l.x ? ' (' + l.x + ')' : '')).slice(0, 140), q: l.w ? r3(q) : q, u: +l.u || 0, c: pr ? (pr.c || 0) : 0, w: l.w ? 1 : 0 }; });
-    const subt = it.reduce((a, x) => a + x.q * x.u, 0), env = Math.max(0, +p.env || 0), obj = Math.max(0, Math.round((+p.tot || 0) - env));
+    const subt = it.reduce((a, x) => a + x.q * x.u, 0), env = Math.max(0, +p.env || 0), obj0 = Math.max(0, Math.round((+p.tot || 0) - env)), obj = APP ? apTotal(obj0, APP.rec) : obj0;
     if (subt > 0 && Math.abs(subt - obj) > 1) { const f = obj / subt; it.forEach((x) => { x.u = x.u * f; }); }
     if (env > 0) it.push({ id: '', n: 'Envío a domicilio', q: 1, u: env, c: 0, w: 0, env: 1 });
     const { tot, cost } = cartTotals(it), id = uid();
     const v = { id, d, m, h: now(), it, tot, cost, pay, by: u.uid, bn: X.nm(), ped: p.id, pcl: String(p.cl || '').slice(0, 60) };
     if (S.caja) v.cj = S.caja.id;
     if (subt - obj > 1) v.dsc = { t: 'Descuento del pedido', m: Math.round(subt - obj) };
+    if (APP) { v.ap = APP.id; v.apn = APP.n; }
     const pp = partes(v), payInc = {}; Object.keys(pp).forEach((k) => { payInc[k] = increment(pp[k]); });
     const prInc = {}; it.forEach((x) => { if (!x.id || !prod(x.id)) return; const o = prInc[x.id] || (prInc[x.id] = { q: 0, v: 0, n: x.n }); o.q = r3(o.q + x.q); o.v += Math.round(x.q * x.u); });
     Object.keys(prInc).forEach((k) => { prInc[k] = { q: increment(prInc[k].q), v: increment(prInc[k].v), n: (prod(k) || {}).n || prInc[k].n }; });
@@ -777,6 +809,7 @@ export function createAlmacen(X) {
       const desc = {}; it.forEach((x) => { if (ctl(x.id)) desc[x.id] = r3((desc[x.id] || 0) + x.q); });
       Object.keys(desc).forEach((pid) => { if (desc[pid] > 0) updateDoc(doc(db, 'stores', sid, 'stock', pid), { q: increment(-desc[pid]) }).catch(() => {}); });
       if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
+      if (APP) apSumar(APP.id, APP.n, d, tot);
       return v;
     });
   }
@@ -871,7 +904,7 @@ export function createAlmacen(X) {
   function ctl(id) { const p = prod(id); return !!p && !p.ns; }
   function delVenta(id) {
     const v = S.hoy.concat(S.dayV || []).find((x) => String(x.id) === String(id)); if (!v) return;
-    if (!confirm('¿Anular esta venta de ' + money(v.tot) + '? La mercadería vuelve al stock' + (v.fid ? ' y se descuenta del fiado de ' + v.cn : '') + '.')) return;
+    if (!confirm('¿Anular esta venta de ' + money(v.tot) + '? La mercadería vuelve al stock' + (v.fid ? ' y se descuenta del fiado de ' + v.cn : '') + (v.ap ? ' y de la cuenta de ' + (v.apn || 'la app') : '') + '.')) return;
     const sid = X.sid(), b = writeBatch(db), dd = v.d.slice(8, 10);
     b.delete(doc(db, 'stores', sid, 'ventas', String(v.id)));
     (v.it || []).forEach((x) => { if (ctl(x.id)) b.update(doc(db, 'stores', sid, 'stock', x.id), { q: increment(x.q) }); });
@@ -882,6 +915,7 @@ export function createAlmacen(X) {
     if (v.cj && S.caja && S.caja.id === v.cj) setDoc(doc(db, 'stores', sid, 'cajas', v.cj), { n: increment(-1), v: increment(-v.tot), p: payDec,
       mv: { [uid()]: { t: 'b', a: Math.round(v.tot || 0), pay: v.pay || 'ef', r: ((v.it || []).map((x) => x.n).join(', ') + (v.h ? ' (de las ' + v.h + ')' : '')).slice(0, 80), h: now(), bn: X.nm() } } }, { merge: true }).catch(() => {});
     if (v.fid) { b.delete(doc(db, 'stores', sid, 'fiado', v.fid)); if (cli(v.cli)) b.update(doc(db, 'stores', sid, 'clientes', v.cli), { s: increment(-v.tot) }); }
+    if (v.ap) apSumar(v.ap, v.apn, v.d, -(v.tot || 0));
     b.commit().then(() => { if (S.dayV) { S.dayV = S.dayV.filter((x) => x.id !== v.id); if (X.tab() === 'res') drawRes(); } }).catch(failW);
   }
 
@@ -1351,24 +1385,26 @@ export function createAlmacen(X) {
   // =====================================================================
   function drawRes() {
     const box = $('s-res');
-    listenTot(); listenHoy(); listenCajasMes();
-    const t = S.tot || {}, pay = t.pay || {}, gas = X.gTotal(S.month);
-    const v = t.v || 0, c = t.c || 0, gross = v - c, gain = gross - gas;
+    listenTot(); listenHoy(); listenCajasMes(); listenAps();
+    const t = S.tot || {}, pay = t.pay || {}, gas = X.gTotal(S.month), apc = t.apcom || 0;
+    const v = t.v || 0, c = t.c || 0, gross = v - c, gain = gross - gas - apc;
     let deben = 0; S.cl.forEach((x) => { if (x.s > 0) deben += x.s; });
     const ms = lastMonths(13, X.today().slice(0, 7));
     let h = '<div class="card hero"><select data-alm="1">' + ms.map((m) => '<option value="' + m + '"' + (m === S.month ? ' selected' : '') + '>' + X.mlabel(m) + '</option>').join('') + '</select>' +
       (S.tot === null ? '<div class="big">…</div>' : '<div class="big ' + (gain >= 0 ? 'pos' : 'neg') + '">' + money(gain) + '</div>') +
-      '<div class="k">Ganancia del mes: lo vendido, menos lo que te costó esa mercadería, menos los gastos</div></div>' +
+      '<div class="k">Ganancia del mes: lo vendido, menos lo que te costó esa mercadería, menos los gastos' + (apc ? ' y las comisiones de las apps' : '') + '</div></div>' +
       '<div class="rows">' +
       '<div class="r2"><span>Vendí<small>' + (t.n || 0) + ' ventas' + (t.n ? ' · ticket promedio ' + money(v / t.n) : '') + '</small></span><b class="pos">' + money(v) + '</b></div>' +
       '<div class="r2"><span>Costo de lo vendido</span><b class="neg">' + money(c) + '</b></div>' +
       '<div class="r2"><span>Ganancia de las ventas<small>antes de gastos' + (v ? ' · ' + Math.round(gross / v * 100) + '%' : '') + '</small></span><b class="' + (gross >= 0 ? 'pos' : 'neg') + '">' + money(gross) + '</b></div>' +
       '<div class="r2"><span>Gastos del mes<small>alquiler, luz, sueldos…</small></span><b class="neg">' + money(gas) + '</b></div>' +
+      (apc ? '<div class="r2"><span>Comisiones de las apps<small>lo que se quedaron de los depósitos de este mes</small></span><b class="neg">' + money(apc) + '</b></div>' : '') +
       '<div class="r2"><span>Compré mercadería<small>reposición cargada este mes</small></span><b>' + money(t.co || 0) + '</b></div></div>' +
       '<div class="card"><b>Cómo te pagaron</b><div class="rows" style="margin:6px 0 0">' + Object.keys(PAY).map((k) => '<div class="r2"><span>' + PAY[k] + '</span><b>' + money(pay[k] || 0) + '</b></div>').join('') +
       '<div class="r2"><span>Cobré de fiados<small>pagos de deudas este mes</small></span><b class="pos">' + money(t.cob || 0) + '</b></div>' +
-      '<div class="r2"><span>Te deben hoy<small>total de la libreta</small></span><b class="neg">' + money(deben) + '</b></div></div></div>' +
-      cajasCard() + (S.tot === null ? '' : topCard(t)) +
+      '<div class="r2"><span>Te deben hoy<small>total de la libreta</small></span><b class="neg">' + money(deben) + '</b></div>' +
+      (t.apcob ? '<div class="r2"><span>Te depositaron las apps<small>depósitos registrados este mes</small></span><b class="pos">' + money(t.apcob) + '</b></div>' : '') + '</div></div>' +
+      appsCard() + cajasCard() + (S.tot === null ? '' : topCard(t)) +
       '<div class="card"><b>Descargar para Excel</b><div class="k" style="margin-top:4px">Se abre con Excel o Google Sheets.</div><div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-al="xven" style="margin:0">Ventas del mes</button><button class="go alt" data-al="xtop" style="margin:0">Lo más vendido</button></div></div>';
     const dias = t.dias || {}, keys = Object.keys(dias).filter((k) => (dias[k].n || 0) > 0).sort();
     if (keys.length) {
@@ -1387,6 +1423,105 @@ export function createAlmacen(X) {
     if (!isToday && !S.dayV) loadDay();
   }
   // ---------- Lo más vendido y descargas para Excel ----------
+  // ---------- Apps de delivery: cuenta por app y por semana (lunes a domingo) ----------
+  function listenAps() {
+    if (un.aps || !adm()) return;
+    un.aps = onSnapshot(col('apsal'), (sn) => { S.aps = {}; S.apsErr = false; sn.forEach((d) => { S.aps[d.id] = d.data(); }); if (X.tab() === 'res') drawRes(); },
+      (e) => { S.aps = {}; S.apsErr = deny(e); if (X.tab() === 'res') drawRes(); });
+  }
+  const apInfo = (id) => appDe(id) || { id, n: ((S.aps || {})[id] || {}).n || id, com: 0, rec: 0 };
+  function appsCard() {
+    if (!adm()) return '';
+    const AL = apps(), SA = S.aps || {}, hoy = X.today();
+    const ids = AL.map((a) => a.id).concat(Object.keys(SA).filter((k) => !appDe(k) && semanasApp(SA[k].w, hoy).length));
+    let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px"><b>📲 Apps de delivery</b>' + (ids.length ? '<button class="x" data-al="apcfg" style="font-size:14px;text-decoration:underline">Configurar</button>' : '') + '</div>';
+    if (!ids.length) return h + '<div class="k" style="margin-top:4px">¿Vendés por PedidosYa, Uber Eats o Rappi? Cargalas y llevá la cuenta de lo que te tienen que depositar cada semana. Las ventas descuentan el stock igual que las de la caja.</div><button class="go alt" data-al="apcfg" style="margin-top:10px">Configurar apps</button></div>';
+    if (S.apsErr) h += '<div class="bn warn" style="margin-top:10px">Falta publicar las reglas nuevas de Firebase para ver la cuenta de las apps. Avisale a Pekeron App.</div>';
+    ids.forEach((id) => {
+      const A = apInfo(id), W = semanasApp((SA[id] || {}).w, hoy), pend = W.reduce((a, x) => a + x.a, 0), venc = W.filter((x) => !x.cur).reduce((a, x) => a + x.a, 0);
+      h += '<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font-size:17px">' + esc(A.n) + '</b><span class="k">' + (A.com ? 'comisión ' + A.com + '%' : 'sin comisión cargada') + '</span></div>';
+      if (!W.length) h += '<div class="k" style="margin-top:4px">No hay ventas pendientes de cobro.</div>';
+      else {
+        h += '<div class="rows" style="margin:6px 0 0">' + W.map((x) => '<div class="r2"><span>Semana del ' + x.txt + '<small>' + (x.cur ? 'en curso' : 'a cobrar') + (A.com ? ' · te depositan ≈ ' + money(apNeto(x.a, A.com)) : '') + '</small></span><b>' + money(x.a) + '</b></div>').join('') + '</div>';
+        if (W.length > 1 || venc) h += '<div class="k" style="margin-top:6px">' + (venc ? 'A cobrar de semanas cerradas: <b>' + money(venc) + '</b>' + (A.com ? ' (≈ ' + money(apNeto(venc, A.com)) + ' de depósito)' : '') : 'Total pendiente: <b>' + money(pend) + '</b>') + '</div>';
+        h += '<button class="go' + (venc ? '' : ' alt') + '" data-al="apcob" data-id="' + esc(id) + '" style="margin-top:10px">💰 Registrar el depósito de ' + esc(A.n) + '</button>';
+      }
+      h += '<button class="x" data-al="aphist" data-id="' + esc(id) + '" style="display:block;margin:10px auto 0;font-size:14px;text-decoration:underline">Depósitos anteriores</button></div>';
+    });
+    return h + '</div>';
+  }
+  function appsCfg() {
+    if (!adm()) { alert('Solo el administrador configura las apps.'); return; }
+    const L = apps().map((a) => Object.assign({}, a));
+    const o = modal('<b style="font-size:19px">📲 Apps de delivery</b><div class="k" style="margin:4px 0 6px">Las apps por las que vendés. La <b>comisión</b> es el % que se queda la app: sirve para calcular cuánto te depositan. El <b>recargo</b> es cuánto más caros tenés los precios en la app (0 si son los mismos).</div>' +
+      '<div id="ap_l"></div><div class="chips" id="ap_s" style="margin-top:12px"></div><button class="go" id="ap_ok">Guardar</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const pint = () => {
+      o.querySelector('#ap_l').innerHTML = L.map((a, i) => '<div style="border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:10px"><div style="display:flex;gap:8px;align-items:center"><input data-apf="n" data-api="' + i + '" value="' + esc(a.n) + '" maxlength="30" placeholder="Nombre de la app" style="flex:1;margin:0;font-weight:700"><button class="x" data-apdel="' + i + '" aria-label="Quitar" style="font-size:22px">×</button></div>' +
+        '<div class="row" style="margin-top:4px"><div><label>Comisión %</label><input data-apf="com" data-api="' + i + '" type="number" inputmode="numeric" min="0" max="90" value="' + (a.com || '') + '" placeholder="Ej: 30"></div><div><label>Recargo en la app %</label><input data-apf="rec" data-api="' + i + '" type="number" inputmode="numeric" min="0" max="200" value="' + (a.rec || '') + '" placeholder="0"></div></div></div>').join('') ||
+        '<div class="k" style="margin-top:10px">Todavía no cargaste ninguna. Tocá una de abajo.</div>';
+      o.querySelector('#ap_s').innerHTML = APPS_SUG.filter((x) => !L.some((a) => a.id === x[0] || a.n === x[1])).map((x) => '<button type="button" class="ch" data-apsug="' + x[0] + '">+ ' + x[1] + '</button>').join('') + '<button type="button" class="ch" data-apsug="otra">+ Otra</button>';
+    };
+    o.addEventListener('input', (e) => { const t = e.target; if (t.dataset && t.dataset.apf) L[+t.dataset.api][t.dataset.apf] = t.value; });
+    o.addEventListener('click', (e) => {
+      const t = e.target.closest && e.target.closest('[data-apdel],[data-apsug]'); if (!t) return;
+      if (t.dataset.apdel != null) L.splice(+t.dataset.apdel, 1);
+      else { const sg = APPS_SUG.find((x) => x[0] === t.dataset.apsug), n = sg ? sg[1] : (prompt('Nombre de la app:') || '').trim().slice(0, 30); if (!n) return; L.push({ id: sg ? sg[0] : '', n, com: '', rec: '' }); }
+      pint();
+    });
+    pint();
+    o.querySelector('#ap_ok').onclick = () => {
+      const l = limpiarApps(L); o.querySelector('#ap_ok').disabled = true;
+      setDoc(doc(db, 'stores', X.sid(), 'cfg', 'servicios'), { apps: l }, { merge: true }).then(() => { o.remove(); if (X.cs && X.cs()) X.cs().apps = l; if (X.tab() === 'res') drawRes(); renderCart(); })
+        .catch((e) => { o.querySelector('#ap_ok').disabled = false; X.fail(e); });
+    };
+  }
+  function apCobro(id) {
+    const A = apInfo(id), W = semanasApp(((S.aps || {})[id] || {}).w, X.today()); if (!W.length) return;
+    const def = W.some((x) => !x.cur) ? W.filter((x) => !x.cur).map((x) => x.k) : W.map((x) => x.k);
+    const o = modal('<b style="font-size:19px">💰 Depósito de ' + esc(A.n) + '</b><div class="k" style="margin:4px 0 6px">Marcá las semanas que te pagó y escribí cuánto te depositó. La diferencia queda como comisión de la app.</div>' +
+      W.map((x) => '<label style="display:flex;gap:10px;align-items:center;margin-top:10px;font-weight:600;color:var(--ink)"><input type="checkbox" data-apk="' + x.k + '"' + (def.indexOf(x.k) >= 0 ? ' checked' : '') + ' style="width:22px;height:22px;margin:0;flex:none"><span style="flex:1">Semana del ' + x.txt + (x.cur ? ' <small style="color:var(--mut)">(en curso)</small>' : '') + '</span><b>' + money(x.a) + '</b></label>').join('') +
+      '<label>¿Cuánto te depositó?</label><input id="apc_n" type="number" inputmode="numeric" placeholder="Lo que llegó a tu cuenta"><div class="k" id="apc_r" style="margin-top:8px"></div>' +
+      '<label>Fecha del depósito</label><input id="apc_d" type="date" value="' + X.today() + '" max="' + X.today() + '">' +
+      '<button class="go" id="apc_ok">Guardar el depósito</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const q = (i) => o.querySelector('#' + i), sel = () => Array.from(o.querySelectorAll('[data-apk]')).filter((c) => c.checked).map((c) => c.dataset.apk);
+    const bruto = () => sel().reduce((a, k) => a + ((W.find((x) => x.k === k) || {}).a || 0), 0);
+    let toc = false;
+    const upd = () => {
+      const b = bruto(); if (!toc) q('apc_n').value = b && A.com ? apNeto(b, A.com) : '';
+      const n = Math.round(+q('apc_n').value || 0), c = b - n;
+      q('apc_r').innerHTML = !b ? 'Marcá al menos una semana.' : 'Vendiste <b>' + money(b) + '</b> por ' + esc(A.n) + ' esas semanas.' + (n ? '<br>Comisión y cargos de la app: <b style="color:' + (c < 0 ? 'var(--ink)' : '#b3261e') + '">' + money(c) + '</b> (' + Math.round(c / b * 100) + '%)' : '');
+    };
+    o.querySelectorAll('[data-apk]').forEach((c) => { c.onchange = upd; }); q('apc_n').oninput = () => { toc = true; upd(); }; upd();
+    q('apc_ok').onclick = () => {
+      const ks = sel(), b = bruto(), n = Math.round(+q('apc_n').value || 0), d = q('apc_d').value || X.today();
+      if (!ks.length) { alert('Marcá las semanas que te pagó.'); return; }
+      if (!(n > 0)) { alert('Escribí cuánto te depositó.'); return; }
+      if (n > b && !confirm('Te depositó más de lo que vendiste esas semanas (' + money(b) + '). ¿Guardar igual?')) return;
+      const m = d.slice(0, 7), mid = uid(), sw = {}, wd = {}; ks.forEach((k) => { sw[k] = (W.find((x) => x.k === k) || {}).a || 0; wd[k] = increment(-sw[k]); });
+      const bt = writeBatch(db);
+      bt.set(ref('apmov', mid), { id: mid, ap: id, apn: A.n, sw, a: b, net: n, com: b - n, d, m, h: now(), by: X.user().uid, bn: X.nm() });
+      bt.set(ref('apsal', id), { s: increment(-b), w: wd, u: Date.now() }, { merge: true });
+      bt.set(ref('totales', m), { apcom: increment(b - n), apcob: increment(n) }, { merge: true });
+      q('apc_ok').disabled = true;
+      bt.commit().then(() => o.remove()).catch((e) => { q('apc_ok').disabled = false; failW(e); });
+    };
+  }
+  function apHist(id) {
+    const A = apInfo(id);
+    const o = modal('<b style="font-size:19px">Depósitos de ' + esc(A.n) + '</b><div id="aph" style="margin-top:8px"><div class="empty">Cargando…</div></div><button class="go alt" data-close="1" style="margin-top:14px">Listo</button>');
+    const pint = () => getDocs(query(col('apmov'), where('ap', '==', id))).then((sn) => {
+      const l = []; sn.forEach((d) => l.push(d.data())); l.sort((a, b) => String(b.d + b.h + b.id).localeCompare(String(a.d + a.h + a.id)));
+      o.querySelector('#aph').innerHTML = l.length ? l.slice(0, 40).map((x) => '<div class="it"><div><b>' + money(x.net) + ' el ' + dmy(x.d) + '</b><small>Semana' + (Object.keys(x.sw || {}).length > 1 ? 's' : '') + ' del ' + Object.keys(x.sw || {}).sort().map(semanaTxt).join(', ') + ' · vendiste ' + money(x.a) + ' · comisión ' + money(x.com) + (x.a ? ' (' + Math.round(x.com / x.a * 100) + '%)' : '') + (x.bn ? ' · ' + esc(x.bn) : '') + '</small></div><button class="x" data-apdes="' + esc(x.id) + '" style="font-size:13px;text-decoration:underline">Deshacer</button></div>').join('') : '<div class="empty">Todavía no registraste depósitos.</div>';
+      o.querySelectorAll('[data-apdes]').forEach((bn) => { bn.onclick = () => {
+        const x = l.find((y) => y.id === bn.dataset.apdes); if (!x || !confirm('¿Deshacer el depósito de ' + money(x.net) + '? Esas semanas vuelven a quedar a cobrar.')) return;
+        const bt = writeBatch(db), wi = {}; Object.keys(x.sw || {}).forEach((k) => { wi[k] = increment(x.sw[k]); });
+        bt.delete(ref('apmov', x.id)); bt.set(ref('apsal', id), { s: increment(x.a), w: wi, u: Date.now() }, { merge: true });
+        bt.set(ref('totales', x.m), { apcom: increment(-x.com), apcob: increment(-x.net) }, { merge: true });
+        bt.commit().then(pint).catch(failW);
+      }; });
+    }).catch((e) => { o.querySelector('#aph').innerHTML = '<div class="empty">' + (deny(e) ? 'Falta publicar las reglas nuevas de Firebase.' : 'No se pudo cargar.') + '</div>'; });
+    pint();
+  }
   function topCard(t) {
     const pr = t.pr || {}, l = ranking(pr, P(), S.prBy), by = S.prBy;
     let h = '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b>Lo más vendido</b><div class="chips" style="margin:0"><button class="ch' + (by === 'v' ? ' on' : '') + '" data-al="prby" data-v="v">Por plata</button><button class="ch' + (by === 'q' ? ' on' : '') + '" data-al="prby" data-v="q">Por cantidad</button></div></div>';
@@ -2018,6 +2153,10 @@ export function createAlmacen(X) {
     else if (a === 'envx') { S.env = null; renderCart(); }
     else if (a === 'aped') pedidoDlg();
     else if (a === 'pay') { S.pay = el.dataset.v; renderCart(); }
+    else if (a === 'apsel') { S.apSel = el.dataset.v; S.apTot = ''; renderCart(); }
+    else if (a === 'apcfg') appsCfg();
+    else if (a === 'apcob') apCobro(el.dataset.id);
+    else if (a === 'aphist') apHist(el.dataset.id);
     else if (a === 'paga') { S.paga = el.dataset.v; renderCart(); }
     else if (a === 'tkpr') { if (S.lastTk) imprimir(S.lastTk); }
     else if (a === 'tkv') { const v = S.hoy.concat(S.dayV || []).find((x) => String(x.id) === String(el.dataset.id)); if (v) imprimir(ticketDeVenta(v)); }
@@ -2120,7 +2259,7 @@ export function createAlmacen(X) {
   });
 
   return {
-    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido, ventaPedido, prePedido: (p) => { S.pedPre = p || null; renderCart(); },
+    start, stop, redraw, publishSoon, drawCaja, drawFiado, drawStock, drawRes, cargarPedido, ventaPedido, apps, prePedido: (p) => { S.pedPre = p || null; renderCart(); },
     resetView() { if (S.imp && S.imp.step === 'run') return; qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null; $('s-stk').innerHTML = ''; }
   };
 }

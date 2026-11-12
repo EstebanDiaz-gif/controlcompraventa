@@ -128,7 +128,7 @@ export function createCaja(X) {
     let h = '<div class="rows" style="margin:10px 0 0">' + (c.prev != null && c.prev !== c.ini ? r((c.prevBn ? esc(c.prevBn) + ' dejó' : 'Quedó en el cierre anterior') + '<small style="color:#b3261e">' + esc(c.bn || '') + ' contó ' + money(c.ini || 0) + ' al abrir: ' + (c.ini < c.prev ? 'faltan ' + money(c.prev - c.ini) : 'sobran ' + money(c.ini - c.prev)) + ' entre turnos</small>', money(c.prev)) : '') + r('Efectivo inicial' + (c.prev != null && c.prev !== c.ini ? '<small style="color:' + (c.ini < c.prev ? '#b3261e' : 'var(--sell)') + '">' + (c.ini < c.prev ? 'abrió con ' + money(c.prev - c.ini) + ' menos' : 'abrió con ' + money(c.ini - c.prev) + ' más') + '</small>' : ''), money(c.ini || 0)) + r('Ventas en efectivo', '+ ' + money(p.ef || 0)) +
       (cb.ef ? r('Cobros de fiado en efectivo', '+ ' + money(cb.ef)) : '') + (c.ing ? r('Puse plata', '+ ' + money(c.ing)) : '') + (c.ret ? r('Saqué plata', '<span style="color:#b3261e">− ' + money(c.ret) + '</span>') : '') +
       '<div class="r2" style="border-top:2px solid var(--line);padding-top:8px"><span><b>Debería haber</b></span><b style="font-size:20px">' + money(c.esp != null && c.st === 'closed' ? c.esp : esperado(c)) + '</b></div></div>';
-    const otros = ['tr', 'tj', 'qr', 'fi'].filter((k) => (p[k] || 0) || (cb[k] || 0));
+    const otros = ['tr', 'tj', 'qr', 'fi', 'ap'].filter((k) => (p[k] || 0) || (cb[k] || 0));
     if (otros.length) h += '<div class="k" style="margin-top:12px"><b>Otros medios</b> (no van a la caja)</div><div class="rows" style="margin:4px 0 0">' + otros.map((k) => r(k === 'fi' ? 'Quedó fiado' : PAY[k], money((p[k] || 0) + (cb[k] || 0)))).join('') + '</div>';
     const mv = Object.keys(c.mv || {}).map((k) => c.mv[k]).sort((a, b) => String(a.h).localeCompare(String(b.h)));
     if (mv.length) h += '<div class="k" style="margin-top:12px"><b>Movimientos</b></div>' + mv.map((m) => mvHtml(m)).join('');
@@ -166,7 +166,7 @@ export function createCaja(X) {
     if (c.ing) l.push('Puse plata: ' + money(c.ing));
     if (c.ret) l.push('Saqué plata: ' + money(c.ret));
     l.push('Debería haber: ' + money(c.esp != null ? c.esp : esperado(c)), 'Contado: ' + money(c.cnt || 0), (c.dif === 0 ? 'Diferencia: justo ✓' : c.dif < 0 ? 'Faltan: ' + money(-c.dif) : 'Sobran: ' + money(c.dif)));
-    ['tr', 'tj', 'qr', 'fi'].forEach((k) => { const v = (p[k] || 0) + (cb[k] || 0); if (v) l.push((k === 'fi' ? 'Quedó fiado' : PAY[k]) + ': ' + money(v)); });
+    ['tr', 'tj', 'qr', 'fi', 'ap'].forEach((k) => { const v = (p[k] || 0) + (cb[k] || 0); if (v) l.push((k === 'fi' ? 'Quedó fiado' : PAY[k]) + ': ' + money(v)); });
     if (c.cnt != null) l.push('Queda en la caja para el próximo turno: ' + money(c.deja != null ? c.deja : c.cnt));
     if (c.nota) l.push('Nota: ' + c.nota);
     return l.join('\n');

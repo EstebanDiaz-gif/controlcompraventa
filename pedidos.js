@@ -303,7 +303,7 @@ export function createPedidos(X) {
     if (desde === 'det') cerrarDet();
   }
   // ---------- cobro: el pedido pagado se registra como venta (Resumen, stock y caja), sin pasar por la caja ----------
-  const PAYS = [['ef', '💵', 'Efectivo'], ['tr', '🏦', 'Transferencia'], ['tj', '💳', 'Tarjeta'], ['qr', '📱', 'QR / Mercado Pago']];
+  const PAYS = [['ef', '💵', 'Efectivo'], ['tr', '🏦', 'Transferencia'], ['tj', '💳', 'Tarjeta'], ['qr', '📱', 'QR / Mercado Pago']], PAYS0 = PAYS;  // + las apps de delivery (en cobrarDlg)
   const payDe = (t) => { t = String(t || '').toLowerCase(); return /efect/.test(t) ? 'ef' : /transf/.test(t) ? 'tr' : /tarj|d[eé]bito|cr[eé]dito/.test(t) ? 'tj' : /mercado|qr|online/.test(t) ? 'qr' : ''; };
   function registrar(p, pay, extra) {
     const r = X.cobrar && X.cobrar(p, pay);
@@ -350,7 +350,8 @@ export function createPedidos(X) {
     cerrarDet();
   }
   function cobrarDlg(p, luego) {
-    det = p; const sug = payDe(p.pago) || 'ef', ent = luego === 'entregado';
+    det = p; const ent = luego === 'entregado', AP = (X.apps ? X.apps() : []).map((a) => ['ap:' + a.id, '📲', a.n]), PAYS = PAYS0.concat(AP);
+    const sug = (p.ap && AP.some((x) => x[0] === 'ap:' + p.ap) ? 'ap:' + p.ap : '') || payDe(p.pago) || 'ef';
     hoja('<div class="pgr"></div><h3>' + (ent ? '¿Ya lo cobraste?' : '¿Cómo pagó?') + '</h3><div class="pds">#' + esc(codPedido(p.id)) + ' · ' + esc(nombre(p)) + ' · <b>' + money(p.tot || 0) + '</b>' + (p.paga > 0 ? ' · abona con ' + money(p.paga) + ' (vuelto ' + money(Math.max(0, p.paga - (p.tot || 0))) + ')' : '') + '</div>' +
       '<div class="pds" style="margin-top:6px">La venta queda registrada en el Resumen y se descuenta del stock.</div>' +
       '<div class="pes">' + PAYS.map((x) => '<button type="button" data-pd="cob" data-pay="' + x[0] + '"' + (ent ? ' data-luego="entregado"' : '') + ' class="' + (x[0] === sug ? 'on' : '') + '">' + x[1] + ' ' + x[2] + (x[0] === sug && p.pago ? ' · eligió el cliente' : '') + '</button>').join('') + '</div>' +
