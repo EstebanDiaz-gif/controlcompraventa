@@ -782,11 +782,14 @@ function uiProm(){var e=$('uiprom');if(!e)return;var v=UIM=='clasica'&&!uiGas()&
 e.innerHTML=v?'<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span style="font-size:26px">✨</span><div style="flex:1;min-width:0"><b>Hay un diseño nuevo de la app</b><div class="k" style="margin-top:2px">Más ordenado, con Inicio y versión para la compu. Probalo: podés volver a este cuando quieras.</div></div></div><div style="display:flex;gap:8px;margin:-4px 0 14px"><button class="go" id="uiprv" style="margin:0;flex:1">Ver los diseños</button><button class="go alt" id="uipno" style="margin:0;width:auto;padding:0 16px">Ahora no</button></div>':'';
 if(v){$('uiprv').onclick=uiElegir;$('uipno').onclick=function(){uiGuardar('clasica');uiProm()}}}
 function buildTabs(){
-UIM=uiNow();uiAplicar(UIM);var nueva=UIM!='clasica'&&!SOP;
+UIM=uiNow();uiAplicar(UIM);var nueva=UIM!='clasica'&&!SOP,conMas=true;
 var tabs=tabsFor(),mk={};
-if(nueva){uiTabs(tabs,biz()).forEach(function(t){mk[t[0]]=t[2]});tabs=[['ini','Inicio']].concat(tabs)}
-UIX=nueva?tabs.filter(function(t){return t[0]!='ini'&&!mk[t[0]]}):[];
-$('tabs').innerHTML=tabs.map(function(t){var tx=nueva&&t[0]!='ini'&&!mk[t[0]];return '<button data-t="'+t[0]+'"'+(tx?' class="tx"':'')+'>'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('')+(nueva?masBoton():'');AG.badge();uiProm();
+// Barra de abajo para todos: 4 lugares + "Más" (con el resto y Apariencia). Con Inicio (la Nueva, o gastronomía siempre) quedan 3 secciones más.
+if(nueva&&!tabs.some(function(t){return t[0]=='ini'}))tabs=[['ini','Inicio']].concat(tabs);
+var conIni=tabs.some(function(t){return t[0]=='ini'});
+uiTabs(tabs.filter(function(t){return t[0]!='ini'}),uiGas()?'gas':biz(),conIni?3:4).forEach(function(t){mk[t[0]]=t[2]});
+UIX=tabs.filter(function(t){return t[0]!='ini'&&!mk[t[0]]});
+$('tabs').innerHTML=tabs.map(function(t){var tx=conMas&&t[0]!='ini'&&!mk[t[0]];return '<button data-t="'+t[0]+'"'+(tx?' class="tx"':'')+'>'+ICON[t[0]]+'<span>'+t[1]+'</span></button>'}).join('')+(conMas?masBoton():'');AG.badge();uiProm();
 var ok=TAB=='promo'&&ROLE=='admin'||tabs.some(function(t){return t[0]==TAB});show(ok?TAB:tabs[0][0])}
 
 /* ---------- cuenta pausada o vencida: se bloquean todas las pantallas ---------- */
@@ -896,7 +899,7 @@ function commOf(uid){var c=CS&&CS.comm&&CS.comm[uid];return c!=null?+c:((CS&&+CS
 function payPct(m){var p=(CS&&CS.pay)||{};return +p[m]||0}
 var PAYN={ef:'Efectivo',tr:'Transferencia',tj:'Tarjeta'};
 function tabsFor(){var b=biz(),t;
-if(b=='almacen'&&gasNow())t=ROLE=='admin'?[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['res','Resumen'],['team','Equipo']]:[['ini','Inicio'],['caja','Caja'],['stk','Stock']];
+if(b=='almacen'&&gasNow())t=ROLE=='admin'?[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['res','Resumen'],['fia','Fiado'],['gas','Gastos'],['team','Equipo']]:[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['fia','Fiado']];
 else if(b=='almacen')t=ROLE=='admin'?[['caja','Caja'],['fia','Fiado'],['stk','Stock'],['res','Resumen'],['gas','Gastos'],['team','Equipo']]:[['caja','Caja'],['fia','Fiado'],['stk','Stock']];
 else if(ROLE=='admin'){
 if(b=='productos')t=[['caja',CJL()],['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
@@ -906,7 +909,7 @@ else t=b=='productos'?[['caja',CJL()],['fia','Fiado'],['stk','Stock']]:b=='servi
 if(b=='servicios'&&!(CS&&CS.caja===false)){var ip=0;t.forEach(function(x,i){if(x[0]=='att')ip=i+1});t.splice(ip,0,['caja','Caja'])}
 if(SOP)t=[['stk','Stock'],['team','Equipo']];
 if(IS_OWNER)t.push(['plat','Empresas']);return t}
-function show(t){if(t=='promo'&&TAB!='promo')PREVTAB=TAB;TAB=t;paintTr();Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.t==t)});
+function show(t){if(t=='promo'&&TAB!='promo')PREVTAB=TAB;TAB=t;paintTr();Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.uimas?UIX.some(function(x){return x[0]==t}):b.dataset.t==t)});
 ['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd','ini','apd'].forEach(function(i){$('s-'+i).hidden=i!=t});
 if(lockState()){drawLock();return}
 if(t=='ini'&&biz()!='almacen'){iniDraw();return}
@@ -934,7 +937,7 @@ var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#FFD6AA','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(SOP?'soporte':ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v=='__vend'){this.value=SID;openVend()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
-a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(SID&&!uiGas()?' · <button class="x" id="uiap" style="font-size:13px;text-decoration:underline">Apariencia</button>':'')+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
+a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(SID?' · <button class="x" id="uiap" style="font-size:13px;text-decoration:underline">Apariencia</button>':'')+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
 $('out').onclick=function(){salir()};if($('uiap'))$('uiap').onclick=uiElegir;
 if($('instb'))$('instb').onclick=function(){if(!INSTP)return;INSTP.prompt();INSTP.userChoice.finally(function(){INSTP=null;drawAcct()})}}
 // Instalar como app (en la compu queda con su ventana propia y su ícono, como un programa).

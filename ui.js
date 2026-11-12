@@ -1,4 +1,4 @@
-// Interfaces de la app (comercios, tiendas y servicios; gastronomía tiene la suya y no cambia):
+// Interfaces de la app (todos los rubros; gastronomía conserva su Inicio y su caja por canal en las tres):
 //   Clásica      — la de siempre (sigue el modo claro/oscuro del celular).
 //   Nueva clara  — azul Pekeron, tarjetas blancas, Inicio con lo importante, barra con 4 secciones + "Más",
 //                  y en la compu el menú pasa al costado.
@@ -15,7 +15,6 @@ export const UI_DESDE = Date.parse('2026-11-12T00:00:00-03:00');
 const KEY = 'pk_ui';
 
 export function uiModo(o) {
-  if (o && o.gas) return 'clasica';
   let v = ''; try { v = localStorage.getItem(KEY) || ''; } catch (e) {}
   if (UIS.some((u) => u[0] === v)) return v;
   return o && o.creada && o.creada >= UI_DESDE ? 'clara' : 'clasica';
@@ -35,11 +34,12 @@ export function uiAplicar(modo) {
 }
 
 // Qué secciones van en la barra de abajo (en el celular); el resto queda en "Más". En la compu se ven todas al costado.
-const PRIM = { almacen: ['caja', 'stk', 'fia'], productos: ['caja', 'stk', 'res'], ambos: ['agd', 'caja', 'stk'], servicios: ['agd', 'att', 'res'] };
-export function uiTabs(tabs, biz) {
+const PRIM = { gas: ['caja', 'stk', 'res', 'fia'], almacen: ['caja', 'stk', 'fia', 'res'], productos: ['caja', 'stk', 'res', 'add'], ambos: ['agd', 'caja', 'stk', 'res'], servicios: ['agd', 'att', 'res', 'caja'] };
+export function uiTabs(tabs, biz, n) {
+  n = n || 3;
   const p = PRIM[biz] || PRIM.productos, ks = tabs.map((t) => t[0]);
-  const prim = p.filter((k) => ks.indexOf(k) >= 0);
-  ks.forEach((k) => { if (prim.length < 3 && prim.indexOf(k) < 0) prim.push(k); });
+  const prim = p.filter((k) => ks.indexOf(k) >= 0).slice(0, n);
+  ks.forEach((k) => { if (prim.length < n && prim.indexOf(k) < 0) prim.push(k); });
   return tabs.map((t) => [t[0], t[1], prim.indexOf(t[0]) >= 0]);
 }
 
@@ -98,9 +98,9 @@ const CSS = [
   '[data-ui="n"] .go{border-radius:16px}[data-ui="n"] input,[data-ui="n"] select,[data-ui="n"] textarea{border-radius:14px}',
   '[data-ui="n"] .tabs{background:var(--nav);border-top:1px solid var(--line);box-shadow:0 -6px 24px rgba(15,27,61,.06)}',
   '[data-ui="n"] .tabs button.on{color:var(--sell)}[data-ui="n"] .tabs button.on::before{background:var(--sell)}',
-  '.tabs .tmas{display:none}[data-ui="n"] .tabs .tmas{display:flex;flex:1;max-width:116px;background:none;border:0;color:var(--mut);flex-direction:column;align-items:center;gap:3px;padding:9px 2px 4px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}',
-  '[data-ui="n"] .tabs .tmas svg{width:22px;height:22px;stroke:currentColor;fill:currentColor;stroke-width:1}',
-  '[data-ui="n"] .tabs button.tx{display:none}',
+  // Barra de abajo (todas las interfaces, menos gastronomía): 4 secciones + "Más" con el resto y Apariencia.
+  '.tabs .tmas{cursor:pointer}.tabs .tmas svg{fill:currentColor!important;stroke-width:1!important}',
+  '.tabs button.tx{display:none}',
   // ---------- Nueva en la compu: menú al costado ----------
   '@media (min-width:960px){',
   '[data-ui="n"] body{padding-left:248px}',
