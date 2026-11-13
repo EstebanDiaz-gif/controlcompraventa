@@ -161,3 +161,13 @@ test('apps de delivery: semanas de lunes a domingo, comisión, recargo y configu
     [{ id: 'ubereats', n: 'Uber Eats', com: 30, rec: 15 }, { id: 'pedidosya', n: 'PedidosYa', com: 90, rec: 0 }, { id: 'ubereatsx', n: 'Otra', com: 0, rec: 0 }]);
   assert.equal(payLabel({ pay: 'ap', apn: 'Uber Eats' }), 'Uber Eats');
 });
+
+import { findByCode, codigosDe } from './scanner.js';
+test('un producto con varios códigos se encuentra escaneando cualquiera', () => {
+  const l = [{ id: 'a', n: 'Pepsi 2 L', s: '7791813421535', s2: ['7791813421542'] }, { id: 'b', n: 'Yerba', s: '7790123400001' }];
+  assert.equal(findByCode(l, '7791813421542').id, 'a');
+  assert.equal(findByCode(l, '7791813421535').id, 'a');
+  assert.equal(findByCode(l, '7790123400001').id, 'b');
+  assert.equal(findByCode(l, '123'), null);
+  assert.deepEqual(codigosDe(l[0]), ['7791813421535', '7791813421542']);
+});

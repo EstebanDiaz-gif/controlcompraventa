@@ -20,7 +20,7 @@ import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv, limpiarApps, lunes, semanasApp, semanaTxt, apTotal, apNeto, APPS_SUG, appId, apEstilo, apNombreHtml } from './almacen-calc.js';
 import { esGas } from './plans.js';
-import { openScanner, scanButton, findByCode, beep, canScan } from './scanner.js';
+import { openScanner, scanButton, findByCode, codigosDe, beep, canScan } from './scanner.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
 import { CAMPOS, CAMPOS_FIADO, filas, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
@@ -422,7 +422,7 @@ export function createAlmacen(X) {
   }
   function results() {
     if (!S.q.trim() && !S.cat) return null;
-    return P().filter((p) => (!S.cat || p.cat === S.cat) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.q) || (S.q.trim() && findByCode([p], S.q))))
+    return P().filter((p) => (!S.cat || p.cat === S.cat) && (match(p.n + ' ' + codigosDe(p).join(' ') + ' ' + p.cat, S.q) || (S.q.trim() && findByCode([p], S.q))))
       .sort((a, b) => a.n.localeCompare(b.n)).slice(0, 40);
   }
   function renderRes() {
@@ -442,7 +442,7 @@ export function createAlmacen(X) {
     let p = findByCode(P(), q);
     if (!p) { const r = results() || []; if (r.length === 1) p = r[0]; }
     if (!p) { const bl = balLine(q); if (bl) { if (bl.err) { beep(false); alert(bl.err); return; } beep(true); S.cart.push(bl.line); S.last = ''; clearSearch(); renderCart(); return; } }
-    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) { beep(false); if (load() && confirm('El código ' + q + ' no está cargado. ¿Lo cargás ahora?')) qkModal(q, (np) => addProd(np)); } // código que no existe
+    if (p) { if (p.pn) beep(true); addProd(p); } else if (/^\d{6,}$/.test(q)) { beep(false); if (load()) { clearSearch(true); offerNew(q, (np) => addProd(np)); } else alert('El código ' + q + ' no está cargado. Avisale a quien carga los productos.'); } // código que no existe
   }
   function clearSearch(noFocus) { S.q = ''; const qi = $('cjq'); if (qi) { qi.value = ''; renderRes(); if (!noFocus) qi.focus(); } }
   // Producto sin precio: se lo pone ahí mismo, al cobrar. Quien puede cargar productos lo deja guardado en el producto;
@@ -1170,7 +1170,7 @@ export function createAlmacen(X) {
     const cb = $('acatbar') || (() => { const e = document.createElement('div'); e.id = 'acatbar'; $('acats').after(e); return e; })();
     const pe = S.pubErr && adm() ? '<div class="bn warn" style="margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">⚠️ El catálogo online no se pudo actualizar. ' + esc(S.pubErr) + '</span><button type="button" class="go" data-al="pubre" style="margin:0;width:auto;padding:10px 14px">Reintentar</button></div>' : '';
     cb.innerHTML = pe + (S.stCat && adm() && X.canWrite() ? '<div style="display:flex;align-items:center;gap:10px;margin:2px 2px 10px;flex-wrap:wrap"><b style="font-size:15px">🗂️ ' + esc(S.stCat) + '</b><span class="k" style="margin:0">' + all.filter((p) => p.cat === S.stCat).length + ' productos</span><button type="button" class="x" data-al="catren" style="margin-left:auto;font-size:14px;font-weight:800;text-decoration:underline;color:var(--sell)">✏️ Cambiar nombre</button></div>' : '');
-    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
+    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + codigosDe(p).join(' ') + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
     h += '<div class="card">';
@@ -1202,12 +1202,13 @@ export function createAlmacen(X) {
   function prodForm(id, code) {
     const p = id ? prod(id) : null;
     if (id && !p) return;
-    S.edit = { id: id || null, img: undefined };
+    S.edit = { id: id || null, img: undefined, s2: p && Array.isArray(p.s2) ? p.s2.slice() : [] };
     const c = p || { n: '', s: code || '', cat: S.stCat || '', w: false, pn: '', c: '', q: '', min: '' };
     const catOpts = catOptions(c.cat || '');
     let h = '<button class="x" data-al="cancel" style="font-size:14px;text-decoration:underline;margin-bottom:10px">← Volver al stock</button><div class="card"><b style="font-size:19px">' + (p ? 'Editar producto' : 'Producto nuevo') + '</b>' +
       '<label>Nombre</label><input id="fn" autocomplete="off" maxlength="80" placeholder="Ej: Coca-Cola 2,25 L" value="' + esc(c.n) + '">' +
       '<label>Código de barras o código propio (opcional)</label><div style="display:flex;gap:8px;align-items:center"><input id="fs" autocomplete="off" maxlength="40" placeholder="Ej: 7790895000997" style="flex:1;min-width:0" value="' + esc(c.s) + '">' + scanButton('scanfs') + '</div>' +
+      '<div id="fs2box"></div>' +
       (cfgBal() && cfgBal().on ? '<div class="k" style="margin-top:4px">⚖️ Si se pesa en la balanza, poné acá su número de producto en la balanza (PLU), por ejemplo 123.</div>' : '') +
       '<label>Categoría</label><select id="fc"><option value="">Sin categoría</option>' + catOpts + '</select>' +
       '<label>Descripción para el catálogo (opcional)</label><textarea id="fdsc" maxlength="160" rows="2" placeholder="Ej: Dulce de leche clásico, pote de 200 g." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">' + esc(c.d || '') + '</textarea>' +
@@ -1222,8 +1223,8 @@ export function createAlmacen(X) {
       '<label>Precio anterior (opcional)</label><input id="fpa" type="number" inputmode="decimal" min="0" placeholder="Ej: 2200" value="' + (c.pa || '') + '"><div class="k" style="margin-top:6px">Se muestra tachado en el catálogo, con el % de descuento. Tiene que ser mayor que el precio de venta.</div>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="fdt" type="checkbox" style="width:auto"' + (c.dt ? ' checked' : '') + '> ⭐ Destacar en el catálogo (sale arriba, en el carrusel)</label>' +
       '<label style="display:flex;gap:10px;align-items:center;margin-top:14px;font-weight:600"><input id="foh" type="checkbox" style="width:auto"' + (c.oh ? ' checked' : '') + '> No mostrar en el catálogo</label>' +
-      '<button class="go" data-al="savep">Guardar</button>' + (p && adm() ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:#b3261e">Eliminar este producto</button>' : '') + '</div>';
-    $('s-stk').innerHTML = h;
+      '<button class="go" data-al="savep">Guardar</button>' + (p && load() ? '<button class="go alt" data-al="unir" style="margin-top:8px">🔗 Unir con otro producto (está repetido)</button>' : '') + (p && adm() ? '<button class="x" data-al="delp" style="display:block;margin:18px auto 0;font-size:14px;text-decoration:underline;color:#b3261e">Eliminar este producto</button>' : '') + '</div>';
+    $('s-stk').innerHTML = h; s2Draw();
     S.edit.w = !!c.w; S.edit.op = limpiarOps(c.op); opsDraw();
     $('fops').onclick = opsClick; $('fops').onchange = (e) => { if (e.target.classList.contains('opm')) { opsRead(); opsDraw(); } };
     const mg = () => { const pn = +$('fpn').value, co = +$('fco').value; $('fmg').textContent = pn > 0 && co > 0 ? 'Ganás ' + money(pn - co) + (S.edit.w ? ' por kilo' : ' por unidad') + ' (' + Math.round((pn - co) / pn * 100) + '% del precio)' : ''; };
@@ -1300,6 +1301,54 @@ export function createAlmacen(X) {
     window.addEventListener('keydown', tecla, true);
     pinta();
   }
+  // Otros códigos del mismo producto (otro envase, código viejo del proveedor…).
+  function s2Draw() {
+    const e = $('fs2box'); if (!e || !S.edit) return;
+    const l = S.edit.s2 || [];
+    e.innerHTML = '<details' + (l.length ? ' open' : '') + ' style="margin-top:8px"><summary style="cursor:pointer;font-weight:700;color:var(--sell);font-size:14.5px">' + (l.length ? '🔗 Otros códigos de este producto (' + l.length + ')' : '+ Tiene otro código (otro envase, mismo producto)') + '</summary>' +
+      '<div class="k" style="margin:6px 0">Por ejemplo, la misma gaseosa en envase retornable y descartable. Se escanea cualquiera y es este producto: un solo stock y un solo precio.</div>' +
+      (l.length ? '<div class="chips" style="margin:6px 0">' + l.map((c, i) => '<span class="ch on" style="display:inline-flex;align-items:center;gap:6px">' + esc(c) + '<button type="button" data-al="s2del" data-i="' + i + '" aria-label="Quitar el código ' + esc(c) + '" style="border:0;background:none;color:inherit;font-size:17px;line-height:1;cursor:pointer;padding:0 2px">×</button></span>').join('') + '</div>' : '') +
+      '<div style="display:flex;gap:8px;align-items:center"><input id="fs2" autocomplete="off" maxlength="40" placeholder="Escaneá o escribí el otro código" style="flex:1;min-width:0">' + scanButton('scanfs2') + '<button type="button" class="go alt" data-al="s2add" style="margin:0;width:auto;padding:0 14px;height:52px">Agregar</button></div></details>';
+    const f = $('fs2'); if (f) f.onkeydown = (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); s2Add(f.value); } };
+  }
+  function s2Add(code) {
+    code = String(code || '').trim().slice(0, 40); if (!code || !S.edit) return;
+    const E = S.edit, prin = ($('fs') && $('fs').value.trim()) || '';
+    if (code.toLowerCase() === prin.toLowerCase() || E.s2.some((c) => c.toLowerCase() === code.toLowerCase())) { alert('Ese código ya está en este producto.'); return; }
+    const dup = findByCode(P().filter((x) => x.id !== E.id), code);
+    if (dup) { alert('Ese código ya es de "' + dup.n + '". Si son el mismo producto, abrí este y tocá "Unir con otro producto".'); return; }
+    if (E.s2.length >= 10) { alert('Hasta 10 códigos por producto.'); return; }
+    E.s2.push(code); beep(true); s2Draw(); const f = $('fs2'); if (f) f.focus();
+  }
+  // Unir dos productos que en realidad son el mismo: este se queda (con su precio), suma el stock y los códigos del otro, y el otro se borra.
+  function unirDlg() {
+    const E = S.edit, p = E && prod(E.id); if (!p) return;
+    const o = modal('<b style="font-size:19px">Unir con otro producto</b><div class="k" style="margin-top:4px">Elegí el producto repetido. Se suma su stock y sus códigos a <b>' + esc(p.n) + '</b>, y el repetido se borra.</div>' +
+      '<input id="un_q" type="search" placeholder="Buscar por nombre o código" autocomplete="off" style="margin-top:12px"><div id="un_l" style="max-height:52vh;overflow:auto"></div>' +
+      '<button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
+    const q = o.querySelector('#un_q'), list = o.querySelector('#un_l');
+    const pal = p.n.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    const draw = () => {
+      const t = q.value.trim(), l = P().filter((x) => x.id !== p.id && (t ? match(x.n + ' ' + codigosDe(x).join(' ') + ' ' + x.cat, t) : pal.some((w) => x.n.toLowerCase().indexOf(w) >= 0))).sort((a, b) => a.n.localeCompare(b.n)).slice(0, 40);
+      list.innerHTML = l.map((x) => '<button class="pl" data-uid="' + esc(x.id) + '"><span><b>' + esc(x.n) + '</b><small>' + (codigosDe(x).length ? 'código ' + esc(codigosDe(x).join(', ')) : 'sin código') + ' · ' + (x.ns ? 'sin control de stock' : 'stock ' + fq(x.q, x.w)) + '</small></span><b>' + priceTxt(x) + '</b></button>').join('') || '<div class="empty">' + (t ? 'No encontré productos con eso.' : 'Escribí el nombre del producto repetido.') + '</div>';
+    };
+    q.oninput = draw; draw(); setTimeout(() => q.focus(), 50);
+    list.onclick = (ev) => {
+      const b = ev.target.closest('[data-uid]'); if (!b) return;
+      const x = prod(b.dataset.uid); if (!x) return;
+      if (!!x.w !== !!p.w) { alert('No se pueden unir un producto por peso y uno por unidad.'); return; }
+      const qq = p.ns || x.ns ? null : r3((+p.q || 0) + (+x.q || 0));
+      if (!confirm('¿Unir "' + x.n + '" dentro de "' + p.n + '"?\n\n• Queda "' + p.n + '"' + (x.pn !== p.pn ? ' con su precio ' + money(p.pn) + ' (el otro estaba a ' + money(x.pn) + ')' : '') + '.\n' + (qq !== null ? '• Stock: ' + fq(p.q, p.w) + ' + ' + fq(x.q, x.w) + ' = ' + fq(qq, p.w) + '.\n' : '') + '• Se escanea con los códigos de los dos.\n• "' + x.n + '" se borra (las ventas ya hechas quedan en los resúmenes).')) return;
+      const prin = p.s || x.s || '', cods = [];
+      codigosDe(p).concat(codigosDe(x)).concat(E.s2 || []).forEach((c) => { if (c && c.toLowerCase() !== prin.toLowerCase() && !cods.some((y) => y.toLowerCase() === c.toLowerCase())) cods.push(c); });
+      const upd = { s: prin, s2: cods.length ? cods.slice(0, 10) : deleteField() };
+      if (qq !== null && (+x.q || 0)) upd.q = increment(+x.q || 0);
+      if (!p.img && x.img) { upd.img = x.img; if (x.hd) upd.hd = 1; }
+      if (!p.cat && x.cat) upd.cat = x.cat;
+      const bt = writeBatch(db); bt.set(ref('stock', p.id), upd, { merge: true }); bt.delete(ref('stock', x.id)); bt.delete(ref('public', fotoId(x.id)));
+      bt.commit().then(() => { o.remove(); closeForms(); alert('Listo: "' + p.n + '" ahora tiene ' + (cods.length + (prin ? 1 : 0)) + ' códigos' + (qq !== null ? ' y ' + fq(qq, p.w) + ' de stock' : '') + '.'); }).catch(failW);
+    };
+  }
   function saveProd() {
     const E = S.edit, p = E.id ? prod(E.id) : null;
     const n = $('fn').value.trim(), s = $('fs').value.trim(), cat = $('fc').value === '__new' ? '' : $('fc').value, pn = +$('fpn').value || 0, co = +$('fco').value || 0;
@@ -1312,13 +1361,15 @@ export function createAlmacen(X) {
     const d = $('fdsc').value.trim().replace(/\s+/g, ' ').slice(0, 160), pa = +$('fpa').value || 0, dt = $('fdt').checked ? (p && dtOk(p.dt) ? p.dt : 1 + Math.max(0, ...P().map((x) => (dtOk(x.dt) ? x.dt : 0)))) : false;
     if (pn < 0 || co < 0 || pa < 0) { alert('Los precios no pueden ser negativos.'); return; }
     if (pa > 0 && pa <= pn) { alert('El precio anterior tiene que ser mayor que el precio de venta (' + money(pn) + '). Si no hay descuento, dejalo vacío.'); return; }
-    if (s && P().some((x) => x.id !== E.id && x.s && x.s.toLowerCase() === s.toLowerCase())) { alert('Ya hay otro producto con el código ' + s + '.'); return; }
+    if (s) { const dup = findByCode(P().filter((x) => x.id !== E.id), s); if (dup) { alert('Ya hay otro producto con el código ' + s + ': "' + dup.n + '".'); return; } }
+    const fs2 = $('fs2'); if (fs2 && fs2.value.trim()) { s2Add(fs2.value); if (fs2.value.trim() && E.s2.indexOf(fs2.value.trim()) < 0) return; }
+    const s2 = (E.s2 || []).filter((c) => c && c.toLowerCase() !== s.toLowerCase());
     if (!E.id && P().some((x) => x.n.toLowerCase() === n.toLowerCase()) && !confirm('Ya existe "' + n + '". ¿Crear otro con el mismo nombre?')) return;
     const id = E.id || 'al_' + X.rnd(10);
     opsRead(); const op = E.w ? [] : limpiarOps(E.op);
     const malo = (E.op || []).find((g) => g.o.some((x) => !x.n) || !g.t);
     if (!E.w && malo) { alert('Completá el nombre de cada grupo y de cada opción (o quitá las que estén vacías).'); return; }
-    const o = { n, s, cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns, op: op.length ? op : deleteField() };
+    const o = { n, s, s2: s2.length ? s2 : deleteField(), cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns, op: op.length ? op : deleteField() };
     const b = writeBatch(db);
     if (E.img !== undefined) {
       o.img = E.img; o.hd = E.hd ? 1 : deleteField(); o.bf = deleteField();   // foto propia: ya no sigue a la base
@@ -1723,8 +1774,8 @@ export function createAlmacen(X) {
   }
   function expStock() {
     const A = adm(), l = P().slice().sort((a, b) => (a.cat || '').localeCompare(b.cat || '') || a.n.localeCompare(b.n));
-    const head = ['Producto', 'Código', 'Categoría', 'Se vende', 'Stock', 'Contado'].concat(A ? ['Costo', 'Precio', 'Valor a costo'] : ['Precio']);
-    bajar('stock-' + X.today() + '.csv', [head].concat(l.map((p) => [p.n, p.s || '', p.cat || '', p.w ? 'por kg' : 'por unidad', p.ns ? 'sin control' : p.q, ''].concat(A ? [p.c || 0, p.pn || 0, p.ns ? '' : Math.round(Math.max(p.q, 0) * (p.c || 0))] : [p.pn || 0]))));
+    const head = ['Producto', 'Código', 'Categoría', 'Se vende', 'Stock', 'Contado'].concat(A ? ['Costo', 'Precio', 'Valor a costo'] : ['Precio']).concat(['Otros códigos']);
+    bajar('stock-' + X.today() + '.csv', [head].concat(l.map((p) => [p.n, p.s || '', p.cat || '', p.w ? 'por kg' : 'por unidad', p.ns ? 'sin control' : p.q, ''].concat(A ? [p.c || 0, p.pn || 0, p.ns ? '' : Math.round(Math.max(p.q, 0) * (p.c || 0))] : [p.pn || 0]).concat([(p.s2 || []).join(' / ')]))));
   }
   // ---------- Etiquetas de balanza ----------
   // La balanza imprime un código que empieza con 2 y trae adentro el código del producto (PLU) y el peso o el importe.
@@ -2200,34 +2251,36 @@ export function createAlmacen(X) {
 
   // ---------- escáner con la cámara (scanner.js) ----------
   const later = (f) => setTimeout(f, 320); // después de que se cierra el escáner
-  const offerNew = (code) => {
+  const offerNew = (code, cb) => {
     if (!load()) { alert('No hay ningún producto con el código ' + code + '.'); return; }
     const o = modal('<b style="font-size:19px">Código ' + esc(code) + '</b><div class="k" style="margin-top:4px">No hay ningún producto con este código. ¿Qué es?</div>' +
-      '<button class="go" id="on_ya">Es un producto que ya cargué</button><div class="k" style="margin-top:6px">Por ejemplo, si lo importaste desde Excel sin código: elegilo y le queda asignado.</div>' +
+      '<button class="go" id="on_ya">Es un producto que ya tengo cargado</button><div class="k" style="margin-top:6px">Por ejemplo, otro envase del mismo producto (retornable y descartable) o uno que importaste sin código: elegilo y le queda este código.</div>' +
       '<button class="go alt" id="on_new">Es un producto nuevo</button><button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
-    o.querySelector('#on_new').onclick = () => { o.remove(); S.repo = null; prodForm(null, code); };
-    o.querySelector('#on_ya').onclick = () => { o.remove(); pickForCode(code); };
+    o.querySelector('#on_new').onclick = () => { o.remove(); if (cb) { qkModal(code, cb); return; } S.repo = null; prodForm(null, code); };
+    o.querySelector('#on_ya').onclick = () => { o.remove(); pickForCode(code, cb); };
   };
   // Asignar un código escaneado a un producto que ya existe (elegido de una lista con buscador).
-  function pickForCode(code) {
-    const o = modal('<b style="font-size:19px">¿A qué producto es?</b><div class="k" style="margin-top:4px">Código ' + esc(code) + '. Primero aparecen los que no tienen código.</div>' +
+  function pickForCode(code, listo) {
+    const o = modal('<b style="font-size:19px">¿A qué producto es?</b><div class="k" style="margin-top:4px">Código ' + esc(code) + '. Si es otro envase de un producto que ya tenés, elegilo y le queda como otro código.</div>' +
       '<input id="pf_q" type="search" placeholder="Buscar por nombre" autocomplete="off" style="margin-top:12px"><div id="pf_l" style="max-height:52vh;overflow:auto"></div>' +
       '<button class="x" data-close="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
     const q = o.querySelector('#pf_q'), list = o.querySelector('#pf_l');
     const draw = () => {
       const l = P().filter((p) => match(p.n + ' ' + p.cat, q.value)).sort((a, b) => (a.s ? 1 : 0) - (b.s ? 1 : 0) || a.n.localeCompare(b.n)).slice(0, 40);
-      list.innerHTML = l.map((p) => '<button class="pl" data-pid="' + esc(p.id) + '"><span><b>' + esc(p.n) + '</b><small>' + (p.s ? 'ya tiene el código ' + esc(p.s) : 'sin código') + (p.cat ? ' · ' + esc(p.cat) : '') + '</small></span><b>' + priceTxt(p) + '</b></button>').join('') || '<div class="empty">No encontré productos con ese nombre.</div>';
+      list.innerHTML = l.map((p) => '<button class="pl" data-pid="' + esc(p.id) + '"><span><b>' + esc(p.n) + '</b><small>' + (codigosDe(p).length ? 'código ' + esc(codigosDe(p).join(', ')) : 'sin código') + (p.cat ? ' · ' + esc(p.cat) : '') + '</small></span><b>' + priceTxt(p) + '</b></button>').join('') || '<div class="empty">No encontré productos con ese nombre.</div>';
     };
     q.oninput = draw; draw(); setTimeout(() => q.focus(), 50);
     list.onclick = (e) => {
       const b = e.target.closest('[data-pid]'); if (!b) return;
       const p = prod(b.dataset.pid); if (!p) return;
-      if (p.s && !confirm('"' + p.n + '" ya tiene el código ' + p.s + '. ¿Lo reemplazo por ' + code + '?')) return;
-      o.remove(); setCode(p, code);
+      if (p.s && !confirm('"' + p.n + '" ya tiene el código ' + p.s + '.\n¿Sumar ' + code + ' como otro código del mismo producto? (por ejemplo, otro envase). Se va a escanear con cualquiera de los dos.')) return;
+      o.remove(); setCode(p, code, listo);
     };
   }
-  function setCode(p, code) {
-    setDoc(ref('stock', p.id), { s: code }, { merge: true }).then(() => {
+  function setCode(p, code, listo) {
+    const nuevo = p.s && p.s.toLowerCase() !== String(code).toLowerCase() ? { s2: (Array.isArray(p.s2) ? p.s2 : []).concat([code]).slice(0, 10) } : { s: code };
+    setDoc(ref('stock', p.id), nuevo, { merge: true }).then(() => {
+      if (listo) { listo(Object.assign({}, p, nuevo)); return; }
       if (S.repo) { S.repo.id = p.id; S.repo.note = 0; renderRepo(); return; }
       // Desde Stock: se abre la ficha del producto para cargar precio de venta y stock contado sin buscarlo de nuevo.
       prodForm(p.id); const f = $('fs'); if (f) f.value = code;
@@ -2252,7 +2305,7 @@ export function createAlmacen(X) {
       onCode(code) {
         const p = findByCode(P(), code);
         if (!p) { const bl = balLine(code); if (bl) { if (bl.err) return { ok: false, msg: bl.err }; S.cart.push(bl.line); S.last = ''; later(() => renderCart()); return { ok: true, msg: '✓ ' + bl.line.n + ' · ' + fq(bl.line.q, true) + ' · ' + money(lineTotal(bl.line)) }; } }
-        if (!p && load()) { later(() => qkModal(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: cargalo y sigue la venta' }; }
+        if (!p && load()) { later(() => offerNew(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: decí qué producto es y sigue la venta' }; }
         if (!p) return { ok: false, msg: 'No hay ningún producto con el código ' + code + '. Avisale a quien carga los productos.' };
         if (!p.pn) { later(() => precioDlg(p, (np) => addProd(np, true))); return { ok: true, close: true, msg: p.n + ': ponele el precio' }; }
         if (p.w) { later(() => weightDlg(p)); return { ok: true, close: true, msg: p.n }; }
@@ -2366,6 +2419,10 @@ export function createAlmacen(X) {
     else if (a === 'fw') { S.edit.w = el.dataset.v === '1'; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); S.edit.lbl(); }
     else if (a === 'savep') saveProd();
     else if (a === 'delp') { if (adm()) delProd(); }
+    else if (a === 's2add') s2Add($('fs2') && $('fs2').value);
+    else if (a === 's2del') { if (S.edit) { S.edit.s2.splice(+el.dataset.i, 1); s2Draw(); } }
+    else if (a === 'unir') unirDlg();
+    else if (a === 'scanfs2') openScanner({ title: 'Escaneá el otro código', onCode(code) { later(() => { const f = $('fs2'); if (f) f.value = code; s2Add(code); }); return { ok: true, close: true, msg: code }; } });
     else if (a === 'cancel') closeForms();
     else if (a === 'repo') repoForm(null);
     else if (a === 'rpick') { S.repo.id = id || null; S.repo.note = 0; renderRepo(); }

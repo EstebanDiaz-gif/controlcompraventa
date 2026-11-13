@@ -83,9 +83,12 @@ export function codeVariants(code) {
   if (/^0\d{12}$/.test(c)) v.push(c.slice(1));
   return v;
 }
+// Un producto puede tener varios códigos: el principal (s) y otros (s2), por ejemplo la misma gaseosa en
+// envase retornable y descartable. Se encuentra escaneando cualquiera.
+export function codigosDe(x) { return [x && x.s].concat(x && Array.isArray(x.s2) ? x.s2 : []).filter(Boolean).map((c) => String(c).trim()); }
 export function findByCode(list, code) {
   const v = codeVariants(code);
-  return list.find((x) => x.s && v.includes(String(x.s).trim().toLowerCase())) || null;
+  return list.find((x) => codigosDe(x).some((c) => v.includes(c.toLowerCase()))) || null;
 }
 
 // Ícono de cámara para los botones.
