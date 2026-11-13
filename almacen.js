@@ -116,21 +116,39 @@ export function createAlmacen(X) {
   // nombre, precio, categoría, foto, o el stock baja de 10 unidades / 5 kg. Espera unos segundos
   // para juntar varios cambios en una sola publicación.
   let pubT = null, pubBusy = false;
-  function publishSoon() { if (!adm() || !S.lista) return; clearTimeout(pubT); pubT = setTimeout(publish, 8000); }
+  function publishSoon() { if (!adm() || !S.lista) return; clearTimeout(pubT); pubT = setTimeout(() => { pubT = null; publish(); }, 8000); }
   function publish() {
     const info = X.pub(), L0 = S.lista;
     if (!X.isAlm() || !adm() || !L0 || !info || !info.enabled || pubBusy) return;
     if (!navigator.onLine) return;
     const L = buildLista(P());
     const dataChanged = L.h !== L0.h, imgChanged = L.hi !== L0.hi;
-    if (!dataChanged && !imgChanged) return;
-    const sid = X.sid(), b = writeBatch(db);
-    if (dataChanged) { L.data.forEach((c, k) => b.set(doc(db, 'stores', sid, 'public', 'lista_d' + k), { p: c })); for (let k = L.data.length; k < (L0.n || 0); k++) b.delete(doc(db, 'stores', sid, 'public', 'lista_d' + k)); }
-    if (imgChanged) { L.imgs.forEach((c, k) => b.set(doc(db, 'stores', sid, 'public', 'lista_i' + k), { f: c })); for (let k = L.imgs.length; k < (L0.ni || 0); k++) b.delete(doc(db, 'stores', sid, 'public', 'lista_i' + k)); }
-    b.set(doc(db, 'stores', sid, 'public', 'lista'), { h: L.h, hi: L.hi, n: L.data.length, ni: L.imgs.length, count: L.count, at: Date.now() });
+    if (!dataChanged && !imgChanged) { if (S.pubErr) { S.pubErr = ''; if (X.tab() === 'stk') renderStock(); } return; }
+    // Firebase no acepta envíos de más de 10 MB: con muchas fotos, mandar todo junto fallaba y el catálogo no se
+    // actualizaba nunca (ni nombres ni precios). Ahora va en tandas de hasta ~7 MB, y al final la cabecera.
+    const sid = X.sid(), R = (k) => doc(db, 'stores', sid, 'public', k);
+    const tandasDe = (docs) => { const out = []; let cur = [], tam = 0; docs.forEach((x) => { const z = JSON.stringify(x[1]).length; if (cur.length && (tam + z > 7000000 || cur.length >= 400)) { out.push(cur); cur = []; tam = 0; } cur.push(x); tam += z; }); if (cur.length) out.push(cur); return out; };
+    const subir = (tandas) => tandas.reduce((pr, t) => pr.then(() => { const b = writeBatch(db); t.forEach((x) => b.set(R(x[0]), x[1])); return b.commit(); }), Promise.resolve());
+    const borrar = (ks) => { if (!ks.length) return Promise.resolve(); const b = writeBatch(db); ks.forEach((k) => b.delete(R(k))); return b.commit().catch(() => {}); };
+    const sobranD = [], sobranI = []; for (let k = L.data.length; k < (L0.n || 0); k++) sobranD.push('lista_d' + k); for (let k = L.imgs.length; k < (L0.ni || 0); k++) sobranI.push('lista_i' + k);
     pubBusy = true;
-    b.commit().catch((e) => { if (deny(e)) console.warn('Catálogo: faltan las reglas de public/lista'); }).finally(() => { pubBusy = false; });
+    // Primero nombres, precios y stock (así se ven aunque las fotos tarden o fallen); después las fotos.
+    (dataChanged ? subir(tandasDe(L.data.map((c, k) => ['lista_d' + k, { p: c }])))
+      .then(() => setDoc(R('lista'), { h: L.h, n: L.data.length, count: L.count, hi: L0.hi || '', ni: L0.ni || 0, at: Date.now() }))
+      .then(() => { S.lista = Object.assign({}, L0, { h: L.h, n: L.data.length }); return borrar(sobranD); }) : Promise.resolve())
+      .then(() => (imgChanged ? subir(tandasDe(L.imgs.map((c, k) => ['lista_i' + k, { f: c }])))
+        .then(() => setDoc(R('lista'), { h: L.h, n: L.data.length, count: L.count, hi: L.hi, ni: L.imgs.length, at: Date.now() }))
+        .then(() => borrar(sobranI)) : null))
+      .then(() => { if (S.pubErr) { S.pubErr = ''; if (X.tab() === 'stk') renderStock(); } })
+      .catch((e) => {
+        console.error('Catálogo: no se pudo publicar', e);
+        S.pubErr = deny(e) ? 'Firebase no dejó guardar el catálogo (faltan permisos o reglas).' : /size|payload|too large|exceeds/i.test(String(e && (e.message || e.code))) ? 'Hay una foto demasiado pesada.' : 'Falló la conexión con Firebase (' + String((e && (e.code || e.message)) || e).slice(0, 80) + ').';
+        if (X.tab() === 'stk') renderStock();
+      })
+      .finally(() => { pubBusy = false; });
   }
+  // Si la app se cierra o se minimiza con cambios todavía sin publicar, se publican en ese momento.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && pubT) { clearTimeout(pubT); pubT = null; publish(); } });
   function listenHoy() {
     const d = X.today(); if (un.hoy && S.hoyDay === d) return;
     off('hoy'); S.hoyDay = d; S.hoy = [];
@@ -1150,7 +1168,8 @@ export function createAlmacen(X) {
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     filaFin($('acats'));
     const cb = $('acatbar') || (() => { const e = document.createElement('div'); e.id = 'acatbar'; $('acats').after(e); return e; })();
-    cb.innerHTML = S.stCat && adm() && X.canWrite() ? '<div style="display:flex;align-items:center;gap:10px;margin:2px 2px 10px;flex-wrap:wrap"><b style="font-size:15px">🗂️ ' + esc(S.stCat) + '</b><span class="k" style="margin:0">' + all.filter((p) => p.cat === S.stCat).length + ' productos</span><button type="button" class="x" data-al="catren" style="margin-left:auto;font-size:14px;font-weight:800;text-decoration:underline;color:var(--sell)">✏️ Cambiar nombre</button></div>' : '';
+    const pe = S.pubErr && adm() ? '<div class="bn warn" style="margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">⚠️ El catálogo online no se pudo actualizar. ' + esc(S.pubErr) + '</span><button type="button" class="go" data-al="pubre" style="margin:0;width:auto;padding:10px 14px">Reintentar</button></div>' : '';
+    cb.innerHTML = pe + (S.stCat && adm() && X.canWrite() ? '<div style="display:flex;align-items:center;gap:10px;margin:2px 2px 10px;flex-wrap:wrap"><b style="font-size:15px">🗂️ ' + esc(S.stCat) + '</b><span class="k" style="margin:0">' + all.filter((p) => p.cat === S.stCat).length + ' productos</span><button type="button" class="x" data-al="catren" style="margin-left:auto;font-size:14px;font-weight:800;text-decoration:underline;color:var(--sell)">✏️ Cambiar nombre</button></div>' : '');
     const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
@@ -2355,6 +2374,7 @@ export function createAlmacen(X) {
     else if (a === 'precios') preciosDlg();
     else if (a === 'mvcat') mvCatDlg();
     else if (a === 'catren') catRen(S.stCat);
+    else if (a === 'pubre') { S.pubErr = ''; renderStock(); publish(); }
     else if (a === 'fatr') { S.fAtr = !S.fAtr; renderFiList(); }
     else if (a === 'sueltos') abrirSueltos({
       existe: (n) => P().some((p) => sinAc(p.n) === sinAc(n)),

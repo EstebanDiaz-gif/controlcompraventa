@@ -566,7 +566,7 @@ html[data-tema] .hdr{background:rgba(255,255,255,.96)}
 .tmb span.t{display:block;font-size:15px;font-weight:600;max-width:70%}.tmb .cd{display:inline-block;margin-top:10px;border-radius:10px;padding:6px 12px;font-weight:800;font-size:14px}
 .tmb .fl{position:absolute;pointer-events:none}
 .tmb .in{position:relative;z-index:1;max-width:76%}
-@media(prefers-reduced-motion:no-preference){.tmb .fl.a{animation:sway 6s ease-in-out infinite}.tmb .fl.b{animation:sway 7s ease-in-out infinite reverse}}
+@media(prefers-reduced-motion:no-preference){.tmb .fl.a{animation:sway 1.5s ease-in-out 2}.tmb .fl.b{animation:sway 1.5s ease-in-out 2 reverse}}
 @keyframes sway{50%{transform:translateY(-5px) rotate(8deg)}}
 html[data-tema] .card .im[data-bd]::after{content:attr(data-bd);position:absolute;right:8px;bottom:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px rgba(0,0,0,.15)}
 .gift{display:flex;gap:10px;align-items:center;background:var(--soft);border-radius:12px;padding:12px;margin:10px 0;font-weight:700;cursor:pointer}.gift input{width:20px;height:20px;accent-color:var(--b)}
@@ -1226,8 +1226,10 @@ var th=document.createElement('div');th.className='th';box.appendChild(th);
 P.push({el:mk('🕷️',18),len:110,k:'hang',th:th});
 P.push({el:mk('🦇',22),x:-60,y:H*.25,k:'bat',v:0})}
 else for(var j=0;j<cfg.n;j++)P.push({el:mk(cfg.e[j%cfg.e.length],rnd(16,26)),x:rnd(0,W),y:rnd(0,H),a:rnd(0,6),s:rnd(.4,1),k:cfg.t});
-var last=scrollY,vel=0,run=false,tPrev=0;
-function frame(t){var dt=Math.min(50,t-(tPrev||t))/16;tPrev=t;W=innerWidth;H=innerHeight;var d=vel;vel*=0.9;
+var last=scrollY,vel=0,run=false,tPrev=0,fin=false;
+// La animación de temporada es solo de bienvenida: 3 segundos y se desvanece (molestaba si seguía todo el tiempo).
+setTimeout(function(){box.style.transition='opacity .8s';box.style.opacity='0';setTimeout(function(){fin=true;run=false;box.innerHTML='';box.style.display='none'},850)},3000);
+function frame(t){if(fin){run=false;return}var dt=Math.min(50,t-(tPrev||t))/16;tPrev=t;W=innerWidth;H=innerHeight;var d=vel;vel*=0.9;
 P.forEach(function(p){var e=p.el;
 if(p.k=='walk'){var mv=d*0.8*p.dir;p.y+=mv;p.a+=Math.abs(mv)*0.6;if(p.y<-30)p.y=H+20;if(p.y>H+30)p.y=-20;
 var lx=LANES[p.lane]!=null?LANES[p.lane]:W*(p.lane/2),wob=Math.abs(mv)>0.3?Math.sin(p.a)*2:0;
@@ -1240,7 +1242,7 @@ if(p.y>H+30){p.y=-30;p.x=rnd(0,W)}if(p.y<-30){p.y=H+30;p.x=rnd(0,W)}if(p.x<-30)p
 e.style.transform='translate('+p.x+'px,'+p.y+'px) rotate('+(Math.sin(p.a)*15)+'deg)'}});
 var calm=Math.abs(vel)<0.05;var idle=P.some(function(p){return p.k=='fall'||p.k=='rise'||p.k=='fly'||(p.k=='bat'&&p.v)});
 if(!document.hidden&&(!calm||idle))requestAnimationFrame(frame);else run=false}
-function kick(){if(!run){run=true;tPrev=0;fxLanes();requestAnimationFrame(frame)}}
+function kick(){if(fin)return;if(!run){run=true;tPrev=0;fxLanes();requestAnimationFrame(frame)}}
 addEventListener('resize',fxLanes);
 addEventListener('scroll',function(){var y=scrollY;vel=Math.max(-40,Math.min(40,vel*0.5+(y-last)));last=y;kick()},{passive:true});
 document.addEventListener('visibilitychange',function(){if(!document.hidden)kick()});
