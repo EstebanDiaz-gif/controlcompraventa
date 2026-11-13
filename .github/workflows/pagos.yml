@@ -6,6 +6,7 @@
 #   PIXABAY_KEY                      (clave gratis de https://pixabay.com/api/docs/: buscador de fotos publicitarias)
 #   PEXELS_KEY                       (opcional, alternativa a Pixabay: https://www.pexels.com/api/)
 #   FIREBASE_SA                      (JSON de la cuenta de servicio de Firebase: extender abonos)
+#   BREVO_KEY                        (clave de API de https://www.brevo.com: promos por email de los locales)
 name: Servidor de pagos
 on:
   push:
@@ -24,6 +25,7 @@ jobs:
       FIREBASE_SA: ${{ secrets.FIREBASE_SA }}
       PIXABAY_KEY: ${{ secrets.PIXABAY_KEY }}
       PEXELS_KEY: ${{ secrets.PEXELS_KEY }}
+      BREVO_KEY: ${{ secrets.BREVO_KEY }}
     steps:
       - name: Faltan los datos de Cloudflare
         if: ${{ env.CLOUDFLARE_API_TOKEN == '' }}
@@ -47,7 +49,7 @@ jobs:
           if [ -z "$ID" ]; then echo "::error::No pude crear el espacio de datos (KV) en Cloudflare. Revisá que el token tenga permiso de Workers KV."; exit 1; fi
           sed "s/__KV_ID__/$ID/" wrangler.toml.tpl > wrangler.toml
           npx wrangler deploy | tee /tmp/deploy.txt
-          node -e 'const o={};for(const [k,e] of [["MP_CLIENT_ID","MP_CLIENT_ID"],["MP_CLIENT_SECRET","MP_CLIENT_SECRET"],["MP_ACCESS_TOKEN","MP_ACCESS_TOKEN"],["FB_SA","FIREBASE_SA"],["PIXABAY_KEY","PIXABAY_KEY"],["PEXELS_KEY","PEXELS_KEY"]]){const v=(process.env[e]||"").trim();if(v)o[k]=v}
+          node -e 'const o={};for(const [k,e] of [["MP_CLIENT_ID","MP_CLIENT_ID"],["MP_CLIENT_SECRET","MP_CLIENT_SECRET"],["MP_ACCESS_TOKEN","MP_ACCESS_TOKEN"],["FB_SA","FIREBASE_SA"],["PIXABAY_KEY","PIXABAY_KEY"],["PEXELS_KEY","PEXELS_KEY"],["BREVO_KEY","BREVO_KEY"]]){const v=(process.env[e]||"").trim();if(v)o[k]=v}
             if(o.FB_SA){try{const j=JSON.parse(o.FB_SA);if(!j.private_key||!j.client_email)throw 0}catch(e){console.log("::error::FIREBASE_SA no es el JSON de la cuenta de servicio (pegá el archivo completo).");delete o.FB_SA}}
             require("fs").writeFileSync("/tmp/s.json",JSON.stringify(o));console.log("Secretos: "+(Object.keys(o).join(", ")||"ninguno"))'
           if [ "$(cat /tmp/s.json)" != "{}" ]; then npx wrangler secret bulk /tmp/s.json; fi

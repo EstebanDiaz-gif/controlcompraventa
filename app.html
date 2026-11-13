@@ -213,7 +213,7 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <div id="uiprom" hidden></div>
 <div class="tabs" id="tabs"></div>
 <section id="s-add" hidden></section><section id="s-sell" hidden></section><section id="s-res" hidden></section>
-<section id="s-hist" hidden></section><section id="s-stk" hidden></section><section id="s-att" hidden></section><section id="s-svc" hidden></section><section id="s-gas" hidden></section><section id="s-team" hidden></section><section id="s-plat" hidden></section><section id="s-caja" hidden></section><section id="s-ini" hidden></section><section id="s-apd" hidden></section><section id="s-promo" hidden></section><section id="s-fia" hidden></section><section id="s-agd" hidden></section>
+<section id="s-hist" hidden></section><section id="s-stk" hidden></section><section id="s-att" hidden></section><section id="s-svc" hidden></section><section id="s-gas" hidden></section><section id="s-team" hidden></section><section id="s-plat" hidden></section><section id="s-caja" hidden></section><section id="s-ini" hidden></section><section id="s-apd" hidden></section><section id="s-cli" hidden></section><section id="s-promo" hidden></section><section id="s-fia" hidden></section><section id="s-agd" hidden></section>
 <div id="acct" class="k" style="text-align:center;margin-top:8px"></div></div>
 <datalist id="prods"></datalist><div id="pr"></div>
 </main>
@@ -248,6 +248,7 @@ import {TEMAS,temaActivo,temaGeneral,temaEfectivo,cuentaRegresiva,fechaLarga,flo
 import {introTema} from './intro.js';
 import {createPedidos} from './pedidos.js';
 import {createInicio,createInicioCom} from './inicio.js';
+import {createClientes} from './clientes.js';
 import {uiModo,uiAplicar,uiTabs,masBoton,abrirMas,elegirUI,uiGuardar,uiEligio} from './ui.js';
 import {abrirTiketera} from './ticket.js';
 
@@ -372,6 +373,7 @@ var INI=createInicio({$:$,esc:esc,money:money,show:function(t){show(t)},isAdm:fu
 alm:{iniDatos:function(){return ALM.iniDatos()}},pd:{on:function(){return PD.on()},resumen:function(){return PD.resumen()},abrir:function(){PD.abrir()},mesas:function(){PD.mesas()},cocina:function(){PD.cocina()},abiertoCerrado:function(){PD.abiertoCerrado()}},
 catLink:function(){return catLink()},qrMesas:function(){var nm0=+(((PUB||{}).ped||{}).nm)||0,n=nm0||Math.round(+(prompt('¿Cuántas mesas tenés?','10')||0));if(n>0)PD.qrMesas(catLink(),n,SNAME,(PUB||{}).color||'')}});
 function iniDraw(){if(TAB!='ini'||lockState())return;if(uiGas())INI.draw();else INIC.draw()}
+var CLIE=createClientes({db:db,$:$,esc:esc,money:money,sid:function(){return SID},isAdm:function(){return ROLE=='admin'},pub:function(){return PUB},tienda:function(){return SNAME},catLink:function(){return catLink()},fail:function(e){fail(e)},wa:function(t){return waNorm(t)},user:function(){return U},pushFetch:function(p,b){return pushFetch(p,b)}});
 var INIC=createInicioCom({$:$,esc:esc,money:money,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},esGas:function(){return uiGas()},datos:function(){return biz()=='almacen'?ALM.iniCom():iniLegacy()}});
 // Inicio Nuevo para tiendas y servicios (motor de movimientos): las mismas cuentas que el Resumen, para hoy y el mes.
 function iniLegacy(){var hoy=today(),m=hoy.slice(0,7),dd=hoy.slice(8,10),y=+m.slice(0,4),mo=+m.slice(5,7),pm=mo==1?(y-1)+'-12':y+'-'+String(mo-1).padStart(2,'0'),ix=costIdx();
@@ -759,7 +761,7 @@ ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
 function startData(){
-['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;CSOK=false;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
+['stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','prm'].forEach(stop);ALM.stop();AG.stop();CLIE.stop();ATPRE=null;PRM=[];PUB=null;applyTema();CS=null;CSOK=false;SV=[];AT=[];GA=[];GAERR=false;M=[];ST=[];MEM=[];INV=[];
 costosEscuchar();un.stock=onSnapshot(collection(db,'stores',SID,'stock'),function(sn){ST=[];sn.forEach(function(d){var x=d.data();ST.push({id:d.id,n:x.n||'',s:x.s||'',s2:Array.isArray(x.s2)?x.s2.filter(function(c){return typeof c=='string'&&c}):[],z:x.z||'',q:x.q||0,pm:x.pm||0,pn:x.pn||0,img:x.img||'',mm:x.mm||0,oh:!!x.oh,c:x.c||0,cat:x.cat||'',w:!!x.w,min:x.min||0,hd:!!x.hd,d:x.d||'',pa:x.pa||0,dt:x.dt||false,ce:!!x.ce,ns:!!x.ns,op:Array.isArray(x.op)&&x.op.length?x.op:null,nx:x.nx||0,demo:!!x.demo,cb:x.cb||'',bf:!!x.bf})});if(biz()=='almacen')ALM.publishSoon();costosMover();redrawData()},sdErr);
 un.cfs=onSnapshot(doc(db,'stores',SID,'cfg','servicios'),function(sn){var ob=biz(),oc=!(CS&&CS.caja===false),og=gasNow();var cs1=!CSOK;CS=sn.exists()?sn.data():null;CSOK=true;if(window.PD&&PD.on()&&!SOP){PD.start(SID);funAbrir()}syncBiz();if(cs1||biz()!=ob)costosEscuchar();syncCatRubro();if(CJ.enUso())CJ.listen();else CJ.stop();if(biz()!=ob||og!=gasNow()){TAB='';buildTabs()}else if(oc!=!(CS&&CS.caja===false)){buildTabs()}else redrawData()},function(e){if(!CSOK){CSOK=true;costosEscuchar()}syncBiz();sdErr(e)});
 un.svc=onSnapshot(collection(db,'stores',SID,'servicios'),function(sn){SV=[];sn.forEach(function(d){var x=d.data();x.id=d.id;SV.push(x)});redrawData()},sdErr);
@@ -801,7 +803,7 @@ function lockState(){if(!ROLE||!ACC||IS_OWNER||canWrite())return '';return (ACC.
 var LOCKPLAN=false;
 function drawLock(){var k=lockState(),L=$('lock');if(!L)return;var was=!L.hidden;
 L.hidden=!k;$('tabs').hidden=!!k;$('banner').hidden=!!k;
-['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd','ini','apd'].forEach(function(i){var e=$('s-'+i);if(e&&k)e.hidden=true});
+['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd','ini','apd','cli'].forEach(function(i){var e=$('s-'+i);if(e&&k)e.hidden=true});
 if(!k){LOCKPLAN=false;if(was&&TAB)show(TAB);return}
 var adm=ROLE=='admin',wa='https://wa.me/'+SOPORTE_WA+'?text='+encodeURIComponent('Hola, soy '+(adm?'administrador':'parte del equipo')+' de "'+SNAME+'" en Pekeron App. Quiero '+(k=='paused'?'reactivar la cuenta':'renovar el acceso')+'.');
 var ic=k=='paused'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M10 9v6M14 9v6"/></svg>':'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>';
@@ -897,14 +899,15 @@ var ICON={ini:'<svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1
 ICON.caja='<svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M7 9V5h10v4M7 14h2M11 14h2M15 14h2M7 17h10"/></svg>';
 ICON.agd='<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M8 14h2M12 14h2M16 14h0M8 17h2M12 17h2"/></svg>';
 ICON.fia='<svg viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM9 10h6M9 14h6M9 18h3"/></svg>';
+ICON.cli='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c.6-4 3.8-6.5 8-6.5s7.4 2.5 8 6.5"/><path d="M17.5 3.5l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9"/></svg>';
 ICON.plat='<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6l8-3z"/></svg>';
 function biz(){return (CS&&CS.biz)||'productos'}
 function commOf(uid){var c=CS&&CS.comm&&CS.comm[uid];return c!=null?+c:((CS&&+CS.commDefault)||0)}
 function payPct(m){var p=(CS&&CS.pay)||{};return +p[m]||0}
 var PAYN={ef:'Efectivo',tr:'Transferencia',tj:'Tarjeta'};
 function tabsFor(){var b=biz(),t;
-if(b=='almacen'&&gasNow())t=ROLE=='admin'?[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['res','Resumen'],['fia','Fiado'],['gas','Gastos'],['team','Equipo']]:[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['fia','Fiado']];
-else if(b=='almacen')t=ROLE=='admin'?[['caja','Caja'],['fia','Fiado'],['stk','Stock'],['res','Resumen'],['gas','Gastos'],['team','Equipo']]:[['caja','Caja'],['fia','Fiado'],['stk','Stock']];
+if(b=='almacen'&&gasNow())t=ROLE=='admin'?[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['res','Resumen'],['fia','Fiado'],['cli','Clientes'],['gas','Gastos'],['team','Equipo']]:[['ini','Inicio'],['caja','Caja'],['stk','Stock'],['fia','Fiado']];
+else if(b=='almacen')t=ROLE=='admin'?[['caja','Caja'],['fia','Fiado'],['stk','Stock'],['res','Resumen'],['cli','Clientes'],['gas','Gastos'],['team','Equipo']]:[['caja','Caja'],['fia','Fiado'],['stk','Stock']];
 else if(ROLE=='admin'){
 if(b=='productos')t=[['caja',CJL()],['add','Cargar'],['res','Resumen'],['hist','Historial'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
 else if(b=='servicios')t=[['agd','Agenda'],['att','Atender'],['res','Resumen'],['add','Compras'],['fia','Fiado'],['stk','Stock'],['gas','Gastos'],['team','Equipo']];
@@ -914,9 +917,10 @@ if(b=='servicios'&&!(CS&&CS.caja===false)){var ip=0;t.forEach(function(x,i){if(x
 if(SOP)t=[['stk','Stock'],['team','Equipo']];
 if(IS_OWNER)t.push(['plat','Empresas']);return t}
 function show(t){if(t=='promo'&&TAB!='promo')PREVTAB=TAB;TAB=t;paintTr();Array.prototype.forEach.call($('tabs').children,function(b){b.classList.toggle('on',b.dataset.uimas?UIX.some(function(x){return x[0]==t}):b.dataset.t==t)});
-['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd','ini','apd'].forEach(function(i){$('s-'+i).hidden=i!=t});
+['add','sell','res','hist','stk','gas','team','plat','att','svc','caja','fia','promo','agd','ini','apd','cli'].forEach(function(i){$('s-'+i).hidden=i!=t});
 if(lockState()){drawLock();return}
 if(t=='ini'&&biz()!='almacen'){iniDraw();return}
+if(t=='cli'){window.scrollTo(0,0);CLIE.draw();return}
 if(t=='agd'){AG.draw();return}
 if(t=='promo'){window.scrollTo(0,0);PRO.draw();return}
 if(t=='fia'&&biz()!='almacen'){drawFia();return}

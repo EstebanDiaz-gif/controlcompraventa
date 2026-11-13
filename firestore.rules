@@ -62,7 +62,9 @@ service cloud.firestore {
     // Pedido hecho por un cliente desde el catálogo (sin cuenta): solo campos conocidos y con tamaño acotado.
     function pedidoWebOk(id) {
       let t = request.resource.data;
-      return t.keys().hasOnly(['id', 'at', 'st', 'tipo', 'mesa', 'cl', 'tel', 'dir', 'nota', 'it', 'tot', 'env', 'pago', 'paga', 'mp', 'src', 'geo'])
+      return t.keys().hasOnly(['id', 'at', 'st', 'tipo', 'mesa', 'cl', 'tel', 'dir', 'nota', 'it', 'tot', 'env', 'pago', 'paga', 'mp', 'src', 'geo', 'uid', 'em'])
+        && (!('uid' in t) || (signedIn() && t.uid == request.auth.uid))
+        && (!('em' in t) || (t.em is string && t.em.size() <= 120))
         && t.keys().hasAll(['id', 'at', 'st', 'tipo', 'cl', 'it', 'tot', 'src'])
         && t.id == id && id.matches('^[A-Za-z0-9]{16,40}$') && t.src == 'web' && t.st == 'nuevo'
         && t.at is int && t.at > request.time.toMillis() - 600000 && t.at < request.time.toMillis() + 600000
@@ -424,6 +426,31 @@ service cloud.firestore {
             && request.resource.data.keys().hasOnly(['img', 't', 'n', 'at']) && request.resource.data.img is string
             && request.resource.data.img.size() < 950000 && request.resource.data.t in ['image/jpeg', 'application/pdf'];
         }
+      }
+      // Ficha de cada cliente (por teléfono): la suma la app al cobrar un pedido. La lista completa la ve el administrador.
+      match /cg/{k} {
+        allow get: if isMember(sid);
+        allow list: if isAdmin(sid);
+        allow create, update: if isMember(sid) && accessOk(sid);
+        allow delete: if isAdmin(sid);
+      }
+      // Club de sellos: el cliente ve sus sellos en el menú con un código que no deja ver su teléfono (no se puede listar).
+      match /clubp/{h} {
+        allow get: if true;
+        allow create, update: if isMember(sid) && accessOk(sid);
+        allow delete: if isAdmin(sid);
+      }
+      // Clientes registrados en el menú (email/contraseña o Google): cada uno escribe solo su ficha; el administrador las ve.
+      match /cr/{u} {
+        allow get: if (signedIn() && request.auth.uid == u) || isAdmin(sid);
+        allow list: if isAdmin(sid);
+        allow create, update: if signedIn() && request.auth.uid == u
+          && request.resource.data.keys().hasOnly(['n', 'tel', 'em', 'mk', 'mkat', 'at', 'u'])
+          && request.resource.data.em is string && request.resource.data.em.size() <= 120
+          && request.resource.data.get('n', '') is string && request.resource.data.get('n', '').size() <= 60
+          && request.resource.data.get('tel', '') is string && request.resource.data.get('tel', '').size() <= 24
+          && request.resource.data.get('mk', false) is bool;
+        allow delete: if isAdmin(sid) || (signedIn() && request.auth.uid == u);
       }
       match /impresion/{id} {
         allow read, delete: if isMember(sid);

@@ -13,6 +13,7 @@ import { limpiarCfg } from '../../sanguche.js';
 import * as SUS from './suscripciones.js';
 import * as AV from './avisos.js';
 import * as PUSH from './push.js';
+import * as MAIL from './mail.js';
 import { verificar } from './auth.js';
 import { aGet, aSet, aQuery, aFaltantes } from './admin.js';
 
@@ -297,6 +298,13 @@ async function pushRuta(req, env, path) {
   } catch (e) { if (e.http) return err(req, env, e.message, e.http); throw e; }
   return err(req, env, 'No encontrado.', 404);
 }
+// Promo por email de un local a sus clientes registrados (worker/src/mail.js).
+async function mailPromo(req, env) {
+  const tk = tokenDe(req), uid = await verificar(env, tk); if (!uid) return err(req, env, 'Iniciá sesión de nuevo.', 401);
+  const b = await req.json().catch(() => ({})); if (!sidOk(b.sid)) return err(req, env, 'Tienda inválida.');
+  let email = ''; try { email = JSON.parse(atob(tk.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).email || ''; } catch (e) { /* */ }
+  try { return json(req, env, await MAIL.promo(env, uid, email, b, new URL(req.url).origin)); } catch (e) { if (e.http) return err(req, env, e.message, e.http); throw e; }
+}
 // Foto de producto de la base pública (Open Food Facts) para la app, cuando el navegador no la deja bajar directo.
 async function imagen(req, env) {
   const u = new URL(req.url).searchParams.get('u') || '';
@@ -363,18 +371,20 @@ export default {
     const path = new URL(req.url).pathname;
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req, env) });
     try {
-      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!(env.PIXABAY_KEY || env.PEXELS_KEY) });
+      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!(env.PIXABAY_KEY || env.PEXELS_KEY), mail: !!(env.BREVO_KEY && env.MAIL_FROM) });
       if (path === '/mp/vuelta' && req.method === 'GET') return await vuelta(req, env);
       if (path === '/mp/comision') return await comision(req, env);
       if (path === '/mp/webhook') return await webhook(req, env);
       if (path === '/push/clave') return await pushRuta(req, env, path);
       if (path === '/img' && req.method === 'GET') return await imagen(req, env);
+      if (path === '/mail/baja' && req.method === 'GET') return await MAIL.baja(env, new URL(req.url));
       if (req.method !== 'POST') return err(req, env, 'Método no permitido.', 405);
       if (path === '/mp/conectar') return await conectar(req, env);
       if (path === '/mp/estado') return await estado(req, env);
       if (path === '/mp/desconectar') return await desconectar(req, env);
       if (path === '/pagar') return await pagar(req, env);
       if (path === '/fotos/buscar') return await fotosBuscar(req, env);
+      if (path === '/mail/promo') return await mailPromo(req, env);
       if (path.startsWith('/sus/')) return await susRuta(req, env, path);
       if (path.startsWith('/push/') || path.startsWith('/admin/')) return await pushRuta(req, env, path);
       return err(req, env, 'No encontrado.', 404);

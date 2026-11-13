@@ -20,6 +20,7 @@ import { PAGOS_URL } from './pagos-config.js';
 import { combos, descuento, tituloCant, repartir } from './promos.js';
 import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals, newAvgCost, roundPrice, match, lastMonths, buildLista, billetes, partes, payLabel, esperado, balanza, porPlu, ranking, sinVentas, csv, limpiarApps, lunes, semanasApp, semanaTxt, apTotal, apNeto, APPS_SUG, appId, apEstilo, apNombreHtml } from './almacen-calc.js';
 import { esGas } from './plans.js';
+import { sumarPedido } from './clientes.js';
 import { openScanner, scanButton, findByCode, codigosDe, beep, canScan } from './scanner.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
@@ -893,6 +894,7 @@ export function createAlmacen(X) {
       Object.keys(desc).forEach((pid) => { if (desc[pid] > 0) updateDoc(doc(db, 'stores', sid, 'stock', pid), { q: increment(-desc[pid]) }).catch(() => {}); });
       if (S.caja) setDoc(doc(db, 'stores', sid, 'cajas', S.caja.id), { n: increment(1), v: increment(tot), p: payInc }, { merge: true }).catch(() => {});
       if (APP) apSumar(APP.id, APP.n, d, tot);
+      if (p.tel && !APP) sumarPedido(db, sid, p, tot - env, X.pub ? X.pub() : null).catch((e) => console.warn('ficha cliente', e && e.code));
       return v;
     });
   }

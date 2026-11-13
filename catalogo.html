@@ -623,6 +623,7 @@ body.menu .opr.on i{background:var(--ap);border-color:var(--ap)}body.menu .opr.r
 .psteps{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:18px 0 6px}.psteps div{text-align:center;font-size:11.5px;font-weight:700;color:var(--mut)}.psteps i{display:block;height:6px;border-radius:3px;background:var(--line,#e5e5e5);margin-bottom:6px}
 .psteps .on i{background:#1a8f4c}.psteps .on{color:var(--ink,#111)}.psteps .cur i{animation:pedg 1.2s ease-in-out infinite}@keyframes pedg{50%{opacity:.45}}
 .pli{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line,#eee);font-weight:600}.pli small{display:block;color:var(--mut);font-weight:600;font-size:12.5px}
+.clubln{display:flex;gap:8px;align-items:flex-start;background:#FFF7E6;color:#7A4B00;border-radius:14px;padding:11px 13px;margin:10px 0 4px;font-size:14px;line-height:1.35}.clubln b{color:#5A3500}.clubd{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.clubd i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px #F3C77A}.clubd i.on{background:#F59E0B;box-shadow:none}
 .edir{width:100%;box-sizing:border-box;margin:8px 0 4px;padding:13px 14px;border-radius:14px;border:1.5px solid var(--line,#e5e5e5);font:inherit;background:transparent;color:inherit}
 
 /* ================= Compu: ancho completo, todo más grande y fotos nítidas =================
@@ -811,6 +812,8 @@ body.est-retro .ahb .achips a.mapa{background:#fff;border-color:#9cc7e4;color:#1
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {getFirestore,collection,doc,getDoc,getDocs,onSnapshot,writeBatch,query,where,setDoc,updateDoc} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {firebaseConfig} from './firebase-config.js';
+import {createCuenta} from './cuenta-cli.js';
+import {telKey,clubHash,clubCfg} from './clientes.js';
 import {PAGOS_URL} from './pagos-config.js';
 import {fotoId} from './fotos.js';
 import {combos,cantidades,descuento,tituloCant,ahorro} from './promos.js';
@@ -1274,7 +1277,7 @@ else{db=getFirestore(initializeApp(firebaseConfig));
 (sid?Promise.resolve(sid):getDoc(doc(db,'slugs',SLUG)).then(function(s){return s.exists()?(s.data().sid||''):''})).then(function(id){sid=id;if(!sid)throw {nf:1};return Promise.all([getDoc(doc(db,'stores',sid,'public','info')),getDoc(doc(db,'platform','tema')).catch(function(){return null})])}).then(function(rs){var s=rs[0],GL=rs[1]&&rs[1].exists()?rs[1].data():null;
 if(!s.exists()||!s.data().enabled){fail('Este catálogo no está disponible.');return}
 if(s.data().susp){fail('Este catálogo no está disponible por el momento.');return}
-INFO=s.data();ALM=!!INFO.alm;theme();head();tema(GL);almSetup();svSetup();rubroSetup();setTimeout(mpVuelta,300);setTimeout(pedInicio,600);if(INFO.ag)loadAg();
+INFO=s.data();ALM=!!INFO.alm;theme();head();CTA.iniciar();tema(GL);almSetup();svSetup();rubroSetup();setTimeout(mpVuelta,300);setTimeout(pedInicio,600);if(INFO.ag)loadAg();
 onSnapshot(doc(db,'platform','tema'),function(sn){var GL2=sn.exists()?sn.data():null;tema(GL2)});
 // mostrar siempre el link lindo en la barra de direcciones
 if(INFO.slug&&history.replaceState){try{history.replaceState(null,'',BASE+INFO.slug)}catch(e){}}
@@ -1587,10 +1590,18 @@ navigator.geolocation.getCurrentPosition(function(p){GEO={la:Math.round(p.coords
 var MESA=String(Q0.get('mesa')||'').replace(/[^0-9A-Za-z -]/g,'').trim().slice(0,12),PNOTA='',CLI={n:'',t:'',d:''},PEDUN=null,PEDV=null;
 try{var c0=JSON.parse(localStorage.getItem('pk_cli')||'null');if(c0)CLI={n:c0.n||'',t:c0.t||'',d:c0.d||''}}catch(e){}
 function pedOn(){return !!(ALM&&INFO&&INFO.ped&&INFO.ped.on)}
+// Cuenta del cliente (si el local pide registro) y club de sellos
+var CTA=createCuenta({cfg:firebaseConfig,sid:function(){return sid},info:function(){return INFO},cli:function(){return CLI},esc:esc,onCambio:function(){if(!$('sh').hidden&&$('pnm')){var sc=$('sh').scrollTop;sheet();$('sh').scrollTop=sc}}});
+var CLUBC={};
+function clubLinea(){var c=clubCfg(INFO);if(!c.on||MESA)return '';setTimeout(clubCargar,0);return '<div class="clubln" id="clubln">🎁 <span>Club de '+esc(INFO.name||'la casa')+': cada pedido'+(c.min?' de '+money(c.min)+' o más':'')+' suma un sello. Con '+c.n+' te llevás <b>'+esc(c.premio||'un premio')+'</b>.</span></div>'}
+function clubCargar(){var k=telKey(CLI.t);if(!k||!clubCfg(INFO).on)return;if(CLUBC[k]!==undefined){clubMostrar(CLUBC[k]);return}
+clubHash(sid,k).then(function(h){return getDoc(doc(db,'stores',sid,'clubp',h))}).then(function(sn){CLUBC[k]=sn.exists()?Math.max(0,sn.data().s||0):0;clubMostrar(CLUBC[k])}).catch(function(){})}
+function clubMostrar(n){var e=$('clubln'),c=clubCfg(INFO);if(!e)return;var dots='';for(var i=0;i<c.n;i++)dots+='<i'+(i<Math.min(n,c.n)?' class="on"':'')+'></i>';
+e.innerHTML='🎁 <span>'+(n>=c.n?'<b>¡Completaste tu tarjeta!</b> Tu premio: <b>'+esc(c.premio||'un premio')+'</b>. Pedíselo al local (podés escribirlo en las aclaraciones).':'Tenés <b>'+n+' de '+c.n+'</b> sellos. Con este pedido sumás uno más.')+'<span class="clubd">'+dots+'</span></span>'}
 function pedForm(){pagoSel();if(MESA&&!(INFO.ped&&INFO.ped.mesa))MESA='';if(MESA)ENTREGA='ret';if(!EDIR&&CLI.d)EDIR=CLI.d;
 var h=MESA?'<div class="dsc mesa"><span>🍽️ Pedido para la <b>Mesa '+esc(MESA)+'</b></span><span>Te lo llevamos</span></div>':
 '<div class="lbl" style="margin-top:12px">¿Cómo lo recibís?</div><div class="entr"><label><input type="radio" name="entr" value="ret"'+(ENTREGA!='env'?' checked':'')+'> 🏪 Lo retiro en el local</label>'+(envOn()?'<label><input type="radio" name="entr" value="env"'+(ENTREGA=='env'?' checked':'')+'> 🛵 Envío a domicilio'+(+INFO.env.precio?' (+'+money(+INFO.env.precio)+')':'')+'</label>':'')+'</div>';
-h+='<div class="lbl" style="margin-top:12px">Tus datos</div><input class="edir" data-pf="n" id="pnm" placeholder="Tu nombre" maxlength="60" autocomplete="name" value="'+esc(CLI.n)+'">'+
+h+='<div class="lbl" style="margin-top:12px">Tus datos</div>'+CTA.formHtml(MESA)+clubLinea()+'<input class="edir" data-pf="n" id="pnm" placeholder="Tu nombre" maxlength="60" autocomplete="name" value="'+esc(CLI.n)+'">'+
 (MESA?'':'<input class="edir" data-pf="t" id="ptel" type="tel" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" maxlength="24" autocomplete="tel" value="'+esc(CLI.t)+'">')+
 (!MESA&&ENTREGA=='env'?'<input id="edir" class="edir" placeholder="Tu dirección (calle, número, barrio)" maxlength="160" value="'+esc(EDIR)+'" autocomplete="street-address">'+'<button type="button" class="geob'+(GEO?' on':'')+'" data-geo="1">'+(GEO?'✓ Ubicación exacta marcada · el cadete llega directo':'📍 Marcar mi ubicación exacta (recomendado)')+'</button>':'')+
 (!MESA&&PAGO=='ef'?'<input class="edir" data-pf="paga" id="ppaga" type="number" inputmode="numeric" min="0" placeholder="¿Con cuánto pagás? (para el vuelto, opcional)" value="'+esc(CLI.paga||'')+'">':'')+'<input class="edir" data-pf="nota" id="pnota" placeholder="Aclaraciones (opcional): sin sal, timbre 2B…" maxlength="200" value="'+esc(PNOTA)+'">'+
@@ -1600,6 +1611,7 @@ var pedCod=function(id){return String(id||'').slice(-4).toUpperCase()};
 function pedLista(){try{return (JSON.parse(localStorage.getItem('pk_ped_'+sid)||'[]')||[]).filter(function(x){return x&&x.id&&Date.now()-(x.at||0)<12*3600000})}catch(e){return []}}
 function pedGuardar(id){var l=pedLista().filter(function(x){return x.id!=id});l.unshift({id:id,at:Date.now()});try{localStorage.setItem('pk_ped_'+sid,JSON.stringify(l.slice(0,5)))}catch(e){}pedEscuchar(id)}
 function hacerPedido(btn){if(!LASTP)return;var r=LASTP.r,total=LASTP.total,MP=pagoSel(),tipo=MESA?'mesa':(ENTREGA=='env'?'env':'ret');
+if(CTA.falta(MESA)){CTA.abrir(function(){var b=document.querySelector('#shc [data-pedgo]');if(b)hacerPedido(b)});return}
 var nm=String(CLI.n||'').trim(),tel=String(CLI.t||'').replace(/[^\d+ ()-]/g,'').trim();
 if(!nm){alert('Escribí tu nombre, así el local sabe de quién es el pedido.');var a=$('pnm');if(a)a.focus();return}
 if(!MESA&&tel.replace(/\D/g,'').length<6){alert('Escribí tu WhatsApp, así el local te puede avisar.');var b0=$('ptel');if(b0)b0.focus();return}
@@ -1614,7 +1626,8 @@ var nota=String(PNOTA||'').trim();if(TEMA&&TEMAS[TEMA].regalo&&GIFT)nota=('🎁 
 if(MP){o.pago=String(MP.n).slice(0,60);if(MP.id=='mpa')o.mp=true;if(MP.id=='ef'&&!MESA&&+CLI.paga>=Math.round(total))o.paga=Math.round(+CLI.paga)}
 try{localStorage.setItem('pk_cli',JSON.stringify({n:nm,t:tel,d:String(EDIR||'')}))}catch(e){}
 btn.disabled=true;btn.textContent='Enviando tu pedido…';
-var wb=writeBatch(db);wb.set(doc(db,'stores',sid,'pedidos',id),o);wb.commit().then(function(){
+var CU=MESA?null:CTA.usuario(),dbp=CU&&CTA.db()?CTA.db():db;if(CU){o.uid=CU.uid;if(CU.email)o.em=String(CU.email).slice(0,120)}
+var wb=writeBatch(dbp);wb.set(doc(dbp,'stores',sid,'pedidos',id),o);wb.commit().then(function(){
 if(PAGOS_URL)fetch(PAGOS_URL+'/push/pedido',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sid:sid,id:id})}).catch(function(){});
 pedGuardar(id);PNOTA='';CLI.paga='';
 if(o.mp){btn.textContent='Abriendo Mercado Pago…';mpPagar(btn,id);return}
@@ -1709,6 +1722,8 @@ $('shc').innerHTML=h;$('sh').hidden=false;
 Array.prototype.forEach.call(document.querySelectorAll('input[name=entr]'),function(x){x.onchange=function(){ENTREGA=this.value;sheet()}});
 Array.prototype.forEach.call(document.querySelectorAll('#shc input[name=pago]'),function(x){x.onchange=function(){var sc=$('sh').scrollTop;PAGO=this.value;sheet();$('sh').scrollTop=sc}});
 Array.prototype.forEach.call(document.querySelectorAll('#shc [data-pf]'),function(x){x.oninput=function(){var k=this.dataset.pf;if(k=='nota')PNOTA=this.value;else CLI[k]=this.value}});
+var ptl=$('ptel');if(ptl)ptl.addEventListener('change',clubCargar);
+if(CTA.falta(MESA))['pnm','ptel'].forEach(function(i){var e=$(i);if(e)e.style.display='none'});
 var ed=$('edir');if(ed)ed.oninput=function(){EDIR=this.value;CLI.d=this.value;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})};
 var gb=$('gift');if(gb)gb.onchange=function(){GIFT=this.checked;var a=$('wal');if(a)a.href=waLink(r,total);Array.prototype.forEach.call(document.querySelectorAll('[data-wai]'),function(x){x.href=waLink(r,total,WAS[+x.dataset.wai].w)})}}
 function waUrl(w,m){return 'https://wa.me/'+String(w).replace(/\D/g,'')+'?text='+encodeURIComponent(m)}
@@ -1761,6 +1776,8 @@ if(d.share){shareProd();return}
 if(d.wa1){consultWa();return}
 if(d.del!==undefined){CART.splice(+d.del,1);bar();sheet();return}
 if(d.pedgo){hacerPedido(bt);return}
+if(d.cta){CTA.abrir();return}
+if(d.ctsal){CTA.salir();return}
 if(d.geo){geoPedir(bt);return}
 if(d.pst){pedEstado(d.pst);return}
 if(d.pq){var pid=$('sh').dataset.pr;PSEL[pid]=Math.max(1,(PSEL[pid]||1)+ +d.pq);promoSheet(pid);return}
