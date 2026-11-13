@@ -781,6 +781,10 @@ function uiElegir(){elegirUI(UIM,esc,function(){TAB='';buildTabs();drawAcct();wi
 function uiProm(){var e=$('uiprom');if(!e)return;var v=UIM=='clasica'&&!uiGas()&&!SOP&&!uiEligio();e.hidden=!v;
 e.innerHTML=v?'<div class="card" style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span style="font-size:26px">✨</span><div style="flex:1;min-width:0"><b>Hay un diseño nuevo de la app</b><div class="k" style="margin-top:2px">Más ordenado, con Inicio y versión para la compu. Probalo: podés volver a este cuando quieras.</div></div></div><div style="display:flex;gap:8px;margin:-4px 0 14px"><button class="go" id="uiprv" style="margin:0;flex:1">Ver los diseños</button><button class="go alt" id="uipno" style="margin:0;width:auto;padding:0 16px">Ahora no</button></div>':'';
 if(v){$('uiprv').onclick=uiElegir;$('uipno').onclick=function(){uiGuardar('clasica');uiProm()}}}
+// Si una sección no se pudo dibujar, en vez de quedar en blanco muestra qué pasó y un botón para recargar.
+function secErr(t,e){console.error('Sección '+t,e);var b=$('s-'+t);if(!b||b.innerHTML.trim())return;
+b.innerHTML='<div class="card"><b>No se pudo mostrar esta sección</b><div class="k" style="margin-top:4px">Recargá la app. Si vuelve a pasar, mandale una captura a Pekeron App.</div><div class="k" style="margin-top:6px;font-size:12px;opacity:.7">'+esc(String(e&&e.message||e).slice(0,200))+'</div><button class="go" id="secrl">Recargar la app</button></div>';
+$('secrl').onclick=function(){location.reload()}}
 function buildTabs(){
 UIM=uiNow();uiAplicar(UIM);var nueva=UIM!='clasica'&&!SOP,conMas=true;
 var tabs=tabsFor(),mk={};
@@ -918,13 +922,13 @@ if(t=='promo'){window.scrollTo(0,0);PRO.draw();return}
 if(t=='fia'&&biz()!='almacen'){drawFia();return}
 if(t=='caja'&&biz()!='almacen'){if(ventaEnCaja()){type='v';MAN=false}drawCajaTab();return}
 if(t=='add'&&ventaEnCaja()){type='c';MAN=false}
-if(biz()=='almacen'&&['caja','fia','stk','res','ini','apd'].indexOf(t)>=0){ALM.redraw();return}
+if(biz()=='almacen'&&['caja','fia','stk','res','ini','apd'].indexOf(t)>=0){try{ALM.redraw()}catch(er){secErr(t,er)}return}
 if(t=='add')drawAdd();else if(t=='sell')drawSell();else if(t=='att')drawAtt();else if(t=='svc')drawSvc();else if(t=='plat')drawPlat();else redrawData()}
 function redrawData(){
 if(biz()=='productos'||biz()=='ambos')applyEx();
 if(ROLE=='admin'&&isAgBiz())AG.publishSoon();
 if(TAB=='agd'){if(!AG.editing())AG.draw();return}
-if(biz()=='almacen'&&['caja','fia','stk','res','ini','apd'].indexOf(TAB)>=0){ALM.redraw();return}
+if(biz()=='almacen'&&['caja','fia','stk','res','ini','apd'].indexOf(TAB)>=0){try{ALM.redraw()}catch(er){secErr(TAB,er)}return}
 if(TAB=='ini'){iniDraw();return}
 if(TAB=='caja'&&ventaEnCaja()){if($('es'))refreshSell();else if(!(MAN&&type=='v'))drawSell();return}
 if(ROLE=='admin'){if(TAB=='att')drawAtt();else if(TAB=='svc'){var fa=document.activeElement;if(!(fa&&fa.closest&&fa.closest('#s-svc')&&/INPUT|SELECT|TEXTAREA/.test(fa.tagName)))drawSvc()}else if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='gas')drawGas();else if(TAB=='add'){if($('es'))refreshSell();else if($('prods'))fillList()}}

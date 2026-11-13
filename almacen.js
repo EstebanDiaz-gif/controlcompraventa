@@ -336,7 +336,7 @@ export function createAlmacen(X) {
       (c.st === 'open' ? '<b style="color:#1a8f4c">Abierta</b>' : difHtml(c.dif || 0)) + '</button>').join('');
     return h + '</div>';
   }
-  function stop() { clearTimeout(pubT); S.lista = null; S.caja = null; S.cajaErr = false; S.cajasM = null; S.cjmM = null; Object.keys(un).forEach(off); S.cart = []; S.cl = []; S.sel = null; S.edit = null; S.repo = null; S.hoy = []; S.tot = null; S.totM = null; S.dayV = null; S.rcomp = null; }
+  function stop() { clearTimeout(pubT); S.lista = null; S.caja = null; S.cajaErr = false; S.cajasM = null; S.cjmM = null; Object.keys(un).forEach(off); S.cart = []; S.cl = []; S.sel = null; S.edit = null; S.repo = null; if (S.qk) qkStop(); S.imp = null; S.qk = null; S.hoy = []; S.tot = null; S.totM = null; S.dayV = null; S.rcomp = null; }
 
   function redraw() {
     if (!X.isAlm()) return;
@@ -1096,7 +1096,12 @@ export function createAlmacen(X) {
   // =====================================================================
   function drawStock() {
     const box = $('s-stk');
-    if (S.edit || S.repo || S.imp || S.qk) return; // hay un formulario abierto: no lo pisamos
+    // Hay un formulario abierto (producto, reponer, importar, carga rápida): no lo pisamos. Pero si la sección quedó
+    // vacía (la app se recargó por detrás y borró el formulario), lo damos por cerrado; si no, el Stock quedaba en blanco.
+    if (S.edit || S.repo || S.imp || S.qk) {
+      if (box.childElementCount) return;
+      if (S.qk) qkStop(); S.edit = null; S.repo = null; S.imp = null; S.qk = null;
+    }
     if (!$('aq')) {
       box.innerHTML = (load() ? '<div class="row" style="gap:8px;margin-bottom:6px"><button class="go" data-al="newp" style="margin-top:0">+ Producto</button><button class="go alt" data-al="repo" style="margin-top:0">Reponer</button></div>' + herrStock() : '') +
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div class="r1w" style="margin:10px 0 12px"><button type="button" class="r1a l" data-r1="-1" aria-label="Ver categorías anteriores">‹</button><div id="acats" class="chips r1"></div><button type="button" class="r1a r" data-r1="1" aria-label="Ver más categorías">›</button></div><div id="abody"></div>';
