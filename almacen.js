@@ -51,7 +51,7 @@ export function createAlmacen(X) {
   const now = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
   const dmy = (d) => String(d || '').split('-').reverse().join('/');
   const uid = () => Date.now() + '-' + X.rnd(4);
-  const CATL = () => catsFor(X.cs && X.cs() && X.cs().tipo);
+  const CATL = () => { const cs = (X.cs && X.cs()) || {}, off = Array.isArray(cs.catOff) ? cs.catOff : []; return catsFor(cs.tipo).filter((c) => off.indexOf(c) < 0); };
   const cats = () => { const o = {}; CATL().forEach((c) => { o[c] = 0; }); P().forEach((p) => { if (p.cat) o[p.cat] = (o[p.cat] || 0) + 1; }); return o; };
   // Opciones de categoría: las sugeridas + las que ya usa el negocio + "Nueva categoría…" (la crea el usuario).
   const catOptions = (sel) => Array.from(new Set(CATL().concat(usedCats()).concat(sel && sel !== '__new' ? [sel] : []))).map((x) => '<option value="' + esc(x) + '"' + (sel === x ? ' selected' : '') + '>' + esc(x) + '</option>').join('') +
@@ -1149,6 +1149,8 @@ export function createAlmacen(X) {
       (load() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     filaFin($('acats'));
+    const cb = $('acatbar') || (() => { const e = document.createElement('div'); e.id = 'acatbar'; $('acats').after(e); return e; })();
+    cb.innerHTML = S.stCat && adm() && X.canWrite() ? '<div style="display:flex;align-items:center;gap:10px;margin:2px 2px 10px;flex-wrap:wrap"><b style="font-size:15px">🗂️ ' + esc(S.stCat) + '</b><span class="k" style="margin:0">' + all.filter((p) => p.cat === S.stCat).length + ' productos</span><button type="button" class="x" data-al="catren" style="margin-left:auto;font-size:14px;font-weight:800;text-decoration:underline;color:var(--sell)">✏️ Cambiar nombre</button></div>' : '';
     const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + p.s + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
@@ -1396,6 +1398,23 @@ export function createAlmacen(X) {
     S.rcomp.list = S.rcomp.list.filter((x) => x.id !== id); renderRepo();
   }
   // Cambiar de categoría varios productos juntos: se buscan por palabras (separadas por coma), se revisan con tildes y se mueven.
+  // Cambiar el nombre de una categoría: pasa todos sus productos al nombre nuevo (y las promos que la usan).
+  // Si el nombre nuevo ya existe, se juntan. Si era una de las categorías de fábrica del rubro, deja de ofrecerse.
+  function catRen(vieja) {
+    if (!vieja || !adm()) return;
+    const ps = P().filter((p) => p.cat === vieja);
+    let n = (prompt('Nuevo nombre para la categoría "' + vieja + '" (' + ps.length + ' productos):', vieja) || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+    if (!n || n === vieja) return;
+    const ya = Array.from(new Set(CATL().concat(usedCats()))).find((c) => c.toLowerCase() === n.toLowerCase() && c !== vieja);
+    if (ya) { if (!confirm('Ya existe la categoría "' + ya + '". ¿Juntar los ' + ps.length + ' productos de "' + vieja + '" en "' + ya + '"?')) return; n = ya; }
+    const sid = X.sid(), lotes = [];
+    for (let i = 0; i < ps.length; i += 400) { const b = writeBatch(db); ps.slice(i, i + 400).forEach((p) => b.set(doc(db, 'stores', sid, 'stock', p.id), { cat: n }, { merge: true })); lotes.push(b.commit()); }
+    const pr = (X.promos && X.promos()) || [];
+    if (pr.some((p) => p.cat === vieja)) lotes.push(setDoc(doc(db, 'stores', sid, 'public', 'promos'), { list: pr.map((p) => (p.cat === vieja ? Object.assign({}, p, { cat: n }) : p)), at: Date.now() }));
+    const cs = (X.cs && X.cs()) || {};
+    if (catsFor(cs.tipo).indexOf(vieja) >= 0) lotes.push(setDoc(doc(db, 'stores', sid, 'cfg', 'servicios'), { catOff: Array.from(new Set((Array.isArray(cs.catOff) ? cs.catOff : []).concat([vieja]))).slice(0, 60) }, { merge: true }));
+    Promise.all(lotes).then(() => { S.stCat = n; renderStock(); publishSoon(); alert('Listo: la categoría ahora se llama "' + n + '". En unos segundos se actualiza el catálogo.'); }).catch(failW);
+  }
   function mvCatDlg(dest) {
     const o = modal('<b style="font-size:19px">🗂️ Cambiar categoría a varios</b>' +
       '<div class="k" style="margin-top:4px">Buscá los productos por palabras separadas por coma, revisá la lista y movelos todos juntos.</div>' +
@@ -2335,6 +2354,7 @@ export function createAlmacen(X) {
     else if (a === 'delc') delCompra(id);
     else if (a === 'precios') preciosDlg();
     else if (a === 'mvcat') mvCatDlg();
+    else if (a === 'catren') catRen(S.stCat);
     else if (a === 'fatr') { S.fAtr = !S.fAtr; renderFiList(); }
     else if (a === 'sueltos') abrirSueltos({
       existe: (n) => P().some((p) => sinAc(p.n) === sinAc(n)),
