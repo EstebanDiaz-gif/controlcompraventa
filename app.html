@@ -223,7 +223,7 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 addEventListener('error',function(e){var t=e&&e.target;if(t&&t.tagName=='SCRIPT')E.push('No se bajó '+String(t.src||'un archivo de la app').split('/').pop());else if(e&&e.message)E.push(String(e.message).slice(0,140))},true);
 addEventListener('unhandledrejection',function(e){var r=e&&e.reason;E.push(String((r&&(r.code||r.message))||r).slice(0,140))});
 function ios(){var m=navigator.userAgent.match(/OS (\d+)_(\d+)/);return /iPhone|iPad|iPod/.test(navigator.userAgent)&&m?'iPhone con iOS '+m[1]+'.'+m[2]:''}
-function reparar(b){b.disabled=true;b.textContent='Reparando…';var ps=[];
+function reparar(b){b.disabled=true;b.textContent='Reparando…';var ps=[];try{var p=window.__pk||'';if(p&&p!='login'){if(localStorage.getItem('pk_lp')=='1')localStorage.setItem('pk_mem','1');localStorage.setItem('pk_lp','1')}}catch(e){}
 if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)ps.push(navigator.serviceWorker.getRegistrations().then(function(l){return Promise.all(l.map(function(r){return r.unregister()}))}));
 if(window.caches&&caches.keys)ps.push(caches.keys().then(function(k){return Promise.all(k.map(function(n){return caches.delete(n)}))}));
 Promise.all(ps).catch(function(){}).then(function(){location.replace(location.pathname+'?r='+Date.now())})}
@@ -232,13 +232,13 @@ var paso=window.__pk||'',d=!paso?'No arrancó la app: no se pudieron bajar sus a
 paso=='modulo'?'La app arrancó pero no pudo conectar con el servidor de usuarios.':paso=='tiendas'?'Entró con el usuario pero no pudo traer sus negocios.':paso=='tienda'?'No pudo abrir los datos del negocio.':'Se quedó en: '+paso;
 l.innerHTML='<div style="padding:0 18px"><b style="display:block;font-size:19px;margin-bottom:8px;color:var(--ink)">No se pudo cargar</b>Revisá que tengas internet y tocá Reintentar. Si sigue igual, tocá Reparar la app (no se borra nada).'+
 '<div style="display:flex;flex-direction:column;gap:10px;max-width:320px;margin:18px auto 0"><button class="go" id="ldre" style="margin:0">Reintentar</button><button class="go alt" id="ldrp" style="margin:0">Reparar la app</button></div>'+
-'<div style="font-size:12.5px;margin-top:18px;opacity:.75;line-height:1.45">Para soporte: '+d+(E.length?'<br>'+E.slice(0,3).join(' · ').replace(/</g,'&lt;'):'')+(ios()?'<br>'+ios():'')+'</div></div>';
+'<div style="font-size:12.5px;margin-top:18px;opacity:.75;line-height:1.45">Para soporte: '+d+(E.length?'<br>'+E.slice(0,3).join(' · ').replace(/</g,'&lt;'):'')+(window.__pkSrv?'<br>Firebase: '+window.__pkSrv:'')+(navigator.onLine===false?'<br>El celular dice que no tiene internet':'')+(window.__pkModo?'<br>Modo '+window.__pkModo:'')+(ios()?'<br>'+ios():'')+'</div></div>';
 document.getElementById('ldre').onclick=function(){location.reload()};document.getElementById('ldrp').onclick=function(){reparar(this)}},9000)})();
 </script>
 <script type="module">
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendPasswordResetEmail,signInAnonymously,updateProfile} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,writeBatch,increment,deleteField,Timestamp,query,where,orderBy,limit} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,memoryLocalCache,collection,doc,setDoc,getDoc,getDocs,deleteDoc,onSnapshot,writeBatch,increment,deleteField,Timestamp,query,where,orderBy,limit} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import {getFunctions,httpsCallable} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
 import {firebaseConfig} from './firebase-config.js';
 import {deriveState,computeAccess,addPeriod} from './access.js';
@@ -290,7 +290,11 @@ var SERVER_MODE=false;
 if(String(firebaseConfig.apiKey).indexOf('PEGAR')===0){$('load').textContent='Falta configurar Firebase (archivo firebase-config.js).'}
 else{
 var app=initializeApp(firebaseConfig),auth=getAuth(app);
-var db=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+// Modo compatible (lo activa "Reparar la app" en celulares donde Firebase no conecta): conexión por consultas y,
+// si hace falta, sin copia local de los datos.
+var FSLP=false,FSMEM=false;try{FSLP=localStorage.getItem('pk_lp')=='1';FSMEM=localStorage.getItem('pk_mem')=='1'}catch(e){}
+var FSO={localCache:FSMEM?memoryLocalCache():persistentLocalCache({tabManager:persistentMultipleTabManager()})};if(FSLP)FSO.experimentalForceLongPolling=true;
+var db=initializeFirestore(app,FSO);window.__pkModo=(FSLP?'compatible':'')+(FSMEM?' sin copia':'');
 var STCREADA=0,PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
 function stopStore(){if(window.PD)PD.stop();['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','sus','costos'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
@@ -768,7 +772,7 @@ try{localStorage.setItem('cv_sid',sid)}catch(e){}
 un.store=onSnapshot(doc(db,'stores',sid),function(s){if(s.exists()){SNAME=s.data().name||'';OWNER=s.data().owner||'';STMON=s.data().mon||'ARS';STMAIN=s.data().main||'';STPAIS=s.data().pais||'';STCREADA=s.data().created||0;if(ROLE)drawHdr()}},function(){});
 un.me=onSnapshot(doc(db,'stores',sid,'members',U.uid),function(s){
 if(s.exists()&&s.metadata.hasPendingWrites)return;
-if(!s.exists()){if(!s.metadata.fromCache)sinAcceso(sid);return}
+if(!s.exists()){if(!s.metadata.fromCache)sinAcceso(sid);else window.__pkSrv='no llega al servidor';return}
 otrasSuc(s.data().otras);var r=s.data().role,cp=!!s.data().cp,chg=cp!=MECP,sp=!!s.data().sop;MECP=cp;if(r!=ROLE||sp!=SOP){ROLE=r;SOP=sp;startData();sopBar();pedSync()}else if(chg&&biz()=='almacen'){ALM.resetView();ALM.redraw()}},function(e){window.__pkE&&window.__pkE.push('Negocio: '+(e&&e.code||e))})}
 
 // Ropa/servicios: el administrador lee todos los movimientos. Almacén: no (lee por día y por mes, ver almacen.js).
