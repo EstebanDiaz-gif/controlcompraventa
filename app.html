@@ -220,6 +220,8 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <script>
 // Si la app no arranca en 9 s: se muestra por qué (para soporte) y un botón para reparar la copia guardada de la app.
 (function(){var E=[];window.__pkE=E;
+// Atajo para soporte: pekeronapp.com/app.html?compat=1 deja este celular en el modo compatible (?compat=0 lo saca).
+try{var cq=new URLSearchParams(location.search).get('compat');if(cq=='1'){localStorage.setItem('pk_lp','1');localStorage.setItem('pk_mem','1')}else if(cq=='0'){localStorage.removeItem('pk_lp');localStorage.removeItem('pk_mem')}}catch(e){}
 addEventListener('error',function(e){var t=e&&e.target;if(t&&t.tagName=='SCRIPT')E.push('No se bajó '+String(t.src||'un archivo de la app').split('/').pop());else if(e&&e.message)E.push(String(e.message).slice(0,140))},true);
 addEventListener('unhandledrejection',function(e){var r=e&&e.reason;E.push(String((r&&(r.code||r.message))||r).slice(0,140))});
 function ios(){var m=navigator.userAgent.match(/OS (\d+)_(\d+)/);return /iPhone|iPad|iPod/.test(navigator.userAgent)&&m?'iPhone con iOS '+m[1]+'.'+m[2]:''}
@@ -228,6 +230,9 @@ if(navigator.serviceWorker&&navigator.serviceWorker.getRegistrations)ps.push(nav
 if(window.caches&&caches.keys)ps.push(caches.keys().then(function(k){return Promise.all(k.map(function(n){return caches.delete(n)}))}));
 Promise.all(ps).catch(function(){}).then(function(){location.replace(location.pathname+'?r='+Date.now())})}
 setTimeout(function(){var l=document.getElementById('load');if(!l||l.hidden)return;
+// Firebase no contesta desde este celular (pasa en algunos iPhone): se pasa solo al modo compatible y se recarga.
+if(window.__pkSrv&&navigator.onLine!==false){var sig='';try{sig=localStorage.getItem('pk_lp')!='1'?'pk_lp':localStorage.getItem('pk_mem')!='1'?'pk_mem':''}catch(e){}
+if(sig){try{localStorage.setItem(sig,'1')}catch(e){}l.innerHTML='Conectando de otra forma…';setTimeout(function(){location.reload()},400);return}}
 var paso=window.__pk||'',d=!paso?'No arrancó la app: no se pudieron bajar sus archivos (internet, un bloqueador de anuncios o la fecha del celular mal puesta).':
 paso=='modulo'?'La app arrancó pero no pudo conectar con el servidor de usuarios.':paso=='tiendas'?'Entró con el usuario pero no pudo traer sus negocios.':paso=='tienda'?'No pudo abrir los datos del negocio.':'Se quedó en: '+paso;
 l.innerHTML='<div style="padding:0 18px"><b style="display:block;font-size:19px;margin-bottom:8px;color:var(--ink)">No se pudo cargar</b>Revisá que tengas internet y tocá Reintentar. Si sigue igual, tocá Reparar la app (no se borra nada).'+
