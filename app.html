@@ -302,12 +302,17 @@ var FSO={localCache:FSMEM?memoryLocalCache():persistentLocalCache({tabManager:pe
 var db=initializeFirestore(app,FSO);window.__pkModo=(FSLP?'compatible':'')+(FSMEM?' sin copia':'');
 var STCREADA=0,PLO={},STPAIS='',STMAIN='',CREATING=null,SDTRY=0,SDT=null,STMON='ARS',GLOB=null,PPHD='',EPHD='',PLQ='',PLF='all',OWNER_UIDS=['MgqYIhoyV2gHVluyQBtz8A3LZsw1','w2jqVcijMyOytIdFqw2lPhPxQxr1'],CS=null,SV=[],AT=[],SVD=null,PUB=null,PLL={list:null,busy:false},SOPORTE_WA='5493816031467',SOPORTE='',GA=[],GAERR=false,MAN=false,EDK=null,ESZ=[],EPH,PPH='',CLOGO=null,STQ='',SELQ='',SZ=[],SZON=false,ACC=null,IS_OWNER=false,CFG=mergeConfig(null),PL={q:'',list:null,detail:null},U=null,STORES=[],SID=null,SNAME='',OWNER='',ROLE=null,M=[],ST=[],MEM=[],INV=[],TAB='',month=today().slice(0,7),type='c',un={};
 function stop(k){if(un[k]){un[k]();delete un[k]}}
-function stopStore(){if(window.PD)PD.stop();['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','sus','costos'].forEach(stop);if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
+function stopStore(){if(window.PD)PD.stop();['store','me','stock','movs','mem','inv','acc','gas','pub','cfs','svc','att','sus','costos','clif'].forEach(stop);CLIREG=[];CLIBF=false;if(ALM)ALM.stop();CJ.stop();TR.stop();RP.stop()}
 function gate(g){if(g=='app')g='appui';['load','auth','nostore','appui','vpanel'].forEach(function(i){$(i).hidden=i!=g})}
 function nm(){return U.displayName||(U.email||'').split('@')[0]}
 var fns=getFunctions(app,'southamerica-east1');
 function callFn(n,d){return httpsCallable(fns,n)(d||{}).then(function(r){return r.data})}
 var CLIENTES_FIADOS=[]; // clientes frecuentes de fiado: [{n: nombre, t: teléfono}]
+// Lista compartida de clientes (stores/{sid}/clientes): la ven también los empleados, que no leen los movimientos.
+var CLIREG=[],CLIBF=false;
+function cliKey(n){return String(n||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,90)||'cliente'}
+function cliGuardar(n,t){n=String(n||'').trim();if(!n||!SID)return;var o={n:n.slice(0,80),u:Date.now()};if(t)o.tel=String(t).slice(0,30);
+setDoc(doc(db,'stores',SID,'clientes','f-'+cliKey(n)),o,{merge:true}).catch(function(){})}
 var CJ=createCaja({db:db,$:$,esc:esc,money:money,today:today,cs:function(){return CS},fail:function(e){fail(e)},sid:function(){return SID},user:function(){return U},nm:function(){return nm()},sname:function(){return SNAME},
 adm:function(){return ROLE=='admin'},canWrite:function(){return canWrite()},on:function(){return !!ROLE&&biz()!='almacen'&&!(CS&&CS.caja===false)},
 changed:function(w){if(TAB=='caja'&&biz()!='almacen'){if(ventaEnCaja()){var cd=$('cjdet');if(cd)cd.innerHTML=CJ.vista(true)}else drawCajaTab();return}if(w=='mes'&&TAB=='res')drawRes()},palabra:function(n){return biz()=='servicios'?(n==1?'cobro':'cobros'):(n==1?'venta':'ventas')},donde:function(){return biz()=='servicios'?'Atender':'Vender'}});
@@ -783,7 +788,8 @@ otrasSuc(s.data().otras);var r=s.data().role,cp=!!s.data().cp,chg=cp!=MECP,sp=!!
 // Ropa/servicios: el administrador lee todos los movimientos. Almacén: no (lee por día y por mes, ver almacen.js).
 function syncBiz(){
 if(isAgBiz())AG.start();else AG.stop();
-if(biz()=='almacen'){stop('movs');M=[];ALM.start();return}
+if(biz()=='almacen'){stop('movs');stop('clif');M=[];ALM.start();return}
+if(!un.clif)un.clif=onSnapshot(collection(db,'stores',SID,'clientes'),function(sn){CLIREG=[];sn.forEach(function(d){var x=d.data();if(x&&x.n)CLIREG.push({n:x.n,t:x.tel||undefined})});if($('efiaCli')&&$('efiaCli').value==='')refreshCliClientes()},function(){});
 ALM.stop();
 if(ROLE=='admin'&&!un.movs)un.movs=onSnapshot(collection(db,'stores',SID,'movs'),function(sn){M=[];sn.forEach(function(d){M.push(d.data())});redrawData()},function(){})}
 function sdErr(e){if(String((e&&e.code)||'').indexOf('permission')<0||SDTRY>=3||!ROLE)return;SDTRY++;clearTimeout(SDT);SDT=setTimeout(function(){if(ROLE&&SID)startData()},1500*SDTRY)}
@@ -1228,7 +1234,7 @@ RP.wire(upd);$('esq').oninput=function(){SELQ=this.value;refreshSell()};$('esq')
 function upd(){var q=+$('eq').value,u=+$('eu').value,tot=q*u,ev=RP.leer();$('etot').textContent=q&&u?'Total: '+money(tot+(ev?ev.cob:0))+(ev&&ev.cob?' (incluye envío '+money(ev.cob)+')':''):'';if($('efiaPagaHoy')){var paga=+($('efiaPagaHoy').value||0),fia=Math.max(0,tot-paga),msg=$('efiaPagaMsg');if(paga||$('efiaPagaHoy').value){msg.style.display='block';msg.textContent=paga?'Paga hoy: '+money(paga)+' → Queda fiado: '+money(fia):'Sin pagar ahora → Todo queda fiado: '+money(tot)}else{msg.style.display='none'}
 if($('epayl'))$('epayl').textContent=$('efia').checked?(paga?'¿Cómo pagó la entrega?':'¿Cómo pagó? (no paga nada ahora)'):'¿Cómo pagó?';var cq=$('efiaCq').value;$('efiaVtoBox').style.display=cq=='f'?'block':'none';$('efiaCqMsg').textContent=cq!='f'&&fia>0?fiaPlan({d:$('ed').value||today(),fia:{cq:+cq}},{fiado:fia}).map(function(c){return money(c.m)+' el sáb '+fiaFecha(c.d)}).join(' · '):''}}
 $('eq').oninput=upd;$('eu').oninput=function(){this.dataset.auto='';upd()};if($('efiaPagaHoy')){$('efiaPagaHoy').oninput=upd;$('efiaCq').onchange=upd;$('ed').addEventListener('change',upd)}$('es').onchange=autoP;$('ek').onchange=autoP;autoP();
-function refreshCliClientes(){if(!$('efiaCli'))return;var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c,i){h+='<option value="'+i+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
+function refreshCliClientes(){if(!$('efiaCli'))return;loadClientesFiados();var h='<option value="">-- Seleccionar cliente --</option><option value="*nuevo*">+ Agregar cliente nuevo</option>';CLIENTES_FIADOS.forEach(function(c){h+='<option value="c:'+esc(c.n)+'">'+esc(c.n)+(c.t?' 📱':'')+'</option>'});$('efiaCli').innerHTML=h}
 if($('efia')){$('efia').onchange=function(){$('efiabox').style.display=this.checked?'block':'none';refreshCliClientes();upd()}}
 if($('efiaCli')){$('efiaCli').onchange=function(){var v=this.value;if(v=='*nuevo*'){$('efiaNewBox').style.display='block';$('efiaCliN').focus()}else{$('efiaNewBox').style.display='none'}}}
 $('eok').onclick=function(){var d=null,id=$('es').value;ST.forEach(function(x){if(x.id==id)d=x});
@@ -1240,13 +1246,13 @@ var mov={id:Date.now(),t:'v',d:$('ed').value||today(),p:d.n,s:d.s,z:d.z||'',q:q,
 if($('efia')&&$('efia').checked){var cliIdx=$('efiaCli').value,cli,tel='',pagaHoy=+($('efiaPagaHoy').value||0),totalVta=q*u,mtoFiado=Math.max(0,totalVta-pagaHoy);
 if(cliIdx=='*nuevo*'){cli=($('efiaCliN')||{value:''}).value.trim();tel=($('efiaCliT')||{value:''}).value.trim();if(!cli){alert('Escribí el nombre del cliente.');return}
 CLIENTES_FIADOS.push({n:cli,t:tel||undefined})}
-else if(cliIdx){cli=CLIENTES_FIADOS[cliIdx].n;tel=CLIENTES_FIADOS[cliIdx].t||''}
+else if(cliIdx){var cf=CLIENTES_FIADOS.filter(function(c){return 'c:'+c.n==cliIdx})[0]||{n:cliIdx.slice(2)};cli=cf.n;tel=cf.t||''}
 else{alert('Selecciona un cliente o agrega uno nuevo.');return}
 if(mtoFiado<=0){alert('El monto a fiar debe ser mayor a 0.');return}
 mov.fia={cli:cli,mtoFiado:mtoFiado,ent:pagaHoy||0};if(tel)mov.fia.tel=tel;var cqv=($('efiaCq')||{value:'2'}).value;if(cqv=='f'){if(!$('efiaVto').value){alert('Elegí la fecha en que paga.');return}mov.fia.vto=$('efiaVto').value}else{mov.fia.cq=+cqv;var pl=fiaPlan({d:mov.d,fia:{cq:+cqv}},{fiado:mtoFiado});mov.fia.vto=pl[pl.length-1].d}if(+($('efiaInt')||{value:0}).value)mov.fia.int=+($('efiaInt').value)}
 var env=RP.leer(),ec=env?env.cob:0;if(env)mov.env=env;
 var cjo=CJ.abierta(),fz=mov.fia?{tot:q*u+ec,hoy:(mov.fia.ent||0)+ec,fi:mov.fia.mtoFiado,pay:mov.pay}:{tot:q*u+ec,pay:mov.pay};if(cjo)mov.cj=cjo.id;
-sellMov(mov,d.id);CJ.venta(fz);if(env)RP.registrar(env,{det:d.n+(d.z?' talle '+d.z:'')+(q>1?' x'+q:''),vid:mov.id});
+if(mov.fia)cliGuardar(mov.fia.cli,mov.fia.tel);sellMov(mov,d.id);CJ.venta(fz);if(env)RP.registrar(env,{det:d.n+(d.z?' talle '+d.z:'')+(q>1?' x'+q:''),vid:mov.id});
 if(adm)month=$('ed').value.slice(0,7)||month;drawSell();$('etot').textContent='Venta guardada ✓'}}
 
 /* ---------- Fiados / Deudas ---------- */
@@ -1255,7 +1261,12 @@ var clientes={};
 M.filter(function(x){return x.t=='v'&&x.fia}).forEach(function(x){var cli=x.fia.cli;
 if(!clientes[cli])clientes[cli]={n:cli,t:x.fia.tel||undefined};
 else if(x.fia.tel&&!clientes[cli].t)clientes[cli].t=x.fia.tel});
-CLIENTES_FIADOS=Object.keys(clientes).map(function(k){return clientes[k]}).sort(function(a,b){return a.n.localeCompare(b.n)})}
+// El administrador sube a la lista compartida los clientes que todavía no están (una vez por sesión).
+if(ROLE=='admin'&&un.clif&&!CLIBF&&M.length){CLIBF=true;var ya={};CLIREG.forEach(function(c){ya[cliKey(c.n)]=1});var falt=Object.keys(clientes).filter(function(k){return !ya[cliKey(k)]});
+for(var i=0;i<falt.length&&i<1500;i+=400){var b=writeBatch(db);falt.slice(i,i+400).forEach(function(k){var c=clientes[k],o={n:String(c.n).slice(0,80),u:Date.now()};if(c.t)o.tel=String(c.t).slice(0,30);b.set(doc(db,'stores',SID,'clientes','f-'+cliKey(c.n)),o,{merge:true})});b.commit().catch(function(){})}}
+var porK={};Object.keys(clientes).forEach(function(k){porK[cliKey(k)]=clientes[k]});
+CLIREG.forEach(function(c){var k=cliKey(c.n);if(!porK[k])porK[k]={n:c.n,t:c.t};else if(c.t&&!porK[k].t)porK[k].t=c.t});
+CLIENTES_FIADOS=Object.keys(porK).map(function(k){return porK[k]}).sort(function(a,b){return a.n.localeCompare(b.n,'es',{sensitivity:'base'})})}
 // Cuentas de una venta fiada. tot = precio de la venta; ent = lo que pagó al llevarlo (entrega);
 // fiado = lo que quedó debiendo (tot - ent); pag = lo que fue pagando después; saldo = lo que debe hoy.
 // Ventas viejas (sin ent): la entrega se había anotado también como pago, así que se descuenta de mtoPagado.
