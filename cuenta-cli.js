@@ -4,7 +4,7 @@
 // en el mismo navegador donde usa Pekeron.
 // Ficha del cliente en el local: stores/{sid}/cr/{uid} = { n, tel, em, mk (acepta promos por email), mkat, at, u }.
 import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 const AUTH = 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 // Navegadores dentro de apps (Instagram, Facebook, TikTok…): Google no deja entrar desde ahí.
@@ -67,7 +67,7 @@ export function createCuenta(X) {
   function formHtml(mesa) {
     const m = modo(); if (mesa || (!m && !CU)) return '';
     const esc = X.esc;
-    if (CU && CR) return '<div class="cta-ok">✓ Pedís con tu cuenta <b>' + esc(CU.email || CR.em || '') + '</b> <button type="button" data-ctsal="1">Salir</button></div>';
+    if (CU && CR) return '<div class="cta-ok">✓ Pedís con tu cuenta <b>' + esc(CU.email || CR.em || '') + '</b> <button type="button" data-ctsal="1">Salir</button> <button type="button" data-ctdel="1">Borrar mi cuenta</button></div>';
     if (CU && !CR) return '<button type="button" class="cta-b" data-cta="1">Completá tus datos para terminar tu cuenta</button>';
     if (!listo) return '<div class="cta-ok" style="opacity:.7">Cargando…</div>';
     return '<div class="cta-inv"><b>' + (m === 'obl' ? '👋 Creá tu cuenta para hacer tu primer pedido' : '👋 Creá tu cuenta (opcional)') + '</b>' +
@@ -77,6 +77,24 @@ export function createCuenta(X) {
   // ¿Hay que pedir la cuenta antes de mandar este pedido?
   const falta = (mesa) => !mesa && modo() === 'obl' && !(CU && CR);
   function salir() { if (au && confirm('¿Salir de tu cuenta en este celular?')) A.signOut(au).catch(() => {}); }
+  // Borrar la cuenta del cliente: su ficha de registro en este local y su usuario. El historial de compras del local
+  // (ficha por teléfono) es del negocio: lo borra el local si el cliente se lo pide.
+  async function borrar() {
+    if (!au || !CU) return;
+    const t = (X.info() && X.info().name) || 'este local';
+    if (!confirm('¿Borrar tu cuenta? Se borran tu email, tus datos y la suscripción a promos de ' + t + '. No se puede deshacer.')) return;
+    const u = CU;
+    try {
+      await deleteDoc(doc(db, 'stores', X.sid(), 'cr', u.uid)).catch(() => {});
+      await A.deleteUser(u);
+      CR = null; try { localStorage.removeItem('pk_cu'); } catch (e) { /* */ }
+      alert('Listo, tu cuenta se borró.');
+    } catch (e) {
+      if (e && e.code === 'auth/requires-recent-login') { alert('Por seguridad, salí de tu cuenta, volvé a entrar y tocá de nuevo "Borrar mi cuenta". Tus datos de este local ya se borraron.'); return; }
+      alert('No se pudo borrar la cuenta. Revisá tu internet y probá de nuevo.');
+    }
+    X.onCambio();
+  }
 
   // ---------- Ventana de registro / entrada ----------
   function abrir(alTerminar) {
@@ -87,13 +105,14 @@ export function createCuenta(X) {
     const esc = X.esc, c = X.cli(), t = (X.info() && X.info().name) || 'el local';
     let o = document.getElementById('ctadlg'); if (!o) { o = document.createElement('div'); o.id = 'ctadlg'; document.body.appendChild(o); }
     const promo = '<label class="cta-chk"><input type="checkbox" id="ct_mk"> Quiero recibir promos de ' + esc(t) + ' por email</label>';
+    const tyc = '<label class="cta-chk"><input type="checkbox" id="ct_tyc"> <span>Acepto los <a href="./privacidad.html#terminos" target="_blank" rel="noopener">Términos y condiciones</a> y la <a href="./privacidad.html#privacidad" target="_blank" rel="noopener">Política de privacidad</a></span></label>';
     const google = enApp() ? '<div class="cta-nota">Para entrar con Google abrí este menú en Chrome o Safari (tocá ⋯ y "Abrir en el navegador").</div>' :
       '<div class="cta-o"><span>o</span></div><button type="button" class="cta-g" id="ct_g"><svg viewBox="0 0 48 48" width="20" height="20"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar con Google</button>';
     let h = '<div class="cta-c"><button type="button" class="cta-x" data-ctx="1" aria-label="Cerrar">×</button>';
     if (paso === 'datos') {
       h += '<b class="cta-t">Un último paso</b><div class="cta-s">Así ' + esc(t) + ' sabe de quién es el pedido y te avisa cuando está listo.</div>' +
         '<form id="ct_f" novalidate><input class="edir" id="ct_n" placeholder="Tu nombre" maxlength="60" autocomplete="name" value="' + esc(c.n || (CU && CU.displayName) || '') + '">' +
-        '<input class="edir" id="ct_t" type="tel" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" maxlength="24" autocomplete="tel" value="' + esc(c.t || '') + '">' + promo +
+        '<input class="edir" id="ct_t" type="tel" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" maxlength="24" autocomplete="tel" value="' + esc(c.t || '') + '">' + promo + tyc +
         '<div class="cta-er" id="ct_er"></div><button class="cta-b" type="submit">Listo, seguir</button></form>';
     } else if (paso === 'entrar') {
       h += '<b class="cta-t">Entrá a tu cuenta</b><div class="cta-tabs"><button type="button" data-ctp="alta">Crear cuenta</button><button type="button" class="on">Ya tengo cuenta</button></div>' +
@@ -106,10 +125,10 @@ export function createCuenta(X) {
         '<form id="ct_f" novalidate><input class="edir" id="ct_n" placeholder="Tu nombre" maxlength="60" autocomplete="name" value="' + esc(c.n || '') + '">' +
         '<input class="edir" id="ct_t" type="tel" inputmode="tel" placeholder="Tu WhatsApp (ej: 381 555 1234)" maxlength="24" autocomplete="tel" value="' + esc(c.t || '') + '">' +
         '<input class="edir" id="ct_e" type="email" inputmode="email" placeholder="Tu email" autocomplete="username email" maxlength="120">' +
-        '<input class="edir" id="ct_p" type="password" placeholder="Creá una contraseña (6 o más)" autocomplete="new-password" maxlength="80">' + promo +
+        '<input class="edir" id="ct_p" type="password" placeholder="Creá una contraseña (6 o más)" autocomplete="new-password" maxlength="80">' + promo + tyc +
         '<div class="cta-er" id="ct_er"></div><button class="cta-b" type="submit">Crear cuenta y seguir</button></form>' + google;
     }
-    h += '<div class="cta-priv">Tus datos los ve solo ' + esc(t) + '. Si aceptás las promos, te podés dar de baja cuando quieras desde cualquier mail.</div></div>';
+    h += '<div class="cta-priv">Tus datos los ve solo ' + esc(t) + '. Si aceptás las promos, te podés dar de baja cuando quieras desde cualquier mail. Podés borrar tu cuenta cuando quieras.</div></div>';
     o.innerHTML = h; o.hidden = false;
     const $ = (i) => o.querySelector('#' + i), er = (m) => { $('ct_er').textContent = m || ''; };
     const cerrar = () => { o.hidden = true; o.innerHTML = ''; };
@@ -122,6 +141,7 @@ export function createCuenta(X) {
       const n = ($('ct_n') ? $('ct_n').value : '').trim(), tel = ($('ct_t') ? $('ct_t').value : '').replace(/[^\d+ ()-]/g, '').trim();
       if (!n) { er('Escribí tu nombre.'); $('ct_n').focus(); return null; }
       if (tel.replace(/\D/g, '').length < 6) { er('Escribí tu WhatsApp, así el local te puede avisar.'); $('ct_t').focus(); return null; }
+      if ($('ct_tyc') && !$('ct_tyc').checked) { er('Para crear tu cuenta tenés que aceptar los Términos y la Política de privacidad.'); return null; }
       c.n = n; c.t = tel; return { n, tel, mk: !!($('ct_mk') && $('ct_mk').checked) };
     };
     const ocupado = (b, si, tx) => { b.disabled = si; if (tx) b.textContent = tx; };
@@ -165,7 +185,7 @@ export function createCuenta(X) {
     };
     const f0 = o.querySelector('input:not([value]),input[value=""]'); if (f0 && window.innerWidth > 700) f0.focus();
   }
-  return { iniciar, formHtml, falta, abrir, salir, usuario: () => CU, perfil: () => CR, db: () => db, modo };
+  return { iniciar, formHtml, falta, abrir, salir, borrar, usuario: () => CU, perfil: () => CR, db: () => db, modo };
 }
 
 let cssOk = false;
@@ -186,6 +206,6 @@ function css() {
     '.cta-er{color:#B42318;font-size:14px;font-weight:600;margin-top:8px;min-height:1px}.cta-er:empty{margin:0}' +
     '.cta-priv,.cta-nota{color:var(--mut,#73757c);font-size:12.5px;margin-top:14px;line-height:1.4}.cta-nota{background:var(--soft,#f1f1ef);border-radius:12px;padding:10px 12px}' +
     '.cta-inv{background:var(--soft,#f1f1ef);border-radius:16px;padding:14px;margin:12px 0 4px}.cta-inv b{display:block;font-size:15.5px}.cta-inv span{display:block;color:var(--mut,#73757c);font-size:13.5px;margin-top:3px}.cta-inv .cta-b{margin-top:10px;padding:12px}' +
-    '.cta-ok{font-size:13.5px;color:var(--mut,#73757c);margin:10px 0 2px}.cta-ok b{color:var(--ink,#16171c)}.cta-ok button{border:0;background:none;color:inherit;font:inherit;text-decoration:underline;cursor:pointer;padding:0 0 0 6px}';
+    '.cta-ok{font-size:13.5px;color:var(--mut,#73757c);margin:10px 0 2px}.cta-ok b{color:var(--ink,#16171c)}.cta-ok button{border:0;background:none;color:inherit;font:inherit;text-decoration:underline;cursor:pointer;padding:0 0 0 6px}.cta-chk a{color:inherit;font-weight:700}';
   document.head.appendChild(s);
 }

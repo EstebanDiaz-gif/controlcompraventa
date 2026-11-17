@@ -127,7 +127,8 @@ export function createClientes(X) {
         (f.hora !== null ? '<div class="k" style="margin-top:2px">🕘 Viene ' + (f.dia ? 'más los ' + f.dia + ', ' : '') + 'cerca de las ' + hora(f.hora) + '</div>' : '') +
         (c.on ? '<div class="clsel">' + Array.from({ length: c.n }, (_, i) => '<i class="' + (i < Math.min(x.s || 0, c.n) ? 'on' : '') + '"></i>').join('') + '<span>' + Math.max(0, x.s || 0) + '/' + c.n + '</span></div>' : '') +
         '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">' + (prem ? '<button type="button" class="go" data-clc="' + esc(x.k) + '" style="margin:0;flex:1;background:#16A34A;color:#fff">🎁 Canjear premio</button>' : '') +
-        (x.tel ? '<a class="go alt" target="_blank" rel="noopener" href="https://wa.me/' + X.wa(x.tel) + '?text=' + encodeURIComponent(msgDe(f, c)) + '" style="margin:0;flex:1;text-align:center;text-decoration:none">💬 ' + (f.perdido ? 'Mandarle "te extrañamos"' : prem ? 'Avisarle del premio' : 'WhatsApp') + '</a>' : '') + '</div></div>';
+        (x.tel ? '<a class="go alt" target="_blank" rel="noopener" href="https://wa.me/' + X.wa(x.tel) + '?text=' + encodeURIComponent(msgDe(f, c)) + '" style="margin:0;flex:1;text-align:center;text-decoration:none">💬 ' + (f.perdido ? 'Mandarle "te extrañamos"' : prem ? 'Avisarle del premio' : 'WhatsApp') + '</a>' : '') + '</div>' +
+        '<button type="button" class="x" data-cldel="' + esc(x.k) + '" style="display:block;margin:10px 0 0 auto;font-size:12.5px;text-decoration:underline;color:var(--mut)">Borrar los datos de este cliente</button></div>';
     }).join('');
     if (l.length > 200) h += '<div class="k" style="text-align:center">Mostrando 200 de ' + l.length + '. Buscá para encontrar el resto.</div>';
     box.innerHTML = h;
@@ -187,7 +188,21 @@ export function createClientes(X) {
     o.querySelector('#pm_pr').onclick = (e) => mandar(true, e.currentTarget);
   }
   function clic(e) {
-    const b = e.target.closest && e.target.closest('[data-clx],[data-clf],[data-clc],[data-clreg]'); if (!b || !X.$('s-cli').contains(b)) return;
+    const b = e.target.closest && e.target.closest('[data-clx],[data-clf],[data-clc],[data-clreg],[data-cldel]'); if (!b || !X.$('s-cli').contains(b)) return;
+    if (b.dataset.cldel) {
+      // Pedido de borrado del cliente (Ley 25.326): se borra su ficha, sus sellos y su registro en el menú. Las ventas quedan en la caja.
+      const x = (L || []).find((y) => y.k === b.dataset.cldel); if (!x) return;
+      if (!confirm('¿Borrar los datos de ' + (x.n || 'este cliente') + '?\nSe borran su ficha, sus sellos y su cuenta en tu menú (si tenía). Las ventas que ya cobraste quedan en la caja. No se puede deshacer.')) return;
+      b.disabled = true;
+      clubHash(X.sid(), x.k).then((hs) => {
+        const wb = writeBatch(X.db);
+        wb.delete(doc(X.db, 'stores', X.sid(), 'cg', x.k));
+        wb.delete(doc(X.db, 'stores', X.sid(), 'clubp', hs));
+        if (x.uid) wb.delete(doc(X.db, 'stores', X.sid(), 'cr', String(x.uid)));
+        return wb.commit();
+      }).catch((er) => { b.disabled = false; X.fail(er); });
+      return;
+    }
     if (b.dataset.clx === 'club') { clubDlg(); return; }
     if (b.dataset.clx === 'mail') { promoDlg(); return; }
     if (b.dataset.clreg) {

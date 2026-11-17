@@ -1204,7 +1204,7 @@ ft.innerHTML=SEAS+'<div class="fin"><div class="fbr">'+lg+'<div><b>'+esc(n)+'</b
 (ct.length?'<div class="fcol"><h4>Contacto</h4>'+ct.join('')+'</div>':'')+
 '<div class="fcol"><h4>Comprar</h4><button data-fn="ini">Inicio</button><button data-fn="fav">Mis favoritos</button><button data-fn="sr">Buscar</button><button data-fn="cart">Ver mi pedido</button></div>'+
 (c.length>1?'<div class="fcol fcat"><h4>Categorías</h4><div class="fl">'+c.map(function(x){return '<button data-fc="'+esc(x)+'">'+esc(x)+'</button>'}).join('')+'</div></div>':'')+'</div>'+
-'<div class="fbot"><span>© '+y+' '+esc(n)+'</span><span>Desarrollado por <a href="https://pekeronapp.com/?utm_source=catalogo" target="_blank" rel="noopener">App Pekeron</a> · Impulso Digital</span></div>';
+'<div class="fbot"><span>© '+y+' '+esc(n)+'</span><span>Desarrollado por <a href="https://pekeronapp.com/?utm_source=catalogo" target="_blank" rel="noopener">App Pekeron</a> · Impulso Digital · <a href="https://pekeronapp.com/privacidad.html" target="_blank" rel="noopener">Privacidad</a></span></div>';
 ft.onclick=function(e){var b=e.target.closest('[data-fn],[data-fc]');if(!b)return;
 if(b.dataset.fc!=null){CAT=b.dataset.fc;FAVM=false;Q='';$('sq').value='';draw();$('sec').scrollIntoView({behavior:'smooth'});return}
 var a=b.dataset.fn;if(a=='cart'){$('cb').click();return}var nb=document.querySelector('.bnav [data-nav="'+a+'"]');if(nb)nb.click()}}
@@ -1778,6 +1778,7 @@ if(d.del!==undefined){CART.splice(+d.del,1);bar();sheet();return}
 if(d.pedgo){hacerPedido(bt);return}
 if(d.cta){CTA.abrir();return}
 if(d.ctsal){CTA.salir();return}
+if(d.ctdel){CTA.borrar();return}
 if(d.geo){geoPedir(bt);return}
 if(d.pst){pedEstado(d.pst);return}
 if(d.pq){var pid=$('sh').dataset.pr;PSEL[pid]=Math.max(1,(PSEL[pid]||1)+ +d.pq);promoSheet(pid);return}

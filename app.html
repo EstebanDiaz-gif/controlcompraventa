@@ -193,7 +193,7 @@ select option,select optgroup{background-color:var(--card);color:var(--ink)}
 <button class="go" id="alogin">Entrar</button>
 <button class="go alt" id="areg">Crear cuenta nueva</button>
 <div class="tot" id="amsg"></div>
-<button class="x" id="areset" style="font-size:14px;margin-top:8px;text-decoration:underline">Olvidé mi contraseña</button></div>
+<button class="x" id="areset" style="font-size:14px;margin-top:8px;text-decoration:underline">Olvidé mi contraseña</button><div class="k" style="font-size:12.5px;margin-top:10px"><a href="./privacidad.html#terminos" target="_blank" rel="noopener" style="color:inherit;font-weight:700">Términos y condiciones</a> · <a href="./privacidad.html#privacidad" target="_blank" rel="noopener" style="color:inherit;font-weight:700">Política de privacidad</a></div></div>
 <div class="card" id="ecard"><h1 style="margin-top:0">¿Sos empleado?</h1><div class="k">Entrá con tu código de empleado. Es siempre el mismo: lo usás cada vez que entrás, desde el celu o la compu. No necesitás email ni contraseña.</div>
 <label>Código</label><input id="ecod" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Ej: K7QM" style="text-transform:uppercase;letter-spacing:6px;font-weight:800;font-size:22px">
 <label>Tu nombre <span style="font-weight:400">(solo la primera vez)</span></label><input id="enom" maxlength="40" autocomplete="given-name" placeholder="Ej: Juan">
@@ -631,6 +631,7 @@ o.innerHTML='<div style="background:var(--card);color:var(--ink);border-radius:2
 '<label style="margin-top:14px">Código de vendedor (opcional)</label><input id="sn_v" maxlength="10" autocomplete="off" placeholder="Si te lo instaló un vendedor, poné su código" style="text-transform:uppercase" value="'+esc(VD.desdeLink())+'">'+
 '<label style="margin-top:14px">¿En qué país está tu negocio?</label><select id="sn_pais">'+PAISES.map(function(x){return '<option value="'+x[0]+'">'+x[2]+' '+x[1]+'</option>'}).join('')+'</select><div class="k" id="sn_mon" style="margin-top:4px"></div>'+
 '<label style="margin-top:14px">Elegí tu plan</label>'+pc+'<div class="k" id="sn_gas" hidden style="margin-top:8px">🍔 Gastronomía: el precio incluye pedidos por QR en las mesas, delivery y retiro, pantalla de cocina, mozos y cadetes (+'+money(CFG.gasExtraARS||0)+' por mes en cada plan).</div>'+
+'<label style="display:flex;gap:10px;align-items:flex-start;margin-top:16px;font-weight:400;font-size:14.5px;line-height:1.4"><input type="checkbox" id="sn_tyc" style="width:20px;height:20px;margin:1px 0 0;flex:none"><span>Acepto los <a href="./privacidad.html#terminos" target="_blank" rel="noopener" style="color:inherit;font-weight:700">Términos y condiciones</a> y la <a href="./privacidad.html#privacidad" target="_blank" rel="noopener" style="color:inherit;font-weight:700">Política de privacidad</a> de Pekeron.</span></label>'+
 '<button class="go" id="sn_ok">Crear mi tienda</button><button class="x" id="sn_x" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button></div>';
 document.body.appendChild(o);
 tipoWire(o,function(){monUpd()});
@@ -641,13 +642,14 @@ $('sn_x').onclick=function(){o.remove()};$('sn_v').oninput=function(){o._vok=und
 $('sn_ok').onclick=function(){
 var n=$('sn_n').value.trim();if(!n){alert('Escribí el nombre de la tienda.');return}
 if(o._vok===undefined&&$('sn_v').value.trim()){var bt0=this;bt0.disabled=true;VD.validar($('sn_v').value).then(function(c){bt0.disabled=false;if(c===null){alert('Ese código de vendedor no existe. Revisalo o dejalo vacío.');return}o._vok=c;bt0.click()});return}
+if(!$('sn_tyc').checked){alert('Para crear tu tienda tenés que aceptar los Términos y condiciones y la Política de privacidad (tocá los links para leerlos).');$('sn_tyc').focus();return}
 if(!o._tipo){alert('Elegí qué tipo de negocio es.');o.querySelector('.tg').scrollIntoView({behavior:'smooth',block:'center'});return}
 var pais=$('sn_pais').value,mon=monDe(pais);try{localStorage.setItem('pk_pais',pais)}catch(e){}
 var plan=(o.querySelector('input[name=sp]:checked')||{}).value||'inicial',TC=tipoCfg(o._tipo,o.querySelector('#tgamb').checked),bz=TC.biz,rb=TC.rub||'';
 $('sn_ok').disabled=true;
 if(!SERVER_MODE){
 var sid=rnd(10),b=writeBatch(db);
-var sd0={name:n,owner:U.uid,created:Date.now(),pais:pais,mon:mon};if(o._vok)sd0.vend=o._vok;b.set(doc(db,'stores',sid),sd0);
+var sd0={name:n,owner:U.uid,created:Date.now(),pais:pais,mon:mon,tyc:{v:'2026-11-17',at:Date.now()}};if(o._vok)sd0.vend=o._vok;b.set(doc(db,'stores',sid),sd0);
 b.set(doc(db,'stores',sid,'members',U.uid),{role:'admin',email:U.email,name:nm()});
 b.set(doc(db,'users',U.uid,'stores',sid),{name:n});
 b.set(doc(db,'stores',sid,'billing','access'),litBuild({trialStartMs:Date.now(),paidPlan:null,paidUntilMs:null,chosenPlan:plan}));
@@ -978,7 +980,7 @@ var tmh=temaEfectivo(PUB,GLOB,Date.now());
 $('hdr').innerHTML='<div class="top">'+(tmh?BRAND.replace('<b>PEKERON</b>','<b>PEKERON<span class="tmf" style="font-size:20px">'+(tmh=='madre'?flor(22,'#FFD6AA','#FFD6AA',0):TEMAS[tmh].emoji)+'</span></b>'):BRAND)+'<span class="badge">'+(SOP?'soporte':ROLE=='admin'?'administrador':'empleado')+'</span></div><select id="hs" class="chip" aria-label="Tienda">'+o+'</select>';
 $('hs').onchange=function(){var v=this.value;if(v=='__new'){this.value=SID;newStore()}else if(v=='__join'){this.value=SID;joinStore()}else if(v=='__vend'){this.value=SID;openVend()}else if(v!=SID)openStore(v)}}
 function drawAcct(){var a=$('acct');if(!U){a.innerHTML='';return}
-a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(SID?' · <button class="x" id="uiap" style="font-size:13px;text-decoration:underline">Apariencia</button>':'')+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
+a.innerHTML=esc(esEmp()?nm()+' · empleado':U.email)+(navigator.onLine?'':' · sin conexión')+' · <button class="x" id="out" style="font-size:13px;text-decoration:underline">Cerrar sesión</button>'+(SID?' · <button class="x" id="uiap" style="font-size:13px;text-decoration:underline">Apariencia</button>':'')+'<br><a href="./privacidad.html" target="_blank" rel="noopener" style="font-size:12.5px">Términos y privacidad</a> · <a href="https://wa.me/'+SOPORTE_WA+'?text='+encodeURIComponent('Hola, quiero pedir '+(esEmp()?'el borrado de mis datos':'la baja de mi cuenta y el borrado de mis datos')+' en Pekeron App. Mi '+(esEmp()?'nombre':'email')+': '+(esEmp()?nm():U.email)+(SNAME?' · Tienda: '+SNAME:''))+'" target="_blank" rel="noopener" style="font-size:12.5px">Pedir el borrado de mis datos</a>'+(INSTP?'<br><button class="x" id="instb" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink);margin-top:6px">⬇ Instalar la app en '+(/Android|iPhone|iPad/.test(navigator.userAgent)?'este celular':'esta computadora')+'</button>':'');
 $('out').onclick=function(){salir()};if($('uiap'))$('uiap').onclick=uiElegir;
 if($('instb'))$('instb').onclick=function(){if(!INSTP)return;INSTP.prompt();INSTP.userChoice.finally(function(){INSTP=null;drawAcct()})}}
 // Instalar como app (en la compu queda con su ventana propia y su ícono, como un programa).
