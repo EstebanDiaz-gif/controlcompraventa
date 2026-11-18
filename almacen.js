@@ -1165,11 +1165,10 @@ export function createAlmacen(X) {
     const all = P(), low = all.filter(isLow).length, sinCod = all.filter((p) => !p.s).length;
     const estN = adm() ? all.filter((p) => p.ce).length : 0;   // costo calculado por el sistema (sin factura)
     if (!sinCod) S.stNoCod = false;
-    if (!estN) S.stEst = false;
     $('acats').innerHTML = '<button class="ch' + (!S.stCat && !S.stLow && !S.stEst ? ' on' : '') + '" data-al="scat" data-v="">Todos (' + all.length + ')</button>' +
       '<button class="ch' + (S.stLow ? ' on' : '') + '" data-al="slow">Por reponer (' + low + ')</button>' +
+      (adm() && all.length ? '<button class="ch' + (S.stEst ? ' on' : '') + '" data-al="sest">Costo estimado (' + estN + ')</button>' : '') +
       (load() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
-      (estN ? '<button class="ch' + (S.stEst ? ' on' : '') + '" data-al="sest">Costo estimado (' + estN + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     filaFin($('acats'));
     const cb = $('acatbar') || (() => { const e = document.createElement('div'); e.id = 'acatbar'; $('acats').after(e); return e; })();
@@ -1189,7 +1188,8 @@ export function createAlmacen(X) {
       '<div style="margin:4px 0 10px;font-size:14px">' + esc(avDes.slice(0, 4).map((p) => p.n).join(', ')) + (avDes.length > 4 ? ' y ' + (avDes.length - 4) + ' más' : '') + '. Pasalos todos juntos a esa categoría (antes podés destildar los que no van).</div>' +
       '<div class="row" style="gap:8px"><button class="go" data-al="mvdes" style="margin:0">Revisar y pasar</button><button class="go alt" data-al="avoff" data-v="des" style="margin:0;width:auto;padding:0 16px">Ahora no</button></div></div>';
     if (own && all.some((p) => p.demo)) h += '<button class="x" data-al="demodel" style="font-size:13px;text-decoration:underline;margin:0 4px 10px;color:#b3261e">Borrar los productos de ejemplo</button>';
-    if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (load() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
+    if (S.stEst && !l.length && !S.stQ.trim()) h += '<div class="empty">No hay productos con costo estimado: todos tienen el costo que cargaste vos. El sistema solo estima el costo cuando cargás un producto con precio y sin costo (en Carga rápida o Sueltos).</div>';
+    else if (!l.length) h += '<div class="empty">' + (all.length ? 'No hay productos en esta vista.' : (load() ? 'Cargá tu primer producto con "+ Producto".' : 'Todavía no hay productos cargados.')) + '</div>';
     const shown = l.slice(0, 300);
     shown.forEach((p) => {
       const lw = isLow(p), mg = p.pn && p.c ? Math.round((p.pn - p.c) / p.pn * 100) : null;
@@ -2504,7 +2504,7 @@ export function createAlmacen(X) {
     else if (a === 'qkcamon') qkCamOn();
     else if (a === 'libre') libreDlg();
     else if (a === 'snocod') { S.stNoCod = !S.stNoCod; S.stLow = false; S.stCat = ''; renderStock(); }
-    else if (a === 'sest') { S.stEst = !S.stEst; S.stLow = false; S.stCat = ''; renderStock(); }
+    else if (a === 'sest') { S.stEst = !S.stEst; S.stLow = false; S.stCat = ''; S.stNoCod = false; renderStock(); }
     else if (a === 'asigcod') asigCod(id);
     else if (a === 'imp') impOpen();
     else if (a === 'impej') impEjemplo();
