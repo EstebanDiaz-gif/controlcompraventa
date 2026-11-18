@@ -36,7 +36,7 @@ export function createAlmacen(X) {
   const S = {
     cart: [], q: '', cat: '', pay: 'ef', apSel: '', apTot: '', aps: null, canal: '', apo: '', apcl: '', cli: '', cliQ: '', paga: '', last: '', mixEf: '', mixO: 'tr', caja: null, cajaErr: false, cajasM: null, prBy: 'v',
     cl: [], clErr: false, fq: '', sel: null, fmov: null,
-    stQ: '', stCat: '', stLow: false, stNoCod: false, edit: null, repo: null, rq: '', rcomp: null, imp: null, qk: null,
+    stQ: '', stCat: '', stLow: false, stNoCod: false, stEst: false, edit: null, repo: null, rq: '', rcomp: null, imp: null, qk: null,
     month: X.today().slice(0, 7), tot: null, totM: null, hoy: [], hoyDay: '', day: X.today(), dayV: null
   };
   const un = {};
@@ -1127,7 +1127,7 @@ export function createAlmacen(X) {
         '<div style="display:flex;gap:8px;align-items:center"><input id="aq" type="search" placeholder="Buscar producto o código" autocomplete="off" style="flex:1;min-width:0" value="' + esc(S.stQ) + '">' + scanButton('scanstk') + '</div><div class="r1w" style="margin:10px 0 12px"><button type="button" class="r1a l" data-r1="-1" aria-label="Ver categorías anteriores">‹</button><div id="acats" class="chips r1"></div><button type="button" class="r1a r" data-r1="1" aria-label="Ver más categorías">›</button></div><div id="abody"></div>';
       // Al buscar o escanear, se busca en TODOS los productos: si quedaba elegida una categoría o "Por reponer",
       // un producto de otra categoría parecía "no cargado" (pasaba con la pistola lectora en la compu).
-      $('aq').oninput = function () { S.stQ = this.value; if (S.stQ.trim() && (S.stCat || S.stLow)) { S.stCat = ''; S.stLow = false; } renderStock(); };
+      $('aq').oninput = function () { S.stQ = this.value; if (S.stQ.trim() && (S.stCat || S.stLow || S.stEst)) { S.stCat = ''; S.stLow = false; S.stEst = false; } renderStock(); };
     }
     renderStock();
   }
@@ -1163,19 +1163,23 @@ export function createAlmacen(X) {
     if (P().length) syncFotosBase();
     const isLow = (p) => !p.ns && p.q <= (p.min || 0) && (p.min || p.q <= 0);
     const all = P(), low = all.filter(isLow).length, sinCod = all.filter((p) => !p.s).length;
+    const estN = adm() ? all.filter((p) => p.ce).length : 0;   // costo calculado por el sistema (sin factura)
     if (!sinCod) S.stNoCod = false;
-    $('acats').innerHTML = '<button class="ch' + (!S.stCat && !S.stLow ? ' on' : '') + '" data-al="scat" data-v="">Todos (' + all.length + ')</button>' +
+    if (!estN) S.stEst = false;
+    $('acats').innerHTML = '<button class="ch' + (!S.stCat && !S.stLow && !S.stEst ? ' on' : '') + '" data-al="scat" data-v="">Todos (' + all.length + ')</button>' +
       '<button class="ch' + (S.stLow ? ' on' : '') + '" data-al="slow">Por reponer (' + low + ')</button>' +
       (load() && sinCod ? '<button class="ch' + (S.stNoCod ? ' on' : '') + '" data-al="snocod">Sin código (' + sinCod + ')</button>' : '') +
+      (estN ? '<button class="ch' + (S.stEst ? ' on' : '') + '" data-al="sest">Costo estimado (' + estN + ')</button>' : '') +
       usedCats().map((c) => '<button class="ch' + (S.stCat === c ? ' on' : '') + '" data-al="scat" data-v="' + esc(c) + '">' + esc(c) + '</button>').join('');
     filaFin($('acats'));
     const cb = $('acatbar') || (() => { const e = document.createElement('div'); e.id = 'acatbar'; $('acats').after(e); return e; })();
     const pe = S.pubErr && adm() ? '<div class="bn warn" style="margin:0 0 10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:200px">⚠️ El catálogo online no se pudo actualizar. ' + esc(S.pubErr) + '</span><button type="button" class="go" data-al="pubre" style="margin:0;width:auto;padding:10px 14px">Reintentar</button></div>' : '';
     cb.innerHTML = pe + (S.stCat && adm() && X.canWrite() ? '<div style="display:flex;align-items:center;gap:10px;margin:2px 2px 10px;flex-wrap:wrap"><b style="font-size:15px">🗂️ ' + esc(S.stCat) + '</b><span class="k" style="margin:0">' + all.filter((p) => p.cat === S.stCat).length + ' productos</span><button type="button" class="x" data-al="catren" style="margin-left:auto;font-size:14px;font-weight:800;text-decoration:underline;color:var(--sell)">✏️ Cambiar nombre</button></div>' : '');
-    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + codigosDe(p).join(' ') + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
+    const l = all.filter((p) => (!S.stNoCod || !p.s) && (!S.stEst || p.ce) && (!S.stCat || p.cat === S.stCat) && (!S.stLow || isLow(p)) && (match(p.n + ' ' + codigosDe(p).join(' ') + ' ' + p.cat, S.stQ) || (S.stQ.trim() && findByCode([p], S.stQ)))).sort((a, b) => a.n.localeCompare(b.n));
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
     h += '<div class="card">';
+    if (S.stEst && l.length) h += '<div class="k" style="margin-bottom:6px">A estos productos no se les cargó el costo y el sistema lo calculó solo desde el precio de venta. Para poner el costo real: cargá la próxima compra en <b>Reponer</b> (se corrige solo) o tocá <b>Editar</b> y escribí el costo. Las ventas que ya se hicieron quedan con el costo estimado.</div>';
     if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
     const own = X.isOwner && X.isOwner() && adm();
     if (own && !all.length) h += '<div class="bn" style="margin:0 0 12px"><b>✨ Demo para mostrar</b><div style="margin:4px 0 10px;font-size:14px">Llená esta tienda con productos de ejemplo, fotos, destacados y el catálogo listo. Solo lo ves vos (dueño de Pekeron).</div><button class="go" data-al="demo" style="margin:0">Cargar demo</button></div>';
@@ -1216,6 +1220,7 @@ export function createAlmacen(X) {
       '<label>Descripción para el catálogo (opcional)</label><textarea id="fdsc" maxlength="160" rows="2" placeholder="Ej: Dulce de leche clásico, pote de 200 g." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">' + esc(c.d || '') + '</textarea>' +
       '<label>¿Cómo se vende?</label><div class="seg"><button class="pay' + (!c.w ? ' on' : '') + '" data-al="fw" data-v="0">Por unidad</button><button class="pay' + (c.w ? ' on' : '') + '" data-al="fw" data-v="1">Por peso (kg)</button></div>' +
       '<div class="row"><div><label id="lpn">Precio de venta</label><input id="fpn" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.pn || '') + '"></div><div><label id="lco">Costo</label><input id="fco" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.c || '') + '"></div></div><div class="tot" id="fmg"></div>' +
+      (p && p.ce ? '<div class="k" id="fcoe" style="margin-top:4px">⚠️ Este costo lo calculó el sistema (no se cargó el real). Escribí el costo real y se corrige desde ahora.</div>' : '') +
       '<div id="fopw"' + (c.w ? ' hidden' : '') + '><label>Opciones para elegir (opcional)</label><div class="k" style="margin:0 0 6px">Tamaños, punto de la carne, "sin cebolla", extras con precio, gustos… El cliente las elige en el catálogo y vos en la caja. El precio de cada opción se suma al precio de venta.</div><div id="fops"></div></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-weight:600"><input id="fns" type="checkbox" style="width:auto;margin-top:3px"' + (c.ns ? ' checked' : '') + '><span>Sin control de stock (siempre disponible)<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Para fiambres, quesos o cosas que también usás para preparar (sánguches, pizzas) y no sabés cuánto hay. Se vende igual y aparece siempre en el catálogo.</small></span></label>' +
       '<div id="fqrow"' + (c.ns ? ' hidden' : '') + '><div class="row"><div><label id="lq">' + (p ? 'Stock actual (contado)' : 'Stock inicial') + '</label><input id="fq" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + (p ? n3(c.q) : '') + '"></div><div><label>Avisar cuando quede (opcional)</label><input id="fmin" type="text" inputmode="decimal" placeholder="Ej: 3" autocomplete="off" value="' + (c.min ? n3(c.min) : '') + '"></div></div>' +
@@ -1372,6 +1377,7 @@ export function createAlmacen(X) {
     const malo = (E.op || []).find((g) => g.o.some((x) => !x.n) || !g.t);
     if (!E.w && malo) { alert('Completá el nombre de cada grupo y de cada opción (o quitá las que estén vacías).'); return; }
     const o = { n, s, s2: s2.length ? s2 : deleteField(), cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns, op: op.length ? op : deleteField() };
+    if (p && p.ce && co !== p.c) o.ce = deleteField();   // escribió el costo real: deja de ser estimado
     const b = writeBatch(db);
     if (E.img !== undefined) {
       o.img = E.img; o.hd = E.hd ? 1 : deleteField(); o.bf = deleteField();   // foto propia: ya no sigue a la base
@@ -2412,8 +2418,8 @@ export function createAlmacen(X) {
     else if (a === 'wa') waMsg();
     else if (a === 'editcli') cliDlg(cli(S.sel), false);
     else if (a === 'delcli') { const c = cli(S.sel); if (c && confirm('¿Borrar a ' + c.n + '? Se conserva el historial de ventas.')) { deleteDoc(ref('clientes', c.id)).catch(failW); closeCli(); } }
-    else if (a === 'scat') { S.stCat = el.dataset.v; S.stLow = false; renderStock(); }
-    else if (a === 'slow') { S.stLow = !S.stLow; S.stCat = ''; renderStock(); }
+    else if (a === 'scat') { S.stCat = el.dataset.v; S.stLow = false; S.stEst = false; renderStock(); }
+    else if (a === 'slow') { S.stLow = !S.stLow; S.stCat = ''; S.stEst = false; renderStock(); }
     else if (a === 'newp') { S.repo = null; prodForm(null); }
     else if (a === 'editp') prodForm(id);
     else if (a === 'ig') instaProd(id);
@@ -2457,6 +2463,7 @@ export function createAlmacen(X) {
     else if (a === 'qkcamon') qkCamOn();
     else if (a === 'libre') libreDlg();
     else if (a === 'snocod') { S.stNoCod = !S.stNoCod; S.stLow = false; S.stCat = ''; renderStock(); }
+    else if (a === 'sest') { S.stEst = !S.stEst; S.stLow = false; S.stCat = ''; renderStock(); }
     else if (a === 'asigcod') asigCod(id);
     else if (a === 'imp') impOpen();
     else if (a === 'impej') impEjemplo();
