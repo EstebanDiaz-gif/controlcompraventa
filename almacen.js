@@ -1591,6 +1591,41 @@ export function createAlmacen(X) {
   // =====================================================================
   // RESUMEN (administrador)
   // =====================================================================
+  // ---------- ¿Dónde está la ganancia? ----------
+  // La ganancia del mes no siempre es plata en mano: parte puede haber quedado en mercadería (si compraste más de lo que
+  // vendiste), en fiado sin cobrar o en depósitos de las apps que todavía no llegaron.
+  // El valor de la mercadería al empezar el mes se guarda en totales/{mes}.sk.i la primera vez que el administrador abre el
+  // resumen ese mes; si ya hubo compras o ventas, se reconstruye: mercadería de hoy − compras del mes + costo de lo vendido
+  // (queda marcado como aproximado). Ese mismo número es el valor final del mes anterior (sk.f).
+  const valorStock = () => { let v = 0; P().forEach((p) => { if (!p.ns) v += Math.max(p.q, 0) * (p.c || 0); }); return Math.round(v); };
+  const mesAnt = (m) => { const y = +m.slice(0, 4), mo = +m.slice(5, 7); return mo === 1 ? (y - 1) + '-12' : y + '-' + String(mo - 1).padStart(2, '0'); };
+  function fotoMes(t) {
+    const m = X.today().slice(0, 7);
+    if (S.month !== m || S.tot === null || (t.sk && t.sk.i != null) || !P().length || S.skW === X.sid() + m || !X.canWrite()) return;
+    S.skW = X.sid() + m;
+    const co = t.co || 0, c = t.c || 0, i = Math.max(0, Math.round(valorStock() - co + c)), b = writeBatch(db);
+    b.set(ref('totales', m), { sk: { i, at: Date.now(), ap: co || c ? 1 : 0 } }, { merge: true });
+    b.set(ref('totales', mesAnt(m)), { sk: { f: i } }, { merge: true });
+    b.commit().catch(() => { S.skW = ''; });
+  }
+  function patriCard(t, gain) {
+    const sk = t.sk || {}, hoy = S.month === X.today().slice(0, 7);
+    if (sk.i == null) return '';
+    const fin = hoy ? valorStock() : sk.f;
+    if (fin == null) return '';
+    const dM = Math.round(fin - sk.i), pc = sk.i > 0 ? Math.round(dM / sk.i * 100) : null, pay = t.pay || {};
+    const dF = Math.round((pay.fi || 0) - (t.cob || 0)), dA = pay.ap ? Math.max(0, Math.round(pay.ap - (t.apcob || 0) - (t.apcom || 0))) : 0;
+    const resto = Math.round(gain - dM - dF - dA);
+    const sg = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + money(Math.abs(n));
+    return '<div class="card"><b>¿Dónde está la ganancia?</b><div class="k" style="margin-top:4px">La ganancia no siempre es plata en mano: si compraste más mercadería de la que vendiste, esa plata está en las góndolas.</div><div class="rows" style="margin:8px 0 0">' +
+      '<div class="r2"><span>Mercadería al empezar el mes<small>a costo' + (sk.ap ? ' · aproximado (calculado con las compras y ventas del mes)' : '') + '</small></span><b>' + money(sk.i) + '</b></div>' +
+      '<div class="r2"><span>Mercadería ' + (hoy ? 'hoy' : 'al terminar el mes') + '<small>a costo</small></span><b>' + money(fin) + '</b></div>' +
+      '<div class="r2"><span>' + (dM >= 0 ? 'Tu mercadería creció' : 'Tu mercadería bajó') + (pc != null ? '<small>' + (pc > 0 ? '+' : '') + pc + '% en el mes</small>' : '') + '</span><b class="' + (dM >= 0 ? 'pos' : 'neg') + '">' + sg(dM) + '</b></div>' +
+      (dF ? '<div class="r2"><span>' + (dF > 0 ? 'Fiado sin cobrar del mes' : 'Cobraste fiados de antes') + '<small>fiaste ' + money(pay.fi || 0) + ' y cobraste ' + money(t.cob || 0) + '</small></span><b>' + sg(dF) + '</b></div>' : '') +
+      (dA ? '<div class="r2"><span>Apps: falta que te depositen<small>de lo vendido este mes por apps</small></span><b>' + money(dA) + '</b></div>' : '') +
+      '<div class="r2"><span>Plata que te tendría que haber quedado<small>en la caja, el banco o Mercado Pago (o lo que retiraste)</small></span><b class="' + (resto >= 0 ? 'pos' : 'neg') + '">' + money(resto) + '</b></div></div>' +
+      '<div class="k" style="margin-top:8px">Ganancia ' + money(gain) + ' = mercadería ' + sg(dM) + (dF ? ' + fiado ' + sg(dF) : '') + (dA ? ' + apps ' + money(dA) : '') + ' + plata ' + sg(resto) + '. Para que la mercadería sea exacta, cargá las compras con Reponer y corregí el stock cuando cuentes.</div></div>';
+  }
   function drawRes() {
     const box = $('s-res');
     listenTot(); listenHoy(); listenCajasMes(); listenAps();
@@ -1612,7 +1647,7 @@ export function createAlmacen(X) {
       '<div class="r2"><span>Cobré de fiados<small>pagos de deudas este mes</small></span><b class="pos">' + money(t.cob || 0) + '</b></div>' +
       '<div class="r2"><span>Te deben hoy<small>total de la libreta</small></span><b class="neg">' + money(deben) + '</b></div>' +
       (t.apcob ? '<div class="r2"><span>Te depositaron las apps<small>depósitos registrados este mes</small></span><b class="pos">' + money(t.apcob) + '</b></div>' : '') + '</div></div>' +
-      appsCard() + cajasCard() + (S.tot === null ? '' : topCard(t)) +
+      (S.tot === null ? '' : patriCard(t, gain)) + appsCard() + cajasCard() + (S.tot === null ? '' : topCard(t)) +
       '<div class="card"><b>Descargar para Excel</b><div class="k" style="margin-top:4px">Se abre con Excel o Google Sheets.</div><div class="row" style="gap:8px;margin-top:10px"><button class="go alt" data-al="xven" style="margin:0">Ventas del mes</button><button class="go alt" data-al="xtop" style="margin:0">Lo más vendido</button></div></div>';
     const dias = t.dias || {}, keys = Object.keys(dias).filter((k) => (dias[k].n || 0) > 0).sort();
     if (keys.length) {
@@ -1629,6 +1664,7 @@ export function createAlmacen(X) {
     box.innerHTML = h + '</div><div class="note">El costo de cada venta es el costo promedio del producto al momento de vender. Cargá las compras en Stock → Reponer para que sea exacto.</div>';
     $('rday').onchange = function () { S.day = this.value || X.today(); S.dayV = null; if (S.day !== X.today()) loadDay(); drawRes(); };
     if (!isToday && !S.dayV) loadDay();
+    fotoMes(t);
   }
   // ---------- Lo más vendido y descargas para Excel ----------
   // ---------- Apps de delivery: cuenta por app y por semana (lunes a domingo) ----------
