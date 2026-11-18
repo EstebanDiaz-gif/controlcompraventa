@@ -386,6 +386,8 @@ service cloud.firestore {
       match /ventas/{id} {
         allow read: if isAdmin(sid) || (isMember(sid) && resource.data.by == request.auth.uid);
         allow create: if accessOk(sid) && isMember(sid) && request.resource.data.by == request.auth.uid;
+        // El administrador solo puede corregir el costo (cuando un costo estimado pasa a ser el real).
+        allow update: if isAdmin(sid) && accessOk(sid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['it', 'cost']);
         allow delete: if isAdmin(sid) && accessOk(sid);
       }
       // Compras a proveedores (Reponer): solo administradores.

@@ -1179,7 +1179,7 @@ export function createAlmacen(X) {
     let val = 0; all.forEach((p) => { if (!p.ns) val += Math.max(p.q, 0) * (p.c || 0); });
     let h = adm() ? '<div class="k" style="margin:0 4px 10px">' + all.length + ' productos · mercadería en stock (a costo): <b>' + money(val) + '</b> · <button class="x" data-al="stval" style="font-size:13px;font-weight:700;text-decoration:underline;color:var(--ink)">¿Qué suma más?</button></div>' : '';
     h += '<div class="card">';
-    if (S.stEst && l.length) h += '<div class="k" style="margin-bottom:6px">A estos productos no se les cargó el costo y el sistema lo calculó solo desde el precio de venta. Para poner el costo real: cargá la próxima compra en <b>Reponer</b> (se corrige solo) o tocá <b>Editar</b> y escribí el costo. Las ventas que ya se hicieron quedan con el costo estimado.</div>';
+    if (S.stEst && l.length) h += '<div class="k" style="margin-bottom:6px">A estos productos no se les cargó el costo y el sistema lo calculó solo desde el precio de venta. Para poner el costo real: cargá la próxima compra en <b>Reponer</b> (se corrige solo) o tocá <b>Editar</b> y escribí el costo. Al poner el costo real, también se corrige la ganancia de las ventas de este mes.</div>';
     if (S.stNoCod && l.length) h += '<div class="k" style="margin-bottom:6px">Tocá "Escanear código" en cada producto y pasale la cámara por el código de barras. También podés escanear desde el buscador: si el código no existe, te deja elegir a qué producto asignarlo.</div>';
     const own = X.isOwner && X.isOwner() && adm();
     if (own && !all.length) h += '<div class="bn" style="margin:0 0 12px"><b>✨ Demo para mostrar</b><div style="margin:4px 0 10px;font-size:14px">Llená esta tienda con productos de ejemplo, fotos, destacados y el catálogo listo. Solo lo ves vos (dueño de Pekeron).</div><button class="go" data-al="demo" style="margin:0">Cargar demo</button></div>';
@@ -1220,7 +1220,7 @@ export function createAlmacen(X) {
       '<label>Descripción para el catálogo (opcional)</label><textarea id="fdsc" maxlength="160" rows="2" placeholder="Ej: Dulce de leche clásico, pote de 200 g." style="width:100%;padding:14px 16px;border:0;border-radius:14px;background-color:var(--line);color:var(--ink);font:inherit;font-weight:600;outline:none;resize:vertical">' + esc(c.d || '') + '</textarea>' +
       '<label>¿Cómo se vende?</label><div class="seg"><button class="pay' + (!c.w ? ' on' : '') + '" data-al="fw" data-v="0">Por unidad</button><button class="pay' + (c.w ? ' on' : '') + '" data-al="fw" data-v="1">Por peso (kg)</button></div>' +
       '<div class="row"><div><label id="lpn">Precio de venta</label><input id="fpn" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.pn || '') + '"></div><div><label id="lco">Costo</label><input id="fco" type="number" inputmode="decimal" min="0" placeholder="0" value="' + (c.c || '') + '"></div></div><div class="tot" id="fmg"></div>' +
-      (p && p.ce ? '<div class="k" id="fcoe" style="margin-top:4px">⚠️ Este costo lo calculó el sistema (no se cargó el real). Escribí el costo real y se corrige desde ahora.</div>' : '') +
+      (p && p.ce ? '<div class="k" id="fcoe" style="margin-top:4px">⚠️ Este costo lo calculó el sistema (no se cargó el real). Escribí el costo real y se corrige, también en la ganancia de las ventas de este mes.</div>' : '') +
       '<div id="fopw"' + (c.w ? ' hidden' : '') + '><label>Opciones para elegir (opcional)</label><div class="k" style="margin:0 0 6px">Tamaños, punto de la carne, "sin cebolla", extras con precio, gustos… El cliente las elige en el catálogo y vos en la caja. El precio de cada opción se suma al precio de venta.</div><div id="fops"></div></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-weight:600"><input id="fns" type="checkbox" style="width:auto;margin-top:3px"' + (c.ns ? ' checked' : '') + '><span>Sin control de stock (siempre disponible)<small style="display:block;font-weight:400;color:var(--mut);margin-top:2px">Para fiambres, quesos o cosas que también usás para preparar (sánguches, pizzas) y no sabés cuánto hay. Se vende igual y aparece siempre en el catálogo.</small></span></label>' +
       '<div id="fqrow"' + (c.ns ? ' hidden' : '') + '><div class="row"><div><label id="lq">' + (p ? 'Stock actual (contado)' : 'Stock inicial') + '</label><input id="fq" type="text" inputmode="decimal" placeholder="0" autocomplete="off" value="' + (p ? n3(c.q) : '') + '"></div><div><label>Avisar cuando quede (opcional)</label><input id="fmin" type="text" inputmode="decimal" placeholder="Ej: 3" autocomplete="off" value="' + (c.min ? n3(c.min) : '') + '"></div></div>' +
@@ -1377,7 +1377,8 @@ export function createAlmacen(X) {
     const malo = (E.op || []).find((g) => g.o.some((x) => !x.n) || !g.t);
     if (!E.w && malo) { alert('Completá el nombre de cada grupo y de cada opción (o quitá las que estén vacías).'); return; }
     const o = { n, s, s2: s2.length ? s2 : deleteField(), cat, w: E.w, pn, c: co, min, oh: $('foh').checked, alm: 1, d, pa, dt, ns, op: op.length ? op : deleteField() };
-    if (p && p.ce && co !== p.c) o.ce = deleteField();   // escribió el costo real: deja de ser estimado
+    const corrige = p && p.ce && co !== p.c;
+    if (corrige) o.ce = deleteField();   // escribió el costo real: deja de ser estimado
     const b = writeBatch(db);
     if (E.img !== undefined) {
       o.img = E.img; o.hd = E.hd ? 1 : deleteField(); o.bf = deleteField();   // foto propia: ya no sigue a la base
@@ -1387,6 +1388,7 @@ export function createAlmacen(X) {
     if (p && typeof p.q === 'number' && isFinite(p.q)) { const dq = r3(q - p.q); if (dq !== 0) o.q = increment(dq); } else o.q = isFinite(q) ? q : 0;
     b.set(ref('stock', id), o, { merge: true });
     b.commit().catch(failW);
+    if (corrige) corregirEstimado(p, co);
     if (s) { if (E.img !== undefined && !E.px) aportar(s, n, E.img, E.qs || 0, 'u'); else aportar(s, n, '', 0, 'u'); }   // la foto publicitaria no va a la base de códigos
     closeForms();
   }
@@ -1460,10 +1462,49 @@ export function createAlmacen(X) {
     b.update(doc(db, 'stores', sid, 'stock', p.id), { q: increment(q), c: p.ce ? cu : newAvgCost(p.q, p.c, q, cu), ce: deleteField(), pn });
     b.set(doc(db, 'stores', sid, 'totales', m), { co: increment(tot) }, { merge: true });
     b.commit().catch(failW);
+    if (p.ce) corregirEstimado(p, cu);
     if (S.rcomp && S.rcomp.list && S.rcomp.m === m) S.rcomp.list.unshift(c);
     S.repo = { id: null }; S.rq = '';
     renderRepo();
     const k = document.querySelector('#s-stk .card .k'); if (k) k.innerHTML = '<b style="color:var(--sell)">Guardado ✓ ' + esc(p.n) + ' +' + fq(q, p.w) + '</b>';
+  }
+  // Costo estimado → costo real: las ventas de ESTE MES de ese producto que se hicieron con el costo estimado se recalculan
+  // con el costo real (y la ganancia del mes y de cada día). Solo pasa una vez, cuando el costo deja de ser estimado:
+  // si después un costo real cambia (otra compra más cara), las ventas anteriores no se tocan.
+  function corregirEstimado(p, real) {
+    const viejo = +p.c || 0;
+    if (!adm() || !(real > 0) || real === viejo) return;
+    const sid = X.sid(), m = X.today().slice(0, 7);
+    getDocs(query(col('ventas'), where('m', '==', m))).then((sn) => {
+      const cambios = [];
+      sn.forEach((s) => {
+        const v = s.data(); let toca = false;
+        const it = (v.it || []).map((x) => { if (x.id === p.id && (+x.c || 0) === viejo) { toca = true; return Object.assign({}, x, { c: real }); } return x; });
+        if (!toca) return;
+        const cost = cartTotals(it).cost;
+        cambios.push({ id: s.id, d: String(v.d || ''), it, cost, dif: cost - (v.cost || 0) });
+      });
+      if (!cambios.length) return;
+      const lotes = [];
+      for (let i = 0; i < cambios.length; i += 400) {
+        const b = writeBatch(db), dias = {}; let tot = 0;
+        cambios.slice(i, i + 400).forEach((c) => {
+          b.update(doc(db, 'stores', sid, 'ventas', c.id), { it: c.it, cost: c.cost });
+          const dd = c.d.slice(8, 10); if (dd) dias[dd] = (dias[dd] || 0) + c.dif; tot += c.dif;
+        });
+        const di = {}; Object.keys(dias).forEach((k) => { di[k] = { c: increment(dias[k]) }; });
+        b.set(doc(db, 'stores', sid, 'totales', m), { c: increment(tot), dias: di }, { merge: true });
+        lotes.push(b.commit());
+      }
+      return Promise.all(lotes).then(() => {
+        if (S.dayV) { cambios.forEach((c) => { const v = S.dayV.find((x) => String(x.id) === String(c.id)); if (v) { v.it = c.it; v.cost = c.cost; } }); }
+        if (X.tab() === 'res') drawRes();
+        alert('Con el costo real de "' + p.n + '" se corrigió la ganancia de ' + (cambios.length === 1 ? '1 venta' : cambios.length + ' ventas') + ' de este mes.');
+      });
+    }).catch((e) => {
+      console.warn('corregirEstimado', e && e.code);
+      if (deny(e)) alert('El costo real de "' + p.n + '" quedó guardado, pero no se pudo corregir la ganancia de las ventas de este mes: falta publicar las reglas nuevas de Firebase. Avisale a Pekeron App.');
+    });
   }
   function delCompra(id) {
     const c = S.rcomp && S.rcomp.list && S.rcomp.list.find((x) => x.id === id); if (!c) return;
