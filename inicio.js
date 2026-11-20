@@ -76,6 +76,7 @@ export function createInicio(X) {
       fila('tab:fia', IC.libreta, 'Fiado') +
       (adm ? fila('tab:gas', IC.gasto, 'Gastos') : '') +
       (adm && r && r.mesasOn ? fila('qr', IC.qr, 'QR de las mesas') : '') +
+      (X.cupOn && X.cupOn() ? fila('cupon', IC.qr, 'Canjear cupón') : '') +
       '<a href="' + esc(X.catLink()) + '" target="_blank" rel="noopener"><span class="mi">' + IC.ojo + '</span>Ver mi menú online' + IC.flecha + '</a>' +
       (adm ? fila('tab:team', IC.equipo, 'Equipo y configuración') : '') + '</div>';
     box.innerHTML = h;
@@ -90,6 +91,7 @@ export function createInicio(X) {
     if (a === 'mesas') { X.pd.mesas(); return; }
     if (a === 'cocina') { X.pd.cocina(); return; }
     if (a === 'abierto') { X.pd.abiertoCerrado(); return; }
+    if (a === 'cupon') { X.cupon(); return; }
     if (a === 'qr') X.qrMesas();
   }
   let wired = false;
@@ -125,6 +127,7 @@ const I2 = {
   cash: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>',
   card: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
   alert: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg>',
+  ticket: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v12" stroke-dasharray="2 2"/></svg>',
   cal: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
   arrow: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
   down: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>',
@@ -136,7 +139,7 @@ export function createInicioCom(X) {
   function draw() {
     const box = X.$('s-ini'); if (!box) return;
     if (!cssOk) { cssOk = true; const st = document.createElement('style'); st.textContent = CSS2; document.head.appendChild(st); }
-    if (!wired) { wired = true; box.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-inc]'); if (!b || !X.$('s-ini').contains(b)) return; X.show(b.dataset.inc); window.scrollTo(0, 0); }); }
+    if (!wired) { wired = true; box.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-inc]'); if (!b || !X.$('s-ini').contains(b)) return; if (b.dataset.inc === 'cupon') { X.cupon(); return; } X.show(b.dataset.inc); window.scrollTo(0, 0); }); }
     if (X.esGas && X.esGas()) return;
     const d = X.datos(), adm = X.isAdm();
     let h = '';
@@ -153,6 +156,7 @@ export function createInicioCom(X) {
     if (d.fiado) rows.push([d.fiado, '#2563EB', I2.card, 'Deuda de clientes', '<b>' + money(d.deuda) + '</b>']);
     if (d.stockBajo !== null && d.stockBajo !== undefined) rows.push([d.stkTab || 'stk', '#D97706', I2.alert, d.stockBajo ? 'Stock bajo (' + d.stockBajo + ')' : 'Stock al día', d.stockBajo ? '<em>!</em>' : '']);
     if (d.extra) rows.push([d.extra[0], '#7C3AED', I2.cal, d.extra[1], d.extra[2] ? '<b>' + esc(d.extra[2]) + '</b>' : '']);
+    if (X.cupOn && X.cupOn()) rows.push(['cupon', '#E11D48', I2.ticket, 'Canjear cupón de promo', '']);
     if (rows.length) h += '<div class="ini-t">Resumen rápido' + (adm && d.resTab ? '<button type="button" class="x" data-inc="' + d.resTab + '" style="font-size:14px;color:var(--sell);text-decoration:none;font-weight:800">Ver más ›</button>' : '') + '</div><div class="ini-r">' +
       rows.map((r) => '<button type="button" data-inc="' + r[0] + '"><i style="background:' + r[1] + '22;color:' + r[1] + '">' + r[2] + '</i>' + esc(r[3]) + r[4] + '</button>').join('') + '</div>';
     h += '<div class="ini-b"><button type="button" class="b1" data-inc="' + d.venta[0] + '">' + I2.cart + esc(d.venta[1]) + '</button>' + (d.stock ? '<button type="button" class="b2" data-inc="' + d.stock[0] + '">' + I2.box + esc(d.stock[1]) + '</button>' : '') + '</div>';

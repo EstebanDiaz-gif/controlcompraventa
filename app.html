@@ -272,6 +272,7 @@ import {introTema} from './intro.js';
 import {createPedidos} from './pedidos.js';
 import {createInicio,createInicioCom} from './inicio.js';
 import {createClientes} from './clientes.js';
+import {abrirCanje} from './cupones.js';
 import {uiModo,uiAplicar,uiTabs,masBoton,abrirMas,elegirUI,uiGuardar,uiEligio} from './ui.js';
 import {abrirTiketera} from './ticket.js';
 
@@ -402,12 +403,15 @@ tiketera:function(){abrirTiketera({tienda:SNAME,dir:(PUB||{}).addr||'',lineas:[{
 cambio:function(){iniDraw()},cobrar:function(p,pay){if(biz()!='almacen'||!ALM.ventaPedido)return null;return ALM.ventaPedido(p,pay)},apps:function(){return biz()=='almacen'&&ALM.apps?ALM.apps():[]},
 aCaja:function(p){if(biz()!='almacen'||!ALM.cargarPedido)return false;show('caja');return ALM.cargarPedido(p)}});
 // Inicio de gastronomía (rubros de comida): botones de colores para Pedidos, Mesas, Cocina, Caja, Delivery y Apps.
-var INI=createInicio({$:$,esc:esc,money:money,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},tienda:function(){return SNAME},nombre:function(){return U?nm():''},
+// Cupones con QR de las promos por email: se canjean desde Inicio, Clientes o el escáner de la caja.
+function cupon(c){abrirCanje({db:db,sid:function(){return SID},uid:function(){return U&&U.uid},esc:esc},c||'')}
+function cupOn(){return !!(PUB||{}).cup}
+var INI=createInicio({$:$,esc:esc,money:money,cupon:cupon,cupOn:cupOn,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},tienda:function(){return SNAME},nombre:function(){return U?nm():''},
 alm:{iniDatos:function(){return ALM.iniDatos()}},pd:{on:function(){return PD.on()},resumen:function(){return PD.resumen()},abrir:function(){PD.abrir()},mesas:function(){PD.mesas()},cocina:function(){PD.cocina()},abiertoCerrado:function(){PD.abiertoCerrado()}},
 catLink:function(){return catLink()},qrMesas:function(){var nm0=+(((PUB||{}).ped||{}).nm)||0,n=nm0||Math.round(+(prompt('¿Cuántas mesas tenés?','10')||0));if(n>0)PD.qrMesas(catLink(),n,SNAME,(PUB||{}).color||'')}});
 function iniDraw(){if(TAB!='ini'||lockState())return;if(uiGas())INI.draw();else INIC.draw()}
 var CLIE=createClientes({db:db,$:$,esc:esc,money:money,sid:function(){return SID},isAdm:function(){return ROLE=='admin'},pub:function(){return PUB},tienda:function(){return SNAME},catLink:function(){return catLink()},fail:function(e){fail(e)},wa:function(t){return waNorm(t)},user:function(){return U},pushFetch:function(p,b){return pushFetch(p,b)}});
-var INIC=createInicioCom({$:$,esc:esc,money:money,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},esGas:function(){return uiGas()},datos:function(){return biz()=='almacen'?ALM.iniCom():iniLegacy()}});
+var INIC=createInicioCom({$:$,esc:esc,money:money,cupon:cupon,cupOn:cupOn,show:function(t){show(t)},isAdm:function(){return ROLE=='admin'},esGas:function(){return uiGas()},datos:function(){return biz()=='almacen'?ALM.iniCom():iniLegacy()}});
 // Inicio Nuevo para tiendas y servicios (motor de movimientos): las mismas cuentas que el Resumen, para hoy y el mes.
 function iniLegacy(){var hoy=today(),m=hoy.slice(0,7),dd=hoy.slice(8,10),y=+m.slice(0,4),mo=+m.slice(5,7),pm=mo==1?(y-1)+'-12':y+'-'+String(mo-1).padStart(2,'0'),ix=costIdx();
 var sell=0,cost=0,envc=0,vp=0,vh=0,nh=0,uh=0,sal={};
@@ -421,7 +425,7 @@ var srv=biz()=='servicios',low=null;try{low=stkRows().filter(function(g){return 
 return {ganMes:sell-cost+envc+(sv?sv.net:0)-gTotal(m),ventasMes:sell,ventasPrev:ROLE=='admin'?vp:null,ventasHoy:vh,nHoy:nh,unidHoy:uh,deudores:deudores,deuda:deuda,cajaEf:null,
 stockBajo:srv?null:low,stkTab:'stk',venta:srv?['att','Atender a un cliente']:['caja','Nueva venta'],stock:srv?(isAgBiz()?['agd','Ver la agenda']:null):['stk','Gestionar stock'],fiado:'fia',resTab:ROLE=='admin'?'res':''}}
 function pedSync(){var p=PUB||{};if(SID&&ROLE&&!SOP&&biz()=='almacen'&&p.enabled&&p.ped&&p.ped.on){PD.start(SID);funAbrir()}else PD.stop()}
-var ALM=createAlmacen({ini:function(){iniDraw()},inicioTab:function(){return gasNow()?'ini':'res'},fotosDemo:PAGOS_URL?{buscar:function(q){return pushFetch('/fotos/buscar',{q:q,p:1})},proxy:PAGOS_URL+'/img'}:null,volver:function(a){if(a=='mesas')PD.mesas()},pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
+var ALM=createAlmacen({cupon:cupon,ini:function(){iniDraw()},inicioTab:function(){return gasNow()?'ini':'res'},fotosDemo:PAGOS_URL?{buscar:function(q){return pushFetch('/fotos/buscar',{q:q,p:1})},proxy:PAGOS_URL+'/img'}:null,volver:function(a){if(a=='mesas')PD.mesas()},pedOn:function(){return PD.on()},guardarPedido:function(d){return PD.guardarMostrador(d)},db:db,$:$,esc:esc,money:money,today:today,rnd:rnd,mlabel:mlabel,hist:function(id){if(ROLE=='admin')openHist({k:'p',id:id})},isAdm:function(){return ROLE=='admin'},
 fail:function(e){fail(e)},canWrite:function(){return canWrite()},blockedCard:function(){return blockedCard()},nm:function(){return nm()},
 readPhoto:function(f,cb){readPhoto(f,cb)},gTotal:function(m){return gTotal(m)},
 sid:function(){return SID},pub:function(){return PUB},role:function(){return ROLE},user:function(){return U},st:function(){return ST},sname:function(){return SNAME},tab:function(){return TAB},

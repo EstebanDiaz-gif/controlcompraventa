@@ -83,6 +83,15 @@ export async function aMerge(env, path, obj) {
   const r = await fetch(base(env) + '/' + path + '?' + q, { method: 'PATCH', headers: { Authorization: 'Bearer ' + await adminToken(env), 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }) });
   if (!r.ok) throw new Error('fs merge ' + r.status);
 }
+// Crea o reemplaza varios documentos de una vez (hasta 500 por llamada): [{ path, obj }].
+export async function aCommit(env, docs) {
+  const raiz = 'projects/' + env.FB_PROJECT + '/databases/(default)/documents/';
+  for (let i = 0; i < docs.length; i += 450) {
+    const writes = docs.slice(i, i + 450).map((d) => ({ update: { name: raiz + d.path, fields: toFs(d.obj).mapValue.fields } }));
+    const r = await fetch(base(env) + ':commit', { method: 'POST', headers: { Authorization: 'Bearer ' + await adminToken(env), 'Content-Type': 'application/json' }, body: JSON.stringify({ writes }) });
+    if (!r.ok) throw new Error('fs commit ' + r.status);
+  }
+}
 // Consulta con filtros de igualdad dentro de `parent` (ej. 'stores/abc' para sus members). Devuelve [{ id, path, x }].
 export async function aQuery(env, parent, coleccion, filtros, todas) {
   const where = filtros && filtros.length ? (filtros.length === 1 ? { fieldFilter: { field: { fieldPath: filtros[0][0] }, op: 'EQUAL', value: toFs(filtros[0][1]) } }

@@ -454,6 +454,14 @@ service cloud.firestore {
           && request.resource.data.get('mk', false) is bool;
         allow delete: if isAdmin(sid) || (signedIn() && request.auth.uid == u);
       }
+      // Cupones con QR de las promos por email: los crea el servidor (uno por cliente). En el local se canjean una sola vez.
+      match /cupones/{c} {
+        allow get: if isMember(sid);
+        allow list, delete: if isAdmin(sid);
+        allow update: if isMember(sid) && accessOk(sid) && !('us' in resource.data)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['us', 'ub'])
+          && request.resource.data.us is int && request.resource.data.ub == request.auth.uid;
+      }
       match /impresion/{id} {
         allow read, delete: if isMember(sid);
         allow create: if isMember(sid) && accessOk(sid) && request.resource.data.by == request.auth.uid;

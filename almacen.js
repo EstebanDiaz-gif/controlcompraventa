@@ -22,6 +22,7 @@ import { CATS, catsFor, PAY, OTROS, r2, r3, pnum, n3, fq, lineTotal, cartTotals,
 import { esGas } from './plans.js';
 import { sumarPedido } from './clientes.js';
 import { openScanner, scanButton, findByCode, codigosDe, beep, canScan } from './scanner.js';
+import { esQrCupon } from './cupones.js';
 // Computadora (mouse, sin pantalla táctil): ahí se usa la pistola lectora en vez de la cámara.
 const PC = (() => { try { return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(any-pointer: coarse)').matches; } catch (e) { return false; } })();
 import { CAMPOS, CAMPOS_FIADO, filas, leerArchivo, detectar, armar, plan, ejemploCsv } from './planilla.js';
@@ -2388,6 +2389,7 @@ export function createAlmacen(X) {
     openScanner({
       title: 'Escaneá los productos', multi: true,
       onCode(code) {
+        if (esQrCupon(code) && X.cupon) { later(() => X.cupon(code)); return { ok: true, close: true, msg: '🎟️ Cupón de promo' }; }
         const p = findByCode(P(), code);
         if (!p) { const bl = balLine(code); if (bl) { if (bl.err) return { ok: false, msg: bl.err }; S.cart.push(bl.line); S.last = ''; later(() => renderCart()); return { ok: true, msg: '✓ ' + bl.line.n + ' · ' + fq(bl.line.q, true) + ' · ' + money(lineTotal(bl.line)) }; } }
         if (!p && load()) { later(() => offerNew(code, (np) => addProd(np))); return { ok: false, close: true, msg: 'Código nuevo: decí qué producto es y sigue la venta' }; }

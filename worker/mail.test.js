@@ -1,7 +1,7 @@
 // Pruebas de las promos por email (Brevo y Firestore simulados).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { promo, baja, armar, firmaBaja } from './src/mail.js';
+import { promo, baja, armar, firmaBaja, qrImg, cuponOk, vence, venceTxt } from './src/mail.js';
 import { _reset } from './src/admin.js';
 
 const toFs = (v) => {
@@ -17,12 +17,13 @@ async function claveSA() {
 }
 async function entorno(docs) {
   _reset();
-  const kv = new Map(), enviados = [], merges = [];
+  const kv = new Map(), enviados = [], merges = [], commits = [];
   const env = { FB_PROJECT: 'p', FB_SA: await claveSA(), BREVO_KEY: 'bk', MAIL_FROM: 'promos@pekeronapp.com', MAIL_DIA: '3',
     MP: { get: async (k) => (kv.has(k) ? kv.get(k) : null), put: async (k, v) => { kv.set(k, v); } } };
   globalThis.fetch = async (url, o = {}) => {
     url = String(url);
     if (url.includes('oauth2.googleapis.com')) return Response.json({ access_token: 'AT', expires_in: 3600 });
+    if (url.endsWith(':commit')) { commits.push(...JSON.parse(o.body).writes); return Response.json({}); }
     if (url.includes('api.brevo.com')) { enviados.push(JSON.parse(o.body)); return Response.json({ messageId: 'x' }, { status: 201 }); }
     if (url.endsWith(':runQuery')) {
       const b = JSON.parse(o.body), col = b.structuredQuery.from[0].collectionId, par = url.split('/documents/')[1].replace(':runQuery', '');
@@ -38,7 +39,7 @@ async function entorno(docs) {
     }
     return new Response('?', { status: 599 });
   };
-  return { env, kv, enviados, merges };
+  return { env, kv, enviados, merges, commits };
 }
 const DOCS = {
   'stores/s1/members/u1': { role: 'admin' }, 'stores/s1/members/u2': { role: 'empleado' },
@@ -85,4 +86,38 @@ test('baja con link válido deja mk en false; con link falso no', async () => {
 test('el mail escapa lo que escribe el local', () => {
   const h = armar({ as: '<b>x</b>', tx: 'hola <script>', tienda: 'A&B', color: 'red' });
   assert.ok(!h.includes('<script>')); assert.ok(h.includes('A&amp;B')); assert.ok(h.includes('#1D4ED8'));
+});
+
+test('cupón con QR: uno por cliente, guardado antes de mandar, y el QR sale en PNG', async () => {
+  const { env, enviados, commits, merges } = await entorno(DOCS);
+  const r = await promo(env, 'u1', 'dueno@x.com', Object.assign({ cup: 1, dias: 15 }, B), 'https://w');
+  assert.equal(r.n, 3); assert.equal(commits.length, 3);
+  const cods = commits.map((w) => w.update.name.split('/').pop());
+  cods.forEach((c) => assert.ok(cuponOk(c)));
+  assert.equal(new Set(cods).size, 3);
+  const f = commits[0].update.fields; assert.equal(f.t.stringValue, 'Martes 2x1'); assert.equal(+f.ex.integerValue, vence(15));
+  assert.ok(merges.some((m) => /public\/info/.test(m.path) && m.body.fields.cup));
+  const v = enviados[0].messageVersions;
+  v.forEach((x, i) => { const c = cods[i]; assert.ok(x.htmlContent.includes('/mail/qr?s=s1&amp;c=' + c)); assert.ok(x.htmlContent.includes(c.slice(0, 3) + '-' + c.slice(3))); });
+  assert.ok(v[0].htmlContent.includes('Válido hasta ' + venceTxt(vence(15))));
+  const png = await qrImg(new URL('https://w/mail/qr?s=s1&c=' + cods[0]));
+  assert.equal(png.headers.get('content-type'), 'image/png');
+  assert.deepEqual([...new Uint8Array(await png.arrayBuffer()).slice(0, 4)], [137, 80, 78, 71]);
+  assert.equal((await qrImg(new URL('https://w/mail/qr?s=s1&c=AAAA0O'))).status, 400);
+});
+test('prueba con cupón: crea un cupón de prueba que se puede canjear', async () => {
+  const { env, enviados, commits } = await entorno(DOCS);
+  const r = await promo(env, 'u1', 'dueno@x.com', Object.assign({ cup: 1, prueba: 1 }, B), 'https://w');
+  assert.equal(commits.length, 1); assert.equal(commits[0].update.fields.pr.booleanValue, true);
+  assert.match(r.c, /^[A-Z2-9]{3}-[A-Z2-9]{3}$/); assert.ok(enviados[0].htmlContent.includes(r.c));
+});
+test('sin cupón no se crea nada', async () => {
+  const { env, enviados, commits } = await entorno(DOCS);
+  await promo(env, 'u1', 'dueno@x.com', B, 'https://w');
+  assert.equal(commits.length, 0); assert.ok(!enviados[0].messageVersions[0].htmlContent.includes('TU CUPÓN'));
+});
+test('vence a las 23:59 de Argentina', () => {
+  const ahora = Date.UTC(2026, 10, 20, 13, 0, 0); // viernes 20/11 10:00 en Argentina
+  assert.equal(new Date(vence(7, ahora)).toISOString(), '2026-11-28T02:59:59.000Z');
+  assert.equal(venceTxt(vence(7, ahora)), 'el viernes 27/11');
 });

@@ -6,6 +6,7 @@
 //   el progreso también va en stores/{sid}/clubp/{hash del teléfono} = { s, n } para que el cliente lo vea en el catálogo
 //   sin exponer su teléfono ni lo que gastó.
 import { doc, getDoc, setDoc, writeBatch, increment, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { abrirCanje } from './cupones.js';
 
 // Teléfono → clave: solo dígitos, sin 54 / 9 / 0 de adelante, últimos 10. Vacío si no parece un teléfono.
 export function telKey(t) {
@@ -105,7 +106,8 @@ export function createClientes(X) {
       (Rl.length ? '<div class="k" style="margin-top:8px"><b>' + Rl.length + '</b> registrados · <b>' + acep + '</b> aceptan recibir promos por email</div>' : '') + '</div>';
     h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><b style="font-size:17px">📧 Promos por email</b></div>' +
       '<div class="k" style="margin-top:4px">' + (acep ? 'Escribí una promo y le llega por mail a los <b>' + acep + '</b> clientes que aceptaron recibirlas. Cada mail trae un botón a tu menú y un link para darse de baja.' : 'Cuando tus clientes se registren y acepten recibir promos, desde acá les mandás un mail a todos juntos.') + '</div>' +
-      '<button type="button" class="go" data-clx="mail" style="margin-top:10px"' + (acep ? '' : ' disabled') + '>Escribir una promo</button></div>';
+      '<button type="button" class="go" data-clx="mail" style="margin-top:10px"' + (acep ? '' : ' disabled') + '>Escribir una promo</button>' +
+      (pb.cup ? '<button type="button" class="go alt" data-clx="cupon" style="margin-top:8px">🎟️ Canjear un cupón</button>' : '') + '</div>';
     if (err) { box.innerHTML = h + '<div class="bn warn">' + esc(err) + '</div>'; return; }
     if (L === null) { box.innerHTML = h + '<div class="card"><div class="empty">Cargando clientes…</div></div>'; return; }
     const F = L.map((x) => Object.assign({ x }, ficha(x, now)));
@@ -168,19 +170,23 @@ export function createClientes(X) {
     const o = dlg('promodlg', '<b style="font-size:19px">📧 Nueva promo por email</b><div class="k" style="margin-top:4px">Le llega a <b>' + acep + '</b> ' + (acep === 1 ? 'cliente' : 'clientes') + '. El mail sale con el nombre de ' + esc(t) + ', un botón a tu menú y el link para darse de baja.</div>' +
       '<label>Asunto</label><input id="pm_as" maxlength="80" placeholder="Ej: Martes 2x1 en hamburguesas 🍔">' +
       '<label>Mensaje</label><textarea id="pm_tx" rows="6" maxlength="1500" placeholder="Ej: Este martes llevá 2 hamburguesas dobles y pagá 1. Válido pidiendo desde el menú, de 20 a 23 hs."></textarea>' +
+      '<label style="display:flex;align-items:center;gap:10px;margin-top:14px;font-weight:700"><input type="checkbox" id="pm_cup" checked style="width:22px;height:22px;margin:0"> 🎟️ Con cupón QR para canjear</label>' +
+      '<div class="k" id="pm_cupk" style="margin-top:4px">Cada cliente recibe su código (se usa una sola vez). Lo escaneás en el local o el cliente te dice el código.</div>' +
+      '<div id="pm_dw"><label>El cupón vale por</label><select id="pm_d"><option value="3">3 días</option><option value="7" selected>7 días</option><option value="15">15 días</option><option value="30">30 días</option></select></div>' +
       '<div class="k" id="pm_er" style="color:#B42318;margin-top:6px"></div>' +
       '<button class="go" id="pm_ok">Mandar a ' + acep + ' ' + (acep === 1 ? 'cliente' : 'clientes') + '</button>' +
       '<button class="go alt" id="pm_pr" style="margin-top:8px">Mandarme una prueba a mí</button>' +
       '<button class="x" data-cerrar="1" style="display:block;margin:12px auto 0;font-size:14px;text-decoration:underline">Cancelar</button>');
-    const val = () => ({ as: o.querySelector('#pm_as').value.trim(), tx: o.querySelector('#pm_tx').value.trim() });
+    const val = () => ({ as: o.querySelector('#pm_as').value.trim(), tx: o.querySelector('#pm_tx').value.trim(), cup: o.querySelector('#pm_cup').checked, dias: +o.querySelector('#pm_d').value });
+    o.querySelector('#pm_cup').onchange = (e) => { o.querySelector('#pm_dw').style.display = e.target.checked ? '' : 'none'; };
     const er = (m) => { o.querySelector('#pm_er').textContent = m || ''; };
     const mandar = (prueba, b) => {
       const v = val(); if (v.as.length < 3) { er('Escribí el asunto.'); return; } if (v.tx.length < 5) { er('Escribí el mensaje.'); return; }
       if (!prueba && !confirm('¿Mandar la promo a ' + acep + ' clientes? No se puede deshacer.')) return;
       er(''); const tx0 = b.textContent; b.disabled = true; b.textContent = 'Mandando…';
-      X.pushFetch('/mail/promo', { sid: X.sid(), as: v.as, tx: v.tx, link: X.catLink(), prueba: prueba ? 1 : 0 }).then((d) => {
+      X.pushFetch('/mail/promo', { sid: X.sid(), as: v.as, tx: v.tx, link: X.catLink(), prueba: prueba ? 1 : 0, cup: v.cup ? 1 : 0, dias: v.dias }).then((d) => {
         b.disabled = false; b.textContent = tx0;
-        if (prueba) { alert('Listo: te mandamos la prueba a ' + (d.a || 'tu email') + '. Revisá también la carpeta de spam o promociones.'); return; }
+        if (prueba) { alert('Listo: te mandamos la prueba a ' + (d.a || 'tu email') + '. Fijate en la pestaña Promociones de tu correo (o en spam).' + (d.c ? '\n\nEl cupón de prueba es ' + d.c + ': podés probar canjearlo con "🎟️ Canjear un cupón".' : '')); const pb = X.pub(); if (d.c && pb) { pb.cup = Date.now(); draw(); } return; }
         o.remove(); alert('¡Promo enviada a ' + d.n + ' clientes! ✓' + (d.falta ? '\n\n' + d.falta : ''));
       }).catch((e) => { b.disabled = false; b.textContent = tx0; er((e && e.message) || 'No se pudo mandar. Probá de nuevo.'); });
     };
@@ -205,6 +211,7 @@ export function createClientes(X) {
     }
     if (b.dataset.clx === 'club') { clubDlg(); return; }
     if (b.dataset.clx === 'mail') { promoDlg(); return; }
+    if (b.dataset.clx === 'cupon') { abrirCanje({ db: X.db, sid: X.sid, uid: () => (X.user() || {}).uid, esc }, ''); return; }
     if (b.dataset.clreg) {
       const v = b.dataset.clreg;
       setDoc(doc(X.db, 'stores', X.sid(), 'public', 'info'), { reg: v }, { merge: true }).then(() => { const pb = X.pub(); if (pb) pb.reg = v; draw(); }).catch(X.fail);
