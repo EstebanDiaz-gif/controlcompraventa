@@ -371,7 +371,7 @@ export default {
     const path = new URL(req.url).pathname;
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req, env) });
     try {
-      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!(env.PIXABAY_KEY || env.PEXELS_KEY), mail: !!(env.BREVO_KEY && env.MAIL_FROM) });
+      if (path === '/' ) return json(req, env, { ok: true, servicio: 'pagos pekeron', sus: !!(env.MP_ACCESS_TOKEN && env.FB_SA), mp: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET), fotos: !!(env.PIXABAY_KEY || env.PEXELS_KEY), mail: !!(env.BREVO_KEY && env.MAIL_FROM), mk: !!env.BREVO_KEY, mf: !!env.MAIL_FROM });
       if (path === '/mp/vuelta' && req.method === 'GET') return await vuelta(req, env);
       if (path === '/mp/comision') return await comision(req, env);
       if (path === '/mp/webhook') return await webhook(req, env);
