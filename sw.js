@@ -1,4 +1,4 @@
-var C='ventas-v198',G='https://www.gstatic.com/firebasejs/10.12.2/';
+var C='ventas-v199',G='https://www.gstatic.com/firebasejs/10.12.2/';
 var F=['./','./index.html','./app.html','./insta.js','./historias.js','./qr.js','./qrcartel.js','./ticket.js','./sanguche.js','./sanguche-admin.js','./sanguche-cat.js','./sueltos.js','./opciones.js','./pedidos.js','./inicio.js','./ui.js','./clientes.js','./cuenta-cli.js','./fotolib.js','./firebase-config.js','./access.js','./plans.js','./almacen.js','./almacen-calc.js','./caja.js','./traspasos.js','./repartos.js','./vendedores.js','./pagos-config.js','./scanner.js','./planilla.js','./agenda.js','./turnos.js','./fotos.js','./temas.js','./intro.js','./promos.js','./promos-ui.js','./demo.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 var X=[G+'firebase-app.js',G+'firebase-auth.js',G+'firebase-firestore.js',G+'firebase-functions.js'];
 self.addEventListener('install',function(e){e.waitUntil(caches.open(C).then(function(c){return Promise.all(F.map(function(u){return fetch(u,{cache:'reload'}).then(function(r){return c.put(u,r)})})).then(function(){return Promise.all(X.map(function(u){return c.add(u).catch(function(){})}))})}));self.skipWaiting()});
@@ -21,6 +21,7 @@ if(u.indexOf(G)===0){
 e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request).then(function(res){if(res&&res.ok){var cp=res.clone();caches.open(C).then(function(c){c.put(e.request,cp)})}return res})}));
 return}
 if(u.indexOf(self.location.origin)!==0)return;
+if(/\.(mp4|webm)(\?|$)/i.test(u))return; // videos de la página: los maneja el navegador (pide por partes)
 var guardar=function(req,res){if(res&&res.ok&&res.type==='basic'&&!res.redirected){var cp=res.clone();caches.open(C).then(function(c){c.put(req,cp)})}return res};
 var sin=u.split('?')[0].split('#')[0];
 if(PRE[sin]){

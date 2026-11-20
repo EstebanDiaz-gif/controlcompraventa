@@ -4,8 +4,20 @@
 /* Si ya está instalada como app, entra directo a la aplicación */
 try{if(window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true||/[?&]app=1/.test(location.search)){location.replace('./app.html')}}catch(e){}
 </script>
-<title>Control Pekeron · Controlá tu negocio desde el celular</title>
-<meta name="description" content="Para tiendas de ropa, almacenes y locales de servicios: caja, fiado, compras, ventas, stock, gastos y catálogo con pedidos por WhatsApp. Probala gratis.">
+<title>Pekeron · Controlá tu negocio desde el celular</title>
+<meta name="description" content="Para almacenes, kioscos, tiendas de ropa, gastronomía y servicios: caja, fiado, stock, ganancia del mes y catálogo online con pedidos por WhatsApp. Hecha en Tucumán.">
+<link rel="canonical" href="https://pekeronapp.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pekeron">
+<meta property="og:locale" content="es_AR">
+<meta property="og:url" content="https://pekeronapp.com/">
+<meta property="og:title" content="Pekeron · Controlá tu negocio desde el celular">
+<meta property="og:description" content="Catálogo online con pedidos por WhatsApp, caja, stock, fiado y ganancia del mes. Para almacenes, kioscos, ropa, gastronomía y servicios.">
+<meta property="og:image" content="https://pekeronapp.com/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Pekeron: controlá tu negocio desde el celular">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#1D3FAF">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png?v=20261017">
@@ -47,7 +59,7 @@ h2{font-size:clamp(26px,4vw,36px);letter-spacing:-.01em;margin:0 0 8px;text-alig
 .sub{text-align:center;color:var(--mut);max-width:620px;margin:0 auto 28px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .f{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px}
-.biz{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.biz{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
 .bz{background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:22px}
 .bz .e{font-size:34px}.bz h3{margin:6px 0 4px;font-size:21px}.bz p{color:var(--mut);margin:0 0 10px;font-size:15px}
 .bz ul{list-style:none;padding:0;margin:0}.bz li{padding:4px 0 4px 24px;position:relative;font-size:15px}.bz li::before{content:"✓";position:absolute;left:0;color:var(--g);font-weight:800}
@@ -76,7 +88,7 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 .dlg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:20;display:flex;align-items:center;justify-content:center;padding:20px}
 .dlg>div{background:var(--card);border-radius:22px;padding:22px;max-width:420px;width:100%}
 .dlg li{margin:8px 0}
-.phs{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:26px}
+.phs{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:26px}
 .ph{margin:0;text-align:center}.ph .fr{background:#111;border-radius:38px;padding:24px 9px 12px;box-shadow:0 24px 48px -20px rgba(16,36,104,.45),0 2px 0 rgba(255,255,255,.08) inset;position:relative}
 .ph .fr:before{content:'';position:absolute;top:9px;left:50%;transform:translateX(-50%);width:26%;height:7px;border-radius:99px;background:#2a2a2a;z-index:2}
 .ph img{display:block;width:100%;height:auto;border-radius:22px;background:#fff}
@@ -87,45 +99,50 @@ footer{padding:30px 0 50px;text-align:center;color:var(--mut);font-size:14px}
 .lli{font-size:140px;text-align:center;line-height:1;filter:drop-shadow(0 18px 24px rgba(16,36,104,.25))}
 @media(max-width:700px){.llv{grid-template-columns:1fr;padding:24px}.lli{display:none}}
 html,body{overflow-x:clip}
+.vids{display:grid;grid-template-columns:repeat(2,minmax(0,300px));justify-content:center;gap:26px;margin-top:8px}
+.vid{margin:0;text-align:center}.vid video{display:block;width:100%;aspect-ratio:9/16;border-radius:24px;background:#0b1640;box-shadow:0 24px 48px -20px rgba(16,36,104,.5)}
+.vid figcaption{margin-top:10px;font-weight:800}.vid figcaption span{display:block;color:var(--mut);font-weight:400;font-size:14px}
+@media(max-width:640px){.vids{display:flex;justify-content:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;gap:16px;padding:6px 20px 14px;margin:0 -20px;-webkit-overflow-scrolling:touch}.vid{flex:0 0 72%;scroll-snap-align:center}}
+.chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:22px}.chips span{background:var(--card);border:1px solid var(--line);border-radius:99px;padding:8px 14px;font-size:15px;font-weight:600}
+.wa{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:8px;background:#1FA855;color:#fff;font-weight:800;text-decoration:none;padding:13px 18px;border-radius:99px;box-shadow:0 10px 26px rgba(0,0,0,.28);font-size:16px}
+.wa svg{width:22px;height:22px;flex:0 0 22px}
+@media(max-width:480px){.wa{padding:12px 15px;font-size:15px}}
 </style></head><body>
-<nav><div class="wrap"><a class="logo" href="#"><img src="./icon-192.png" alt=""><span>CONTROL PEKERON</span></a><a class="btn p s" href="./app.html?app=1">Abrir la app</a></div></nav>
+<nav><div class="wrap"><a class="logo" href="#"><img src="./icon-192.png" alt=""><span>PEKERON</span></a><a class="btn p s" href="./app.html?app=1">Abrir la app</a></div></nav>
 
 <div class="wrap">
 <div class="hero">
 <div>
-<span class="pill">Probala gratis · sin tarjeta</span>
+<span class="pill">Hecha en Tucumán · para comercios de barrio</span>
 <h1>Controlá tu negocio desde el celular</h1>
-<p class="lead"><b>Olvídate de cuadernos, planillas y cajas confusas.</b> Una app que te muestra en tiempo real qué estás vendiendo, qué ganás, qué debes y qué necesitás reponer. Para ropa, almacenes, minimercados y servicios. <b>Funciona sin internet.</b></p>
+<p class="lead"><b>Olvídate de cuadernos, planillas y cajas confusas.</b> Una app que te muestra en tiempo real qué estás vendiendo, qué ganás, qué debes y qué necesitás reponer. Para almacenes, kioscos, ropa, gastronomía y servicios. <b>Funciona sin internet.</b></p>
 <div class="cta"><button class="btn p" id="inst">⬇ Descargar la app</button><a class="btn o" href="./app.html?app=1">Entrar desde el navegador</a></div>
-<div class="note">✓ Gratis para probar · ✓ Se instala en segundos · ✓ Android, iPhone y computadora</div>
+<div class="note">✓ Se instala en segundos · ✓ Android, iPhone y computadora · ✓ Catálogo online incluido</div>
 </div>
 <div class="phone"><div class="scr">
 <div class="hd"><span>Mi tienda</span><span style="font-size:12px;color:var(--g)">● En línea</span></div>
 <div class="tabs"><i class="on">Resumen</i><i>Stock</i><i>Gastos</i></div>
 <div class="mc"><b>Ganancia del mes</b><div style="color:var(--g)">$ 482.500</div></div>
 <div class="mc"><div class="mr"><span>Ventas</span><b style="color:var(--ink);font-size:13px">$ 1.250.000</b></div><div class="mr"><span>Costo de lo vendido</span><b style="color:var(--ink);font-size:13px">$ 610.000</b></div><div class="mr"><span>Gastos</span><b style="color:var(--ink);font-size:13px">$ 157.500</b></div></div>
-<div class="mc"><b>Stock bajo</b><div class="mr" style="margin-top:6px"><span>Adidas Duramo · 40</span><b style="color:#c0392b">1 u.</b></div><div class="mr"><span>Remera negra · M</span><b style="color:#c0392b">2 u.</b></div></div>
+<div class="mc"><b>Stock bajo</b><div class="mr" style="margin-top:6px"><span>Zapatilla running · 40</span><b style="color:#c0392b">1 u.</b></div><div class="mr"><span>Remera negra · M</span><b style="color:#c0392b">2 u.</b></div></div>
 </div></div>
 </div>
 </div>
 
-<section style="background:var(--soft);margin:0 -20px;padding:46px 0;"><div class="wrap">
-<h2>¿Cuánto ganás realmente cada mes?</h2><p class="sub">La mayoría de los comerciantes no saben. Con Pekeron ves en tiempo real: ventas, costos, gastos, ganancias. <b>Es la diferencia entre guesswork y datos reales.</b></p>
-<div class="grid">
-<div class="f"><div class="ic">📊</div><b>Ganancias claras</b><span>No más sorpresas. Sabés exactamente cuánto ganás cada mes, por producto, por cliente.</span></div>
-<div class="f"><div class="ic">⏰</div><b>En tiempo real</b><span>Cada venta actualiza tu ganancia. No esperes al final del mes para darte cuenta.</span></div>
-<div class="f"><div class="ic">🎯</div><b>Decisiones inteligentes</b><span>Ves qué productos tiran, cuál cuesta más, dónde se va la plata. Decidís mejor.</span></div>
-<div class="f"><div class="ic">👥</div><b>Control del equipo</b><span>Cada empleado vende desde su celular. Vos ves todo: quién vende más, quién es confiable.</span></div>
-<div class="f"><div class="ic">💰</div><b>Plata que no se escapa</b><span>Cuando ves dónde se va cada peso, es mucho más fácil cortar lo que no rinde y cuidar lo que sí.</span></div>
-<div class="f"><div class="ic">🔒</div><b>Todo queda registrado</b><span>Cada venta, cada cobro y cada peso que sale de la caja queda anotado con quién y cuándo.</span></div>
+<section id="videos" style="background:var(--soft);padding:46px 0;"><div class="wrap">
+<h2>Mirá cómo funciona</h2><p class="sub">Dos videos cortos con la app real: el catálogo online con pedidos por WhatsApp y el control de un almacén o kiosco.</p>
+<div class="vids">
+<figure class="vid"><video controls playsinline preload="none" poster="img/poster-general.jpg" src="img/video-general.mp4"></video><figcaption>Para cualquier negocio<span>Catálogo online, pedidos y rubros · 28 s</span></figcaption></figure>
+<figure class="vid"><video controls playsinline preload="none" poster="img/poster-kioscos.jpg" src="img/video-kioscos.mp4"></video><figcaption>Almacén, kiosco y drugstore<span>Caja, stock, fiado y ganancia · 1 min</span></figcaption></figure>
 </div></div></section>
 
 <section id="negocios"><div class="wrap">
 <h2>Una app para tu tipo de negocio</h2><p class="sub">Al crear tu tienda elegís qué hace tu negocio y la app se arma con las pantallas que necesitás.</p>
 <div class="biz">
-<div class="bz"><div class="e">👟</div><h3>Ropa y calzado</h3><p>Por mayor y por menor.</p><ul><li>Stock por talle y color</li><li>Escaneá el código de la caja y sale el talle justo <span class="new">NUEVO</span></li><li>Fiado en cuotas semanales</li><li>Cierre de caja con efectivo, transferencia y tarjeta</li><li>Catálogo con talles disponibles</li></ul></div>
+<div class="bz"><div class="e">👟</div><h3>Ropa y calzado</h3><p>Por mayor y por menor.</p><ul><li>Stock por talle y color</li><li>Escaneá el código de la caja y sale el talle justo</li><li>Fiado en cuotas semanales</li><li>Cierre de caja con efectivo, transferencia y tarjeta</li><li>Catálogo con talles disponibles</li></ul></div>
 <div class="bz"><div class="e">🛒</div><h3>Almacén, kiosco y drugstore</h3><p>Para el comercio de barrio que vende de todo.</p><ul><li>Caja rápida: buscás, tocás y cobrás</li><li>Venta suelta por kilo: fiambre, queso, yerba</li><li>Libreta de fiado con el saldo de cada cliente</li><li>Lector de código de barras</li><li>Aumentá precios por % en un toque</li><li>Cierre de caja: ves si falta o sobra</li></ul></div>
-<div class="bz"><div class="e">💄</div><h3>Servicios</h3><p>Peluquerías, barberías, estéticas, uñas.</p><ul><li>Turnos online desde tu catálogo</li><li>Atenciones y precios por forma de pago</li><li>Comisión de cada empleada</li><li>Insumos que se descuentan solos</li><li>Cierre de caja del día <span class="new">NUEVO</span></li></ul></div>
+<div class="bz"><div class="e">🍔</div><h3>Gastronomía</h3><p>Hamburgueserías, pizzerías, rotiserías y cafés.</p><ul><li>Menú online con pedidos por WhatsApp</li><li>Delivery y retiro, con cadetes</li><li>Pedidos por QR en las mesas</li><li>Pantalla de cocina y mozos desde su celular</li><li>Clientes registrados y club de sellos</li></ul></div>
+<div class="bz"><div class="e">💄</div><h3>Servicios</h3><p>Peluquerías, barberías, estéticas, uñas.</p><ul><li>Turnos online desde tu catálogo</li><li>Atenciones y precios por forma de pago</li><li>Comisión de cada empleada</li><li>Insumos que se descuentan solos</li><li>Cierre de caja del día</li></ul></div>
 </div></div></section>
 
 
@@ -134,6 +151,7 @@ html,body{overflow-x:clip}
 <div class="phs">
 <figure class="ph"><div class="fr"><img src="img/prev-ropa.webp" alt="Vista previa del catálogo de una tienda de ropa y zapatillas" loading="lazy" width="585" height="1266"></div><figcaption><b>Ropa y calzado</b><span>Vidriera de destacados que gira sola, talles y precio mayorista</span></figcaption></figure>
 <figure class="ph"><div class="fr"><img src="img/prev-almacen.webp" alt="Vista previa del catálogo de un almacén" loading="lazy" width="585" height="1266"></div><figcaption><b>Almacén, kiosco y drugstore</b><span>Estilo supermercado: categorías, ofertas y carrito rápido</span></figcaption></figure>
+<figure class="ph"><div class="fr"><img src="img/prev-gastro.webp" alt="Vista previa del menú online de una hamburguesería" loading="lazy" width="585" height="1266"></div><figcaption><b>Gastronomía</b><span>Menú con fotos y opciones, envío o retiro</span></figcaption></figure>
 <figure class="ph"><div class="fr"><img src="img/prev-barberia.webp" alt="Vista previa del catálogo de una barbería" loading="lazy" width="585" height="1266"></div><figcaption><b>Barbería</b><span>Servicios con foto, precio y duración, y reserva de turno online</span></figcaption></figure>
 <figure class="ph"><div class="fr"><img src="img/prev-estetica.webp" alt="Vista previa del catálogo de una estética" loading="lazy" width="585" height="1266"></div><figcaption><b>Estética y uñas</b><span>Colores suaves, servicios, productos y turnos</span></figcaption></figure>
 </div>
@@ -150,37 +168,27 @@ html,body{overflow-x:clip}
 <section id="control"><div class="wrap">
 <h2>La caja cierra. Y sabés por qué.</h2><p class="sub">El problema de muchos negocios no es vender poco: es no saber dónde se va la plata. Esto es lo que te da Pekeron para tener el control, aunque no estés en el local.</p>
 <div class="grid">
-<div class="f"><div class="ic">🧮</div><b>Cierre de caja en todos los rubros <span class="new">NUEVO</span></b><span>Se abre con el cambio del día, cada venta suma sola según cómo pagó y al cerrar te dice al instante si falta o sobra.</span></div>
+<div class="f"><div class="ic">🧮</div><b>Cierre de caja en todos los rubros</b><span>Se abre con el cambio del día, cada venta suma sola según cómo pagó y al cerrar te dice al instante si falta o sobra.</span></div>
 <div class="f"><div class="ic">🔁</div><b>Control entre turnos</b><span>El que abre la caja cuenta la plata sin saber cuánto dejó el anterior. Si no coincide, queda marcado con los dos nombres: sabés en qué turno faltó.</span></div>
 <div class="f"><div class="ic">📝</div><b>Cada peso que sale, con motivo</b><span>¿Sacaron plata para un flete o para el proveedor? Queda anotado: cuánto, para qué, a qué hora y quién.</span></div>
-<div class="f"><div class="ic">📷</div><b>Escaneá en lugar de buscar <span class="new">NUEVO</span></b><span>Con la cámara del celu o con una pistola lectora en la compu. Las cajas de zapatillas traen un código por talle: lo escaneás y sale ese talle.</span></div>
+<div class="f"><div class="ic">📷</div><b>Escaneá en lugar de buscar</b><span>Con la cámara del celu o con una pistola lectora en la compu. Las cajas de zapatillas traen un código por talle: lo escaneás y sale ese talle.</span></div>
 <div class="f"><div class="ic">📅</div><b>Fiado en cuotas que se cobra</b><span>Lo fiado se divide solo en cuotas semanales. Ves a quién le toca pagar esta semana, quién está atrasado y le mandás el aviso por WhatsApp.</span></div>
-<div class="f"><div class="ic">🏬</div><b>Sucursales <span class="new">NUEVO</span></b><span>Cada sucursal con su stock, su caja y su fiado. Cada empleado entra a la suya con un código de 4 letras.</span></div>
-<div class="f"><div class="ic">🚚</div><b>Mercadería entre sucursales <span class="new">NUEVO</span></b><span>Escaneás lo que mandás, queda "en camino" y la otra sucursal confirma lo que llegó. Si falta algo, queda registrado quién despachó y quién recibió.</span></div>
-<div class="f"><div class="ic">🛵</div><b>Envíos y repartidores <span class="new">NUEVO</span></b><span>Cobrás el envío con la venta, a cada repartidor se le anota lo que le debés y le pagás cuando quieras. Tus clientes también eligen envío en el catálogo.</span></div>
+<div class="f"><div class="ic">🏬</div><b>Sucursales</b><span>Cada sucursal con su stock, su caja y su fiado. Cada empleado entra a la suya con un código de 4 letras.</span></div>
+<div class="f"><div class="ic">🚚</div><b>Mercadería entre sucursales</b><span>Escaneás lo que mandás, queda "en camino" y la otra sucursal confirma lo que llegó. Si falta algo, queda registrado quién despachó y quién recibió.</span></div>
+<div class="f"><div class="ic">🛵</div><b>Envíos y repartidores</b><span>Cobrás el envío con la venta, a cada repartidor se le anota lo que le debés y le pagás cuando quieras. Tus clientes también eligen envío en el catálogo.</span></div>
 </div>
 <div class="note" style="margin-top:18px;text-align:center"><b>Un consejo que vale para cualquier negocio:</b> cerrá la caja todos los días, aunque sea con poco movimiento. Una diferencia chica que se repite cada día es la que más plata se lleva a fin de mes.</div>
 </div></section>
 
-<section id="funciones"><div class="wrap">
-<h2>Todo lo que necesitás, sin complicarte</h2><p class="sub">Hecha para comerciantes: simple de usar, sin planillas ni cuadernos.</p>
-<div class="grid">
-<div class="f"><div class="ic">🛒</div><b>Compras y ventas</b><span>Cargá lo que comprás y lo que vendés, por mayor o por menor, con el precio ya armado.</span></div>
-<div class="f"><div class="ic">📦</div><b>Stock siempre al día</b><span>Por unidad, por talle o por kilo. Sabés qué tenés y qué se está terminando.</span></div>
-<div class="f"><div class="ic">💵</div><b>Caja rápida</b><span>Buscá el producto o escanealo, sumá al carrito y cobrá. Te calcula el vuelto.</span></div>
-<div class="f"><div class="ic">📒</div><b>Fiado sin cuaderno</b><span>Cada cliente con lo que debe, sus compras y sus pagos. Le recordás el saldo por WhatsApp.</span></div>
-<div class="f"><div class="ic">📈</div><b>Ganancia real</b><span>Costo, ventas y gastos del mes: ves cuánto ganás de verdad.</span></div>
-<div class="f"><div class="ic">🌐</div><b>Catálogo online</b><span>Una página con tus productos y fotos. Tus clientes eligen y te mandan el pedido por WhatsApp.</span></div>
-<div class="f"><div class="ic">💄</div><b>Servicios y comisiones</b><span>Para peluquerías, maquillaje y más: atenciones, comisión de cada empleada e insumos.</span></div>
-<div class="f"><div class="ic">👥</div><b>Equipo con roles</b><span>Invitá a tus empleados con un código de 4 letras: entran sin email ni contraseña. Ellos venden; solo vos ves costos y ganancias.</span></div>
-<div class="f"><div class="ic">📶</div><b>Sin internet también</b><span>Seguí trabajando sin señal. Cuando vuelve la conexión, todo se sincroniza.</span></div>
-<div class="f"><div class="ic">🧾</div><b>Gastos del local</b><span>Alquiler, sueldos, servicios. Todo descontado de tu ganancia mensual.</span></div>
-</div></div></section>
+<section id="funciones" style="padding-top:10px"><div class="wrap">
+<h2>Y además</h2><p class="sub">Todo en la misma app, sin planillas ni cuadernos.</p>
+<div class="chips"><span>🛒 Compras a proveedores</span><span>🧾 Gastos del local</span><span>👥 Empleados con código, sin email</span><span>🔐 Solo vos ves costos y ganancias</span><span>📶 Funciona sin internet</span><span>🏬 Varias sucursales</span><span>🛵 Envíos y repartidores</span><span>📄 Informes en PDF</span></div>
+</div></section>
 
 <section><div class="wrap"><h2>Empezás en 3 pasos</h2><p class="sub">En unos minutos ya estás cargando tu primera venta.</p>
-<div class="steps"><div class="st"><b>Instalá la app</b><span>Un toque en “Descargar la app” y queda en tu pantalla de inicio.</span></div><div class="st"><b>Creá tu tienda</b><span>Elegí qué hace tu negocio (ropa, almacén o servicios) y el plan. Hoy no pagás nada.</span></div><div class="st"><b>Cargá y vendé</b><span>Cargá tus productos o servicios y sumá a tu equipo con un código.</span></div></div></div></section>
+<div class="steps"><div class="st"><b>Instalá la app</b><span>Un toque en “Descargar la app” y queda en tu pantalla de inicio.</span></div><div class="st"><b>Creá tu tienda</b><span>Elegí qué hace tu negocio (almacén, ropa, gastronomía o servicios) y el plan.</span></div><div class="st"><b>Cargá y vendé</b><span>Cargá tus productos o servicios y sumá a tu equipo con un código.</span></div></div></div></section>
 
-<section id="planes"><div class="wrap"><h2>Planes simples</h2><p class="sub">Empezás a usarla hoy mismo, sin tarjeta. Elegís el plan al registrarte y lo cambiás cuando quieras.</p>
+<section id="planes"><div class="wrap"><h2>Planes simples</h2><p class="sub">Elegís el plan al registrarte y lo cambiás cuando quieras.</p>
 <div class="mons" id="mons"><button data-m="ARS">🇦🇷 Argentina</button><button data-m="USD">🌎 Otros países</button></div>
 <div class="mons" id="rubs"><button data-r="com">🛍️ Comercios</button><button data-r="gas">🍔 Gastronomía</button></div>
 <div class="plans" id="plans"></div>
@@ -188,24 +196,27 @@ html,body{overflow-x:clip}
 
 <section style="background:var(--soft);margin:0 -20px;padding:46px 0;"><div class="wrap" style="max-width:760px"><h2>Preguntas frecuentes</h2><div style="height:18px"></div>
 <details><summary>¿Por qué Pekeron y no Excel o cuadernos?</summary><p>Excel y cuadernos NO te dicen en tiempo real cuánto ganás. Con Pekeron ves al instante: ventas, costos, gastos, ganancia. Además, tus empleados no necesitan cuadernos: carguen desde el celular y vos ves todo. Cero papeles, cero confusiones.</p></details>
-<details><summary>¿Tengo que pagar para probarla?</summary><p>No. Te registrás sin tarjeta y no se cobra nada al registrarte. Elegís un plan para saber cuánto vas a pagar después, pero el cobro empieza recién cuando termina la prueba. Sin tarjeta.</p></details>
+<details><summary>¿Cómo empiezo?</summary><p>Escribinos por WhatsApp y te mostramos la app funcionando con tu tipo de negocio. Si preferís, te la dejamos lista con el servicio Llave en mano.</p></details>
 <details><summary>¿Mis empleados también pagan?</summary><p>No. Quien se une con el código de invitación usa la app dentro de tu plan. Cada plan incluye una cantidad de administradores y empleados. Vos pagas por uno, ellos trabajan sin costo adicional.</p></details>
 <details><summary>¿Qué pasa si dejo de pagar?</summary><p>Tus datos no se pierden. La app queda en pausa hasta que renueves, y cuando renovás seguís exactamente donde estabas. Sin borrar nada.</p></details>
 <details><summary>¿Funciona sin internet?</summary><p>Sí. Podés seguir cargando ventas sin señal y se sincronizan solas cuando vuelve la conexión. Perfecto para negocios con mala señal.</p></details>
 <details><summary>¿Se instala desde una tienda de apps?</summary><p>No hace falta. Se instala directo desde esta página, en segundos, y no ocupa casi espacio (2 MB). Sin App Store, sin colas.</p></details>
-<details><summary>¿Es seguro confiarle mis datos del negocio?</summary><p>Totalmente. Tus datos están encriptados y guardados en servidores seguros. Solo vos y tu equipo (con el código que vos das) ven la información de tu negocio.</p></details>
+<details><summary>¿Es seguro confiarle mis datos del negocio?</summary><p>Tus datos se guardan en servidores de Google (Firebase) y viajan siempre por conexión cifrada. Solo vos y las personas que sumás a tu equipo ven la información de tu negocio, y tus empleados no ven costos ni ganancias. Podés leer cómo los cuidamos en la <a href="./privacidad.html#privacidad">Política de privacidad</a>.</p></details>
 <details><summary>¿Me pueden cargar los productos?</summary><p>Sí. Con el servicio Llave en mano cargamos tus productos o servicios con fotos y precios, armamos tu catálogo, sumamos a tu equipo y te enseñamos a usar la app. Escribinos por WhatsApp y te contamos cómo es.</p></details>
 <details><summary>¿Cómo controlo la caja si no estoy en el local?</summary><p>Cada día se abre la caja con el cambio y se cierra contando la plata. Las ventas suman solas según cómo pagó cada cliente, y si alguien saca plata tiene que anotar para qué. Al cerrar, vos ves desde tu celular cuánto debería haber, cuánto contaron y si faltó o sobró. Y en cada cambio de turno, el que abre cuenta sin saber cuánto dejó el anterior: si no coincide, queda marcado con los dos nombres.</p></details>
 <details><summary>¿Puedo tener más de una sucursal?</summary><p>Sí. Cada sucursal tiene su propio stock, caja, fiado y catálogo, y vos las ves todas desde tu cuenta. Cada empleado entra a su sucursal con su código. Las personas del plan se cuentan sumando todas las sucursales.</p></details>
+<details><summary>¿Sirve para gastronomía?</summary><p>Sí. Hamburgueserías, pizzerías, rotiserías y cafés tienen su menú online con fotos y opciones, pedidos por WhatsApp con envío o retiro, pedidos por QR en las mesas, pantalla de cocina, mozos y cadetes desde su celular, y club de sellos para que tus clientes vuelvan.</p></details>
 <details><summary>¿Sirve para mi almacén o minimercado?</summary><p>Sí. Al crear la tienda elegís tu rubro (almacén, kiosco, drugstore, minimercado, carnicería, farmacia, ferretería…): tenés caja rápida, venta por kilo, libreta de fiado, aumento de precios por categoría. Tus empleados cobran desde su celular y vos ves la ganancia real del mes.</p></details>
 </div></section>
 
-<div class="wrap"><div class="band"><h2>Descubrí cuánto ganas realmente</h2><p>Probala gratis. Sin tarjeta, sin compromiso. En 2 minutos estás usando la app.</p><button class="btn p" id="inst2">⬇ Descargar la app ahora</button></div></div>
-<footer><div class="wrap">© Control Pekeron · Hecha en Tucumán, Argentina<br>Desarrollada por <b>Impulso Digital</b><br><a href="./privacidad.html#terminos">Términos y condiciones</a> · <a href="./privacidad.html#privacidad">Política de privacidad</a></div></footer>
+<div class="wrap"><div class="band"><h2>Descubrí cuánto ganás realmente</h2><p>Te mostramos la app funcionando con tu tipo de negocio, sin compromiso.</p><div class="cta" style="justify-content:center;margin-top:0"><a class="btn p wademo" target="_blank" rel="noopener" href="https://wa.me/5493816031467">💬 Pedí una demo por WhatsApp</a><button class="btn o" id="inst2" style="color:#fff;border-color:rgba(255,255,255,.55)">⬇ Descargar la app</button></div></div></div>
+<footer><div class="wrap">© Pekeron · Hecha en Tucumán, Argentina<br>Desarrollada por <b>Impulso Digital</b><br><a href="./privacidad.html#terminos">Términos y condiciones</a> · <a href="./privacidad.html#privacidad">Política de privacidad</a></div></footer>
 
+<a class="wa wademo" target="_blank" rel="noopener" href="https://wa.me/5493816031467" aria-label="Pedí una demo por WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.8-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.4-.3z"/></svg>Pedí una demo</a>
 <div class="dlg" id="dlg" hidden><div><b style="font-size:20px">Instalar la app</b><div id="dsteps"></div><button class="btn p" id="dok" style="width:100%;margin-top:14px">Entendido</button></div></div>
 
-<script>try{var v0=new URLSearchParams(location.search).get('v');if(v0)localStorage.setItem('pk_vend',v0.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10))}catch(e){}</script>
+<script>try{var v0=new URLSearchParams(location.search).get('v');if(v0)localStorage.setItem('pk_vend',v0.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10))}catch(e){}
+(function(){var vd='';try{vd=localStorage.getItem('pk_vend')||''}catch(e){}var m='Hola! Vi la página de Pekeron y quiero ver cómo funciona en mi negocio.'+(vd?' (Código de vendedor: '+vd+')':'');document.querySelectorAll('.wademo').forEach(function(a){a.href='https://wa.me/5493816031467?text='+encodeURIComponent(m)})})();</script>
 <script type="module">
 import {DEFAULT_CONFIG,PLAN_IDS} from './plans.js';
 var $=function(i){return document.getElementById(i)};
