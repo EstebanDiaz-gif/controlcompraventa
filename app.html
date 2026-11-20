@@ -3,9 +3,9 @@
 <title>Control de compras y ventas</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <meta name="theme-color" content="#1D3FAF">
-<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192-navidad.png">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
-<script>/* Temporada navideña (20/11 al 6/1): gorrito de Papá Noel en el logo */(function(){var d=new Date(),m=d.getMonth(),n=d.getDate();if((m==10&&n>=20)||m==11||(m==0&&n<=6))document.documentElement.classList.add('navi')})()</script>
+<script>/* Temporada navideña (20/11 al 6/1): logo con gorrito de Papá Noel */var PK_NAVI=(function(){var d=new Date(),m=d.getMonth(),n=d.getDate();return (m==10&&n>=20)||m==11||(m==0&&n<=6)})();var PK_LOGO=PK_NAVI?'./icon-192-navidad.png':'./icon-192.png';</script>
 <style>
 :root{--bg:#FFF6E9;--card:#f4f3f0;--ink:#102468;--mut:#63645e;--line:rgba(0,0,0,.1);--buy:#FFD6AA;--sell:#1D3FAF;--onc:#fff;--hero:#bdbdb8;--nav:#bdbdb8;--btn:#1D3FAF;--btnink:#FFF6E9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121211;--card:#1d1d1b;--ink:#efefea;--mut:#9c9d96;--line:rgba(255,255,255,.12);--buy:#FFD6AA;--sell:#5B8FFF;--onc:#0a0a0a;--nav:#1d1d1b;--btn:#1D3FAF;--btnink:#FFF6E9}}
@@ -28,7 +28,7 @@ h1{font-size:26px;font-weight:900;font-stretch:125%;letter-spacing:-.01em;line-h
 b,strong{font-weight:700}
 
 /* marca: copia el logo (PEKERON con APP entre líneas) */
-.brand{display:inline-flex;flex-direction:column;line-height:1}.lgw{position:relative;display:inline-flex;line-height:0}.navi .lgw::after{content:'';position:absolute;left:-30%;top:-44%;width:92%;height:70%;background:url(img/gorro.svg) no-repeat center/contain;transform:rotate(-14deg);pointer-events:none}
+.brand{display:inline-flex;flex-direction:column;line-height:1}
 .brand b{font-weight:900;font-stretch:125%;font-size:23px;letter-spacing:-.015em}
 .brand span{display:flex;align-items:center;gap:7px;font-weight:800;font-size:9px;letter-spacing:.32em;margin-top:5px}
 .brand i{flex:1;height:1.5px;background:currentColor}
@@ -974,7 +974,7 @@ if(TAB=='caja'&&ventaEnCaja()){if($('es'))refreshSell();else if(!(MAN&&type=='v'
 if(ROLE=='admin'){if(TAB=='att')drawAtt();else if(TAB=='svc'){var fa=document.activeElement;if(!(fa&&fa.closest&&fa.closest('#s-svc')&&/INPUT|SELECT|TEXTAREA/.test(fa.tagName)))drawSvc()}else if(TAB=='res')drawRes();else if(TAB=='hist')drawHist();else if(TAB=='stk')drawStk();else if(TAB=='team')drawTeam();else if(TAB=='gas')drawGas();else if(TAB=='add'){if($('es'))refreshSell();else if($('prods'))fillList()}}
 else{if(TAB=='att')drawAtt();else if(TAB=='stk')drawStk();else if(TAB=='sell'){if($('es'))refreshSell();else drawSell()}}}
 
-var BRAND='<div class="brand"><span class="lgw" style="margin-right:8px"><img src="./icon-192.png" alt="Pekeron" style="width:28px;height:28px;border-radius:6px"></span><b>pekeron</b></div>';
+var BRAND='<div class="brand"><img src="'+PK_LOGO+'" alt="Pekeron" style="width:28px;height:28px;border-radius:6px;margin-right:8px"><b>pekeron</b></div>';
 function drawHdr(){
 var o=STORES.map(function(s){return '<option value="'+esc(s.id)+'"'+(s.id==SID?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'<option value="__new">＋ Crear tienda nueva</option><option value="__join">＋ Unirme con un código</option>'+(VEND?'<option value="__vend">🤝 Mi panel de vendedor</option>':'');
 var tmh=temaEfectivo(PUB,GLOB,Date.now());
