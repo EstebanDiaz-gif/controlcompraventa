@@ -48,6 +48,7 @@ async function brevo(env, cuerpo) {
 
 // POST /mail/promo  { sid, as, tx, link, prueba }  (con sesión de un administrador del local)
 export async function promo(env, uid, email, b, origen) {
+  if (!env.MAIL_FROM) env = { ...env, MAIL_FROM: 'promos@pekeronapp.com' };
   const fail = (m, h) => { const e = new Error(m); e.http = h || 400; throw e; };
   if (!env.BREVO_KEY || !env.MAIL_FROM) fail('El envío de mails todavía no está activado. Avisale a Pekeron App.', 503);
   const sid = String(b.sid || ''), as = String(b.as || '').trim().slice(0, 80), tx = String(b.tx || '').trim().slice(0, 1500);
